@@ -1,8 +1,8 @@
 from django.urls import include, path
 
 urlpatterns = [
-    path("multiposter/", include("multiposter.urls")),
+    path("api/social/", include("social.urls")),
 ]
 
-handler404 = "multiposter.views.common.not_found"
-handler500 = "multiposter.views.common.server_error"
+handler404 = "social.views.common.not_found"
+handler500 = "social.views.common.server_error"

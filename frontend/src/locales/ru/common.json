@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Multiposter",
+    "name": "AnycastStudio",
     "version": "v{{version}}"
   },
   "topBar": {
