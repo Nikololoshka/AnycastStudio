@@ -1,0 +1,14 @@
+{
+  "status": {
+    "waiting": "Waiting for browser…",
+    "disconnecting": "Disconnecting…",
+    "signedIn": "Signed in as {{name}}",
+    "none": "No account connected"
+  },
+  "actions": {
+    "connect": "Connect {{platform}}",
+    "disconnect": "Disconnect",
+    "disconnecting": "Disconnecting…",
+    "cancel": "Cancel"
+  }
+}

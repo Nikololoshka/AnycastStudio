@@ -1,0 +1,14 @@
+services:
+  multiposter:
+    build: .
+    image: multiposter-server
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Only reachable from the host itself; nginx on the host proxies to it.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - multiposter-data:/data
+
+volumes:
+  multiposter-data:

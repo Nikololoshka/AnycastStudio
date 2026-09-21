@@ -1,0 +1,111 @@
+{
+  "screen": {
+    "title": "Новый пост",
+    "subtitle": "Напишите один раз, затем настройте выход на каждой площадке.",
+    "tabsLabel": "Настройки поста",
+    "postTab": "Пост"
+  },
+  "sections": {
+    "video": "Видео",
+    "text": "Текст",
+    "timing": "Публикация"
+  },
+  "text": {
+    "titleLabel": "Заголовок",
+    "titlePlaceholder": "О чём это видео?",
+    "descriptionLabel": "Описание",
+    "descriptionPlaceholder": "Добавьте контекст, ссылки или упоминания",
+    "characterCount_one": "{{count}} символ",
+    "characterCount_few": "{{count}} символа",
+    "characterCount_many": "{{count}} символов",
+    "characterCount_other": "{{count}} символа",
+    "hashtagsLabel": "Хештеги",
+    "hashtagsPlaceholder": "путешествия, закулисье",
+    "hashtagsHint": "Нажмите Enter, чтобы добавить. Несколько разделяйте запятыми."
+  },
+  "timing": {
+    "modeLabel": "Когда публиковать",
+    "now": "Опубликовать сразу",
+    "schedule": "Запланировать",
+    "publishOn": "Дата",
+    "publishAt": "Время",
+    "calendarLabel": "Дата публикации",
+    "timeZoneHint": "Используется часовой пояс вашего компьютера.",
+    "planTitle": "Что произойдёт в это время",
+    "appMustRun": "Держите приложение открытым до этого момента. У этих платформ нет своего планировщика, поэтому публикует приложение с вашего компьютера.",
+    "modes": {
+      "native": "{{platform}} планирует публикацию на своей стороне. Приложение можно закрыть.",
+      "stagedPublish": "Загрузим заранее, опубликуем точно в указанное время.",
+      "deferredUpload": "Загрузка начнётся в указанное время, пост появится через несколько минут.",
+      "unsupported": "{{platform}} не умеет откладывать публикацию."
+    },
+    "pastTime": "Это время уже прошло, поэтому пост уйдёт сразу.",
+    "timeSlotsLabel": "Варианты времени",
+    "openTimeSlots": "Выбрать время"
+  },
+  "video": {
+    "drop": "Перетащите видео сюда",
+    "release": "Отпустите, чтобы добавить видео",
+    "reading": "Читаем видео…",
+    "browsePrefix": "или",
+    "browse": "выберите файл",
+    "formats": "MP4, MOV, WebM, AVI или MKV.",
+    "readFailed": "Не удалось прочитать файл как видео. Попробуйте MP4, MOV, WebM, AVI или MKV.",
+    "remove": "Удалить видео",
+    "sizeMegabytes": "{{value}} МБ",
+    "filterName": "Видео"
+  },
+  "platformTab": {
+    "publishTo": "Публиковать в {{platform}}",
+    "publishToHint": "Включить {{platform}} при нажатии «Опубликовать». Переключение: {{shortcut}}.",
+    "connectHint": "Подключите аккаунт {{platform}}, чтобы включить.",
+    "options": "Настройки {{platform}}"
+  },
+  "summary": {
+    "title": "Сводка",
+    "noVideo": "Видео не выбрано",
+    "untitled": "Пост без заголовка",
+    "chooseVideo": "Выберите видео на вкладке «Пост»",
+    "noAccounts": "Нет подключённых аккаунтов. Откройте вкладку площадки и подключите аккаунт.",
+    "immediate": "Выйдет сразу после публикации",
+    "publish": "Опубликовать",
+    "publishing": "Публикуем…",
+    "schedule": "Запланировать",
+    "scheduling": "Планируем…",
+    "needsVideo": "Добавьте видео для публикации.",
+    "needsPlatform": "Включите хотя бы одну площадку на её вкладке.",
+    "reset": "Настроить заново"
+  },
+  "progress": {
+    "enable": "Публиковать в {{platform}}",
+    "disable": "Не публиковать в {{platform}}",
+    "barLabel": "Прогресс {{platform}}",
+    "off": "Выкл.",
+    "percent": "{{value}}%",
+    "status": {
+      "idle": "Готово",
+      "validating": "Проверка",
+      "preparing": "Подготовка",
+      "uploading": "Загрузка",
+      "processing": "Обработка",
+      "publishing": "Публикация",
+      "scheduled": "Запланировано",
+      "completed": "Опубликовано",
+      "failed": "Ошибка",
+      "cancelled": "Отменено"
+    },
+    "scheduledFor": "в {{time}}",
+    "cancelSchedule": "Отменить отложенную публикацию в {{platform}}",
+    "cancel": "Отменить"
+  },
+  "errors": {
+    "network": "Сеть",
+    "authentication": "Вход",
+    "authorization": "Доступ",
+    "validation": "Настройки поста",
+    "rate_limit": "Лимит запросов",
+    "platform": "Платформа",
+    "file": "Файл",
+    "unknown": "Ошибка"
+  }
+}

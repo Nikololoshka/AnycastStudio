@@ -1,0 +1,14 @@
+{
+  "status": {
+    "waiting": "Ожидаем браузер…",
+    "disconnecting": "Отключаем…",
+    "signedIn": "Вы вошли как {{name}}",
+    "none": "Аккаунт не подключён"
+  },
+  "actions": {
+    "connect": "Подключить {{platform}}",
+    "disconnect": "Отключить",
+    "disconnecting": "Отключаем…",
+    "cancel": "Отмена"
+  }
+}

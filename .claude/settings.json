@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(cargo --version)",
+      "Bash(rustc --version)",
+      "Bash(rtk *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ],
+    "ask": [
+      "Read(./agents)"
+    ]
+  },
+  "skillOverrides": {
+    "caveman-review": "user-invocable-only",
+    "caveman-stats": "user-invocable-only"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true
+  },
+  "outputStyle": "concise",
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "plansDirectory": "./agents/plans"
+}

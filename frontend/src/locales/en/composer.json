@@ -1,0 +1,109 @@
+{
+  "screen": {
+    "title": "New post",
+    "subtitle": "Write it once, then adjust how it goes out on each platform.",
+    "tabsLabel": "Post settings",
+    "postTab": "Post"
+  },
+  "sections": {
+    "video": "Video",
+    "text": "Text",
+    "timing": "Publishing"
+  },
+  "text": {
+    "titleLabel": "Title",
+    "titlePlaceholder": "What's this video about?",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Add context, links or credits",
+    "characterCount_one": "{{count}} character",
+    "characterCount_other": "{{count}} characters",
+    "hashtagsLabel": "Hashtags",
+    "hashtagsPlaceholder": "travel, behindthescenes",
+    "hashtagsHint": "Press Enter to add. Separate several with commas."
+  },
+  "timing": {
+    "modeLabel": "When to publish",
+    "now": "Publish right away",
+    "schedule": "Schedule for later",
+    "publishOn": "Date",
+    "publishAt": "Time",
+    "calendarLabel": "Publish date",
+    "timeZoneHint": "Uses your computer's time zone.",
+    "planTitle": "What happens at that time",
+    "appMustRun": "Keep the app open until then. These platforms have no scheduling of their own, so the app publishes from your computer.",
+    "modes": {
+      "native": "{{platform}} schedules it on its side. You can close the app.",
+      "stagedPublish": "Uploaded ahead of time, published exactly at that moment.",
+      "deferredUpload": "Upload starts at that moment; the post appears a few minutes later.",
+      "unsupported": "{{platform}} cannot schedule posts."
+    },
+    "pastTime": "That moment has already passed, so the post goes out right away.",
+    "timeSlotsLabel": "Time options",
+    "openTimeSlots": "Choose a time"
+  },
+  "video": {
+    "drop": "Drop a video here",
+    "release": "Release to add video",
+    "reading": "Reading video…",
+    "browsePrefix": "or",
+    "browse": "browse files",
+    "formats": "MP4, MOV, WebM, AVI or MKV.",
+    "readFailed": "This file couldn't be read as a video. Try MP4, MOV, WebM, AVI or MKV.",
+    "remove": "Remove video",
+    "sizeMegabytes": "{{value}} MB",
+    "filterName": "Video"
+  },
+  "platformTab": {
+    "publishTo": "Publish to {{platform}}",
+    "publishToHint": "Include {{platform}} when you press Publish. Toggle with {{shortcut}}.",
+    "connectHint": "Connect your {{platform}} account to turn this on.",
+    "options": "{{platform}} options"
+  },
+  "summary": {
+    "title": "Summary",
+    "noVideo": "No video yet",
+    "untitled": "Untitled post",
+    "chooseVideo": "Choose a video in Post",
+    "noAccounts": "No accounts connected. Open a platform tab and connect an account.",
+    "immediate": "Goes out as soon as you publish",
+    "publish": "Publish",
+    "publishing": "Publishing…",
+    "schedule": "Schedule",
+    "scheduling": "Scheduling…",
+    "needsVideo": "Add a video to publish.",
+    "needsPlatform": "Turn on at least one platform in its tab.",
+    "reset": "Start over"
+  },
+  "progress": {
+    "enable": "Publish to {{platform}}",
+    "disable": "Do not publish to {{platform}}",
+    "barLabel": "{{platform}} progress",
+    "off": "Off",
+    "percent": "{{value}}%",
+    "status": {
+      "idle": "Ready",
+      "validating": "Checking",
+      "preparing": "Preparing",
+      "uploading": "Uploading",
+      "processing": "Processing",
+      "publishing": "Publishing",
+      "scheduled": "Scheduled",
+      "completed": "Published",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "scheduledFor": "at {{time}}",
+    "cancelSchedule": "Cancel the scheduled publish to {{platform}}",
+    "cancel": "Cancel"
+  },
+  "errors": {
+    "network": "Network",
+    "authentication": "Sign-in",
+    "authorization": "Permissions",
+    "validation": "Post settings",
+    "rate_limit": "Rate limit",
+    "platform": "Platform",
+    "file": "File",
+    "unknown": "Error"
+  }
+}

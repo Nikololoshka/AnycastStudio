@@ -1,0 +1,29 @@
+{
+  "app": {
+    "name": "Multiposter",
+    "version": "v{{version}}"
+  },
+  "topBar": {
+    "appDataFolder": "Open settings folder",
+    "logsFolder": "Open logs folder",
+    "theme": {
+      "system": "Theme: follow system",
+      "light": "Theme: light",
+      "dark": "Theme: dark"
+    },
+    "language": {
+      "en": "Language: English",
+      "ru": "Language: Russian"
+    }
+  },
+  "window": {
+    "minimize": "Minimize window",
+    "maximize": "Maximize window",
+    "restore": "Restore window",
+    "close": "Close window"
+  },
+  "history": {
+    "title": "History",
+    "empty": "Posts you publish or schedule will be listed here."
+  }
+}
