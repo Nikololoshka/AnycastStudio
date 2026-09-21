@@ -15,6 +15,14 @@ ALLOWED_HOSTS = ["testserver"]
 
 DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 
+# No Redis in tests. Each test case clears the cache, so per-process counters are enough.
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+
+TOKEN_ENCRYPTION_KEYS = ["v1:0OCGKlCLB8oeiYM9wmmDs9vjshMpdvlPrN3n-9Gc_Rk="]
+
+# Hashing a password with Argon2 dominates the runtime of an authentication test.
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
 POLL_TIMEOUT = 0.3
 POLL_INTERVAL = 0.05
 

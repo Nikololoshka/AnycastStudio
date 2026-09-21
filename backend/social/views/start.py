@@ -1,9 +1,12 @@
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 
+from common.guards import rate_limit, require_post
+from common.responses import api_response
+
 from .. import sessions
 from ..providers import PROVIDERS
-from .common import api_response, rate_limit, require_client_token, require_post
+from .broker import require_client_token
 
 
 @csrf_exempt

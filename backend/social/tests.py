@@ -25,7 +25,7 @@ REDIRECT_URI = "https://auth.test/api/social/auth_facebook/callback"
 SECRET = "test-app-secret-DO-NOT-LEAK"
 ACCESS_TOKEN = "EAAB-fake-access-token-123"
 CODE = "the-code"
-CLIENT_TOKEN = "test-client-token"  # see settings_test
+CLIENT_TOKEN = "test-client-token"  # see config/settings/test.py
 CLIENT_AUTH = {"Authorization": f"Bearer {CLIENT_TOKEN}"}
 
 

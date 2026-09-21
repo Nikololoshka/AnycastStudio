@@ -11,8 +11,14 @@ override what differs. Select one with DJANGO_SETTINGS_MODULE.
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # Project root (the directory containing manage.py).
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# Load backend/.env if it exists. Real environment variables always win, so a
+# container or a CI job can override any of it without editing a file.
+load_dotenv(BASE_DIR / ".env", override=False)
 
 
 def env_bool(name, default=False):
@@ -36,40 +42,69 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or ("dev-insecure-key" if DEBUG
 if not SECRET_KEY:
     raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is off")
 
-# Public host name of the server, e.g. "auth.example.com". OAuth redirect URIs are built
-# from it: https://<PUBLIC_HOST>/api/social/auth_<provider>/callback.
+# Origin the browser uses, scheme included. OAuth redirect URIs are built from it.
+# Locally it is the Vite dev server, which proxies /api to this process, so the
+# redirect lands on the same origin as the SPA.
+PUBLIC_ORIGIN = os.environ.get("PUBLIC_ORIGIN", "http://localhost:5173").rstrip("/")
+
+# Host name only. Still used by the legacy broker endpoints, which build their
+# redirect URI as https://<PUBLIC_HOST>/api/social/auth_<provider>/callback.
 PUBLIC_HOST = os.environ.get("PUBLIC_HOST", "localhost")
+
+# The SPA is served from PUBLIC_ORIGIN and posts back to this process, so its
+# origin has to be trusted for CSRF.
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", PUBLIC_ORIGIN)
 
 # Host names this server answers to. Requests with any other Host header are rejected
 # with 400. Defaults to the public host plus local addresses.
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", f"{PUBLIC_HOST},localhost,127.0.0.1")
 
-# Deliberately minimal: no admin, auth, sessions or static files. The broker only
-# needs its own app; contenttypes is required by Django's model machinery.
+# The admin is installed but never published: accounts are created through it over
+# an SSH tunnel, so it is not routed by any public server config.
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
+    "django.contrib.auth",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.admin",
+    "accounts",
     "social",
 ]
 
-# No session, CSRF or auth middleware: the API is called by the desktop app, not by
-# a logged-in browser. The POST views are marked csrf_exempt explicitly.
+# The API is called by a signed-in browser on the same origin, so sessions, auth and
+# CSRF all apply. The only view still exempt from CSRF is the OAuth callback, which
+# is a GET the provider redirects to and which defends itself with `state`.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
 
-# Templates are loaded from each app's templates/ directory (the callback result page).
+# Templates are loaded from each app's templates/ directory (the callback result page
+# and the admin). The context processors are the ones the admin needs.
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [],
         "APP_DIRS": True,
-        "OPTIONS": {"context_processors": []},
+        "OPTIONS": {
+            "context_processors": [
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.request",
+            ]
+        },
     },
 ]
+
+STATIC_URL = "static/"
 
 # The server runs under uvicorn (ASGI) so the async /poll view can hold long-poll
 # connections without tying up a thread each.
@@ -120,11 +155,48 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Cache ---
 
-# Used only for rate-limit counters. LocMemCache is per process, so with several
-# workers each one counts separately; switch to a shared cache (e.g. Redis) then.
+# Redis, because the web process and the worker must share the rate-limit counters
+# and the session cache. It is also the Celery broker, so nothing new is introduced.
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
+
 CACHES = {
-    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": REDIS_URL},
 }
+
+# --- Authentication ---
+
+AUTH_USER_MODEL = "accounts.User"
+
+# Argon2 first: it is the slowest to attack of the hashers Django ships.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 10}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+# Sessions live in the database, read through the Redis cache. Fourteen days,
+# refreshed on every request, so an active person is not signed out mid-upload.
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+SESSION_COOKIE_AGE = 14 * 24 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+# The SPA reads this cookie and echoes it in the X-CSRFToken header, so it is not HttpOnly.
+CSRF_COOKIE_HTTPONLY = False
+
+# --- Token encryption ---
+
+# Newest key first; see common/fields.py for the format and the rotation procedure.
+TOKEN_ENCRYPTION_KEYS = env_list("TOKEN_ENCRYPTION_KEYS")
 
 # --- Limits ---
 
@@ -231,10 +303,15 @@ HTTP_TIMEOUT = 10
 # /start is strict because each call creates a DB row; /poll is looser because clients
 # repeat it continuously while waiting.
 RATE_LIMITS = {
+    "login": (10, 300),
+    "connect": (20, 300),
+    "uploads": (60, 60),
+    "publications": (30, 60),
     "start": (10, 60),
     "poll": (120, 60),
 }
-# Take the client IP from the rightmost X-Forwarded-For entry (the one added by nginx).
-# Keep enabled only when uvicorn is reachable solely through the proxy; if the server
-# is exposed directly, clients could forge the header, so set this to 0.
-TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", True)
+# Take the client IP from the rightmost X-Forwarded-For entry (the one a proxy adds).
+# Off by default because the server is reached directly while it runs locally, and a
+# client that can set the header would otherwise get a fresh rate-limit bucket per
+# request. Turn it on only when uvicorn is reachable solely through a proxy.
+TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", False)

@@ -1,7 +1,7 @@
 """Minimal fixed-window per-IP rate limiting backed by the Django cache.
 
-With LocMemCache the counters are per worker process; use a shared cache (e.g. Redis)
-or limit in the reverse proxy when running several workers.
+The cache is Redis outside tests, so the web process and the worker share one
+set of counters. Tests use a local cache and clear it between cases.
 """
 
 import time
