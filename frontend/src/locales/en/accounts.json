@@ -1,5 +1,10 @@
 {
+  "screen": {
+    "title": "Connected accounts",
+    "subtitle": "AnycastStudio publishes on behalf of these accounts."
+  },
   "status": {
+    "unavailable": "Connecting moves to the server in the next step",
     "waiting": "Waiting for browser…",
     "disconnecting": "Disconnecting…",
     "signedIn": "Signed in as {{name}}",

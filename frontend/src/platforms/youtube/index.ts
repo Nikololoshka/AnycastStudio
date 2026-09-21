@@ -1,4 +1,3 @@
-export * from './YouTubeAdapter';
-export * from './YouTubeAuth';
+export * from './YouTubeDescriptor';
 export * from './YouTubeSettingsPanel';
 export * from './settings';

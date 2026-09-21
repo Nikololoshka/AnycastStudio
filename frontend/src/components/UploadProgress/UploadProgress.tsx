@@ -2,15 +2,15 @@ import type { ReactNode } from 'react';
 import { Button, ProgressBar } from '@heroui/react';
 import { CalendarClock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { Platform } from '../../domain/platform/types';
-import { getLabelFor } from '../../platforms/capabilities';
+import type { AvailablePlatform } from '../../domain/platform/order';
+import { getLabelFor } from '../../platforms/registry';
 import type { PublicationError, PublicationStatus } from '../../domain/publication/types';
 import { INDETERMINATE_STATUSES } from '../../domain/publication/status';
 import { ROUTE_LINE_CLASSES, routeToneOf, type RouteTone } from './routeTone';
 import { PlatformGlyph } from '../PlatformGlyph';
 
 export interface UploadProgressProps {
-  platform: Platform;
+  platform: AvailablePlatform;
   status: PublicationStatus;
   percent?: number;
   error?: PublicationError;

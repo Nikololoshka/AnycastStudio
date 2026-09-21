@@ -1,11 +1,14 @@
 {
   "app": {
-    "name": "AnycastStudio",
-    "version": "v{{version}}"
+    "name": "AnycastStudio"
+  },
+  "nav": {
+    "compose": "Compose",
+    "publications": "Publications",
+    "accounts": "Accounts"
   },
   "topBar": {
-    "appDataFolder": "Open settings folder",
-    "logsFolder": "Open logs folder",
+    "signOut": "Sign out",
     "theme": {
       "system": "Theme: follow system",
       "light": "Theme: light",
@@ -15,15 +18,5 @@
       "en": "Language: English",
       "ru": "Language: Russian"
     }
-  },
-  "window": {
-    "minimize": "Minimize window",
-    "maximize": "Maximize window",
-    "restore": "Restore window",
-    "close": "Close window"
-  },
-  "history": {
-    "title": "History",
-    "empty": "Posts you publish or schedule will be listed here."
   }
 }

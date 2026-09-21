@@ -30,16 +30,11 @@
     "calendarLabel": "Publish date",
     "timeZoneHint": "Uses your computer's time zone.",
     "planTitle": "What happens at that time",
-    "appMustRun": "Keep the app open until then. These platforms have no scheduling of their own, so the app publishes from your computer.",
-    "modes": {
-      "native": "{{platform}} schedules it on its side. You can close the app.",
-      "stagedPublish": "Uploaded ahead of time, published exactly at that moment.",
-      "deferredUpload": "Upload starts at that moment; the post appears a few minutes later.",
-      "unsupported": "{{platform}} cannot schedule posts."
-    },
     "pastTime": "That moment has already passed, so the post goes out right away.",
     "timeSlotsLabel": "Time options",
-    "openTimeSlots": "Choose a time"
+    "openTimeSlots": "Choose a time",
+    "nativePlan": "{{platform}} schedules it on its side. You can close the tab.",
+    "serverPlan": "AnycastStudio publishes it at that moment. You can close the tab."
   },
   "video": {
     "drop": "Drop a video here",
@@ -64,7 +59,6 @@
     "noVideo": "No video yet",
     "untitled": "Untitled post",
     "chooseVideo": "Choose a video in Post",
-    "noAccounts": "No accounts connected. Open a platform tab and connect an account.",
     "immediate": "Goes out as soon as you publish",
     "publish": "Publish",
     "publishing": "Publishing…",
@@ -72,7 +66,8 @@
     "scheduling": "Scheduling…",
     "needsVideo": "Add a video to publish.",
     "needsPlatform": "Turn on at least one platform in its tab.",
-    "reset": "Start over"
+    "unavailable": "Publishing moves to the server in the next step.",
+    "platformsTitle": "Goes to"
   },
   "progress": {
     "enable": "Publish to {{platform}}",

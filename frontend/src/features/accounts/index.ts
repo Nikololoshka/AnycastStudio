@@ -1,2 +1,1 @@
-export * from './accountsSlice';
-export { default } from './accountsSlice';
+export * from './AccountsScreen';

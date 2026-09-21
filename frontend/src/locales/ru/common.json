@@ -1,11 +1,14 @@
 {
   "app": {
-    "name": "AnycastStudio",
-    "version": "v{{version}}"
+    "name": "AnycastStudio"
+  },
+  "nav": {
+    "compose": "Публикация",
+    "publications": "Публикации",
+    "accounts": "Аккаунты"
   },
   "topBar": {
-    "appDataFolder": "Открыть папку настроек",
-    "logsFolder": "Открыть папку логов",
+    "signOut": "Выйти",
     "theme": {
       "system": "Тема: как в системе",
       "light": "Тема: светлая",
@@ -15,15 +18,5 @@
       "en": "Язык: английский",
       "ru": "Язык: русский"
     }
-  },
-  "window": {
-    "minimize": "Свернуть окно",
-    "maximize": "Развернуть окно",
-    "restore": "Восстановить окно",
-    "close": "Закрыть окно"
-  },
-  "history": {
-    "title": "История",
-    "empty": "Здесь появятся опубликованные и запланированные посты."
   }
 }

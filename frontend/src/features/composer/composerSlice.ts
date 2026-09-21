@@ -1,13 +1,16 @@
-import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { Platform, PlatformSettings } from '../../domain/platform/types';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { PlatformSettings } from '../../domain/platform/types';
+import type { AvailablePlatform } from '../../domain/platform/order';
+import { AVAILABLE_PLATFORMS } from '../../domain/platform/order';
 import type { VideoFile } from '../../domain/video/types';
-import type { RootState } from '../../app/store';
 import { defaultPlatformSettings, normalizeAllPlatformSettings } from '../../platforms/settings';
-import {
-  loadPersistedPlatformSettings,
-  savePersistedPlatformSettings,
-} from '../../services/persistence';
+import { readStored, STORAGE_KEYS } from '../../services/storage';
 
+/**
+ * The publication being written. This is the one part of the application the
+ * browser genuinely owns: it exists only until the person presses Publish,
+ * after which the server holds it.
+ */
 export interface ComposerState {
   video?: VideoFile;
 
@@ -15,37 +18,29 @@ export interface ComposerState {
   description: string;
   hashtags: string[];
 
-  scheduledAt?: string;
+  publishAt?: string;
 
-  selectedPlatforms: Platform[];
+  selectedPlatforms: AvailablePlatform[];
 
-  platformSettings: Record<Platform, PlatformSettings>;
+  platformSettings: Record<AvailablePlatform, PlatformSettings>;
 }
 
-const initialState: ComposerState = {
-  title: '',
-  description: '',
-  hashtags: [],
-  selectedPlatforms: [],
-  platformSettings: defaultPlatformSettings(),
-};
-
-export const restorePlatformSettings = createAsyncThunk<Record<Platform, PlatformSettings>>(
-  'composer/restorePlatformSettings',
-  async () => normalizeAllPlatformSettings(await loadPersistedPlatformSettings()),
-);
-
-export const changePlatformSettings = createAsyncThunk<
-  void,
-  { platform: Platform; settings: PlatformSettings }
->('composer/changePlatformSettings', async (payload, { dispatch, getState }) => {
-  dispatch(setPlatformSettings(payload));
-  await savePersistedPlatformSettings((getState() as RootState).composer.platformSettings);
-});
+function initialComposer(): ComposerState {
+  const stored = readStored<unknown>(STORAGE_KEYS.platformSettings);
+  return {
+    title: '',
+    description: '',
+    hashtags: [],
+    selectedPlatforms: [...AVAILABLE_PLATFORMS],
+    platformSettings: stored === undefined
+      ? defaultPlatformSettings()
+      : normalizeAllPlatformSettings(stored),
+  };
+}
 
 const composerSlice = createSlice({
   name: 'composer',
-  initialState,
+  initialState: initialComposer,
   reducers: {
     setVideo(state, action: PayloadAction<VideoFile>) {
       state.video = action.payload;
@@ -62,33 +57,24 @@ const composerSlice = createSlice({
     setHashtags(state, action: PayloadAction<string[]>) {
       state.hashtags = action.payload;
     },
-    setScheduledAt(state, action: PayloadAction<string | undefined>) {
-      state.scheduledAt = action.payload;
+    setPublishAt(state, action: PayloadAction<string | undefined>) {
+      state.publishAt = action.payload;
     },
-    togglePlatform(state, action: PayloadAction<Platform>) {
-      const platform = action.payload;
-      const index = state.selectedPlatforms.indexOf(platform);
+    togglePlatform(state, action: PayloadAction<AvailablePlatform>) {
+      const index = state.selectedPlatforms.indexOf(action.payload);
       if (index === -1) {
-        state.selectedPlatforms.push(platform);
+        state.selectedPlatforms.push(action.payload);
       } else {
         state.selectedPlatforms.splice(index, 1);
       }
     },
     setPlatformSettings(
       state,
-      action: PayloadAction<{ platform: Platform; settings: PlatformSettings }>,
+      action: PayloadAction<{ platform: AvailablePlatform; settings: PlatformSettings }>,
     ) {
       const { platform, settings } = action.payload;
-      state.platformSettings[platform] = {
-        ...state.platformSettings[platform],
-        ...settings,
-      };
+      state.platformSettings[platform] = { ...state.platformSettings[platform], ...settings };
     },
-  },
-  extraReducers: (builder) => {
-    builder.addCase(restorePlatformSettings.fulfilled, (state, action) => {
-      state.platformSettings = action.payload;
-    });
   },
 });
 
@@ -98,7 +84,7 @@ export const {
   setTitle,
   setDescription,
   setHashtags,
-  setScheduledAt,
+  setPublishAt,
   togglePlatform,
   setPlatformSettings,
 } = composerSlice.actions;

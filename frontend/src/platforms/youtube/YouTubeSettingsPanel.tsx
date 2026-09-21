@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../../app/store';
 import { SettingSelect } from '../../components/SettingSelect';
 import { SettingSwitch } from '../../components/SettingSwitch';
-import { changePlatformSettings } from '../../features/composer/composerSlice';
+import { setPlatformSettings } from '../../features/composer/composerSlice';
 import { toSelectOptions } from '../selectOptions';
 import {
   YOUTUBE_CATEGORY_OPTIONS,
@@ -34,7 +34,7 @@ export function YouTubeSettingsPanel() {
   );
 
   const update = (patch: Partial<YouTubeSettings>) => {
-    dispatch(changePlatformSettings({ platform: 'youtube', settings: patch }));
+    dispatch(setPlatformSettings({ platform: 'youtube', settings: patch }));
   };
 
   return (

@@ -1,24 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Button, Tooltip } from '@heroui/react';
-import {
-  FolderCog,
-  Languages,
-  Monitor,
-  Moon,
-  ScrollText,
-  Sun,
-  type LucideIcon,
-} from 'lucide-react';
-import { getVersion } from '@tauri-apps/api/app';
+import { Button, Separator, Tooltip } from '@heroui/react';
+import { Languages, LogOut, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch, RootState } from '../../app/store';
+import { NavLink, useNavigate } from 'react-router';
+import { useGetSessionQuery, useLogoutMutation } from '../../api';
 import { nextLanguage } from '../../app/i18n';
+import type { AppDispatch, RootState } from '../../app/store';
 import { changeLanguage, changeTheme, type ThemePreference } from '../../features/settings';
-import { openLogsFolder } from '../../services/logs';
-import { openAppDataFolder } from '../../services/persistence';
 import { AppMark } from './AppMark';
-import { WindowControls } from './WindowControls';
 
 const THEME_CYCLE: Record<ThemePreference, ThemePreference> = {
   system: 'light',
@@ -32,66 +21,52 @@ const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
   dark: Moon,
 };
 
+const NAV_ITEMS = [
+  { to: '/compose', key: 'nav.compose' },
+  { to: '/publications', key: 'nav.publications' },
+  { to: '/settings/accounts', key: 'nav.accounts' },
+] as const;
+
+function navClass({ isActive }: { isActive: boolean }): string {
+  return [
+    'rounded-lg px-3 py-1.5 text-sm transition-colors',
+    isActive ? 'bg-surface text-foreground' : 'text-muted hover:text-foreground',
+  ].join(' ');
+}
+
 export function AppTopBar() {
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
   const theme = useSelector((state: RootState) => state.settings.theme);
   const language = useSelector((state: RootState) => state.settings.language);
-  const [version, setVersion] = useState('');
-  const ThemeIcon = THEME_ICONS[theme];
+  const { data: user } = useGetSessionQuery();
+  const [logout] = useLogoutMutation();
 
-  const appDataLabel = t('topBar.appDataFolder');
-  const logsLabel = t('topBar.logsFolder');
+  const ThemeIcon = THEME_ICONS[theme];
   const themeLabel = t(`topBar.theme.${theme}`);
   const languageLabel = t(`topBar.language.${language}`);
+  const signOutLabel = t('topBar.signOut');
 
-  useEffect(() => {
-    getVersion().then(setVersion);
-  }, []);
+  async function signOut() {
+    await logout().unwrap().catch(() => undefined);
+    void navigate('/login', { replace: true });
+  }
 
   return (
-    <header data-tauri-drag-region className="flex h-11 shrink-0 items-center gap-3 pr-2 pl-4">
+    <header className="mx-auto flex h-14 w-full max-w-6xl shrink-0 items-center gap-3 px-4">
       <AppMark />
-      <span
-        data-tauri-drag-region
-        className="font-display text-[17px] font-semibold tracking-tight"
-      >
-        {t('app.name')}
-      </span>
-      {version && (
-        <span className="text-xs text-muted tabular-nums">{t('app.version', { version })}</span>
-      )}
+      <span className="font-display text-[17px] font-semibold tracking-tight">{t('app.name')}</span>
 
-      <Tooltip delay={400}>
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          aria-label={appDataLabel}
-          className="ml-auto"
-          onPress={() => {
-            void openAppDataFolder();
-          }}
-        >
-          <FolderCog className="size-4" />
-        </Button>
-        <Tooltip.Content placement="bottom end">{appDataLabel}</Tooltip.Content>
-      </Tooltip>
+      <Separator orientation="vertical" className="mx-1 h-6" />
 
-      <Tooltip delay={400}>
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          aria-label={logsLabel}
-          onPress={() => {
-            void openLogsFolder();
-          }}
-        >
-          <ScrollText className="size-4" />
-        </Button>
-        <Tooltip.Content placement="bottom end">{logsLabel}</Tooltip.Content>
-      </Tooltip>
+      <nav className="flex items-center gap-1">
+        {NAV_ITEMS.map((item) => (
+          <NavLink key={item.to} to={item.to} className={navClass}>
+            {t(item.key)}
+          </NavLink>
+        ))}
+      </nav>
 
       <Tooltip delay={400}>
         <Button
@@ -99,6 +74,7 @@ export function AppTopBar() {
           size="sm"
           variant="ghost"
           aria-label={languageLabel}
+          className="ml-auto"
           onPress={() => dispatch(changeLanguage(nextLanguage(language)))}
         >
           <span className="relative grid place-items-center">
@@ -123,7 +99,25 @@ export function AppTopBar() {
         </Button>
         <Tooltip.Content placement="bottom end">{themeLabel}</Tooltip.Content>
       </Tooltip>
-      <WindowControls />
+
+      {user && (
+        <>
+          <Separator orientation="vertical" className="mx-1 h-6" />
+          <span className="max-w-40 truncate text-sm text-muted">{user.name}</span>
+          <Tooltip delay={400}>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label={signOutLabel}
+              onPress={() => void signOut()}
+            >
+              <LogOut className="size-4" />
+            </Button>
+            <Tooltip.Content placement="bottom end">{signOutLabel}</Tooltip.Content>
+          </Tooltip>
+        </>
+      )}
     </header>
   );
 }

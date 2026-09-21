@@ -2,47 +2,11 @@ import { useEffect, type PropsWithChildren } from 'react';
 import { MotionConfig } from 'motion/react';
 import { I18nextProvider } from 'react-i18next';
 import { I18nProvider } from 'react-aria-components';
-import { Provider, useDispatch, useSelector } from 'react-redux';
-import { store, type AppDispatch, type RootState } from '../store';
+import { Provider, useSelector } from 'react-redux';
+import { store, type RootState } from '../store';
 import { i18next } from '../i18n';
-import { restoreAccounts } from '../../features/accounts';
-import { cancelScheduledPublication, executeScheduledJob } from '../../features/publications';
-import { scheduler } from '../../services/scheduler';
-import { restorePlatformSettings } from '../../features/composer';
-import { restoreAppSettings } from '../../features/settings';
 
 const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
-
-function PersistedStateBootstrap({ children }: PropsWithChildren) {
-  const dispatch = useDispatch<AppDispatch>();
-
-  useEffect(() => {
-    dispatch(restoreAppSettings());
-    dispatch(restoreAccounts());
-    dispatch(restorePlatformSettings());
-  }, [dispatch]);
-
-  return <>{children}</>;
-}
-
-function SchedulerRunner({ children }: PropsWithChildren) {
-  const dispatch = useDispatch<AppDispatch>();
-
-  useEffect(() => {
-    scheduler.start(async (job) => {
-      const outcome = await dispatch(executeScheduledJob(job)).unwrap();
-      if (outcome === 'failed') {
-        void dispatch(
-          cancelScheduledPublication({ id: job.publicationId, platform: job.platform }),
-        );
-      }
-      return outcome;
-    });
-    return () => scheduler.stop();
-  }, [dispatch]);
-
-  return <>{children}</>;
-}
 
 function applyColorScheme(isDark: boolean) {
   const root = document.documentElement;
@@ -87,11 +51,7 @@ export function AppProviders({ children }: PropsWithChildren) {
       <I18nextProvider i18n={i18next}>
         <MotionConfig reducedMotion="user">
           <LanguageSync>
-            <ThemeSync>
-              <PersistedStateBootstrap>
-                <SchedulerRunner>{children}</SchedulerRunner>
-              </PersistedStateBootstrap>
-            </ThemeSync>
+            <ThemeSync>{children}</ThemeSync>
           </LanguageSync>
         </MotionConfig>
       </I18nextProvider>

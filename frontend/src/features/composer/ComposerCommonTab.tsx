@@ -31,11 +31,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { TimePicker } from '../../components/TimePicker';
 import { VideoDropZone } from '../../components/VideoDropZone';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
-import { getCapabilitiesFor, getSchedulingProfileFor } from '../../platforms/capabilities';
-import type { Platform } from '../../domain/platform/types';
+import { getCapabilitiesFor } from '../../platforms/registry';
+import type { AvailablePlatform } from '../../domain/platform/order';
 import { normalizeHashtags } from '../../domain/publication/normalizeHashtags';
 import type { AppDispatch, RootState } from '../../app/store';
-import { setDescription, setHashtags, setScheduledAt, setTitle } from './composerSlice';
+import { setDescription, setHashtags, setPublishAt, setTitle } from './composerSlice';
 
 type ScheduleMode = 'now' | 'schedule';
 
@@ -51,29 +51,25 @@ function combine(date: CalendarDate, time: Time): string {
 function SchedulePlan() {
   const { t } = useTranslation('composer');
   const selectedPlatforms = useSelector((state: RootState) => state.composer.selectedPlatforms);
-  const platformSettings = useSelector((state: RootState) => state.composer.platformSettings);
 
   if (selectedPlatforms.length === 0) return null;
 
-  const modeOf = (platform: Platform) =>
-    getSchedulingProfileFor(platform, platformSettings[platform]).mode;
-  const needsOpenApp = selectedPlatforms.some((platform) => modeOf(platform) !== 'native');
+  const describe = (platform: AvailablePlatform) =>
+    getCapabilitiesFor(platform).scheduling === 'native'
+      ? t('timing.nativePlan', { platform: getCapabilitiesFor(platform).label })
+      : t('timing.serverPlan', { platform: getCapabilitiesFor(platform).label });
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-secondary px-4 py-3">
       <p className="text-sm font-medium">{t('timing.planTitle')}</p>
       <ul className="flex flex-col gap-1.5">
-        {selectedPlatforms.map((platform) => {
-          const capabilities = getCapabilitiesFor(platform);
-          return (
-            <li key={platform} className="flex items-start gap-2 text-xs text-muted">
-              <PlatformGlyph platform={platform} size="sm" />
-              <span>{t(`timing.modes.${modeOf(platform)}`, { platform: capabilities.label })}</span>
-            </li>
-          );
-        })}
+        {selectedPlatforms.map((platform) => (
+          <li key={platform} className="flex items-start gap-2 text-xs text-muted">
+            <PlatformGlyph platform={platform} size="sm" />
+            <span>{describe(platform)}</span>
+          </li>
+        ))}
       </ul>
-      {needsOpenApp && <p className="text-xs text-muted">{t('timing.appMustRun')}</p>}
     </div>
   );
 }
@@ -90,13 +86,13 @@ function FormSection({ title, children }: { title: string; children: ReactNode }
 export function ComposerCommonTab() {
   const { t } = useTranslation('composer');
   const dispatch = useDispatch<AppDispatch>();
-  const { title, description, hashtags, scheduledAt } = useSelector(
+  const { title, description, hashtags, publishAt } = useSelector(
     (state: RootState) => state.composer,
   );
   const [hashtagInput, setHashtagInput] = useState('');
-  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>(scheduledAt ? 'schedule' : 'now');
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>(publishAt ? 'schedule' : 'now');
 
-  const scheduled = scheduledAt ? parseAbsoluteToLocal(scheduledAt) : undefined;
+  const scheduled = publishAt ? parseAbsoluteToLocal(publishAt) : undefined;
   const [date, setDate] = useState<CalendarDate | null>(
     scheduled ? toCalendarDate(scheduled) : null,
   );
@@ -117,19 +113,19 @@ export function ComposerCommonTab() {
   function commitSchedule(nextDate: CalendarDate | null, nextTime: Time | null) {
     if (!nextDate) {
       setIsPast(false);
-      dispatch(setScheduledAt(undefined));
+      dispatch(setPublishAt(undefined));
       return;
     }
     const moment = combine(nextDate, nextTime ?? nextHour());
     setIsPast(Date.parse(moment) <= Date.now());
-    dispatch(setScheduledAt(moment));
+    dispatch(setPublishAt(moment));
   }
 
   function changeScheduleMode(mode: ScheduleMode) {
     setScheduleMode(mode);
     if (mode === 'now') {
       setIsPast(false);
-      dispatch(setScheduledAt(undefined));
+      dispatch(setPublishAt(undefined));
       return;
     }
     commitSchedule(date, time);

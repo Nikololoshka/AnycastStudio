@@ -1,14 +1,19 @@
 {
+  "screen": {
+    "title": "Подключённые аккаунты",
+    "subtitle": "AnycastStudio публикует от имени этих аккаунтов."
+  },
   "status": {
-    "waiting": "Ожидаем браузер…",
-    "disconnecting": "Отключаем…",
+    "unavailable": "Подключение переезжает на сервер на следующем шаге",
+    "waiting": "Ожидание браузера…",
+    "disconnecting": "Отключение…",
     "signedIn": "Вы вошли как {{name}}",
     "none": "Аккаунт не подключён"
   },
   "actions": {
     "connect": "Подключить {{platform}}",
     "disconnect": "Отключить",
-    "disconnecting": "Отключаем…",
+    "disconnecting": "Отключение…",
     "cancel": "Отмена"
   }
 }
