@@ -23,6 +23,9 @@ dist-ssr/
 # Rust
 target/
 
+# Celery beat's local schedule database
+celerybeat-schedule*
+
 # Uploaded media. The path is exact: a bare "media/" would also ignore the
 # backend app of that name.
 /backend/media_files/
