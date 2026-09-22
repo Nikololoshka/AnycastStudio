@@ -49,3 +49,19 @@ def sweep_orphan_assets() -> int:
     if count:
         logger.info("Swept %d orphan media assets", count)
     return count
+
+# --- Celery entry points ---
+# The functions above stay callable from a test or a management command; these
+# only wrap them so the beat schedule has something to name.
+
+from celery import shared_task  # noqa: E402
+
+
+@shared_task(name="media.sweep_upload_sessions")
+def sweep_upload_sessions_task() -> int:
+    return sweep_upload_sessions()
+
+
+@shared_task(name="media.sweep_orphan_assets")
+def sweep_orphan_assets_task() -> int:
+    return sweep_orphan_assets()

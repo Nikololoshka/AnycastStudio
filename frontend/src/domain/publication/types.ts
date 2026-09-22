@@ -1,10 +1,7 @@
-import type { Platform, PlatformSettings } from '../platform/types';
-import type { VideoFile } from '../video/types';
-
+/** The wire contract with the server; see backend/publishing/models.py. */
 export type PublicationStatus =
-  | 'idle'
+  | 'queued'
   | 'validating'
-  | 'preparing'
   | 'uploading'
   | 'processing'
   | 'publishing'
@@ -27,47 +24,4 @@ export interface PublicationError {
   type: ErrorType;
   message: string;
   details?: string;
-}
-
-export interface PlatformPublication {
-  platform: Platform;
-
-  enabled: boolean;
-
-  settings: PlatformSettings;
-
-  status: PublicationStatus;
-
-  progress: number;
-
-  error?: PublicationError;
-
-  uploadedVideoId?: string;
-
-  scheduledAt?: string;
-}
-
-export interface UploadProgress {
-  platform: Platform;
-
-  status: PublicationStatus;
-
-  uploadedBytes?: number;
-  totalBytes?: number;
-
-  percent?: number;
-}
-
-export interface Publication {
-  id: string;
-
-  video: VideoFile;
-
-  title: string;
-  description: string;
-  hashtags: string[];
-
-  scheduledAt?: string;
-
-  platforms: PlatformPublication[];
 }

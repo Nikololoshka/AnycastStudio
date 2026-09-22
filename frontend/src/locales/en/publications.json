@@ -2,6 +2,35 @@
   "screen": {
     "title": "Publications",
     "subtitle": "Everything you have sent to a platform, and how it went.",
-    "empty": "Publishing moves to the server in the next step. Nothing is listed yet."
+    "empty": "Nothing published yet. Compose a video to get started."
+  },
+  "detail": {
+    "immediate": "Published as soon as it was ready"
+  },
+  "status": {
+    "queued": "Waiting",
+    "validating": "Checking",
+    "uploading": "Uploading",
+    "processing": "Processing",
+    "publishing": "Publishing",
+    "scheduled": "Scheduled",
+    "completed": "Published",
+    "failed": "Failed",
+    "cancelled": "Cancelled"
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "open": "Open"
+  },
+  "error": {
+    "network": "The connection to the platform failed.",
+    "authentication": "The account needs reconnecting.",
+    "authorization": "The platform refused this account.",
+    "rate_limit": "The platform is rate limiting us. Try later.",
+    "validation": "The platform rejected the video.",
+    "platform": "The platform is having trouble.",
+    "file": "The uploaded video is no longer on the server.",
+    "unknown": "Something went wrong."
   }
 }

@@ -1,8 +1,9 @@
 import type { PublicationStatus } from './types';
 
+/** Statuses where no percentage is meaningful, so the bar should just move. */
 export const INDETERMINATE_STATUSES: PublicationStatus[] = [
+  'queued',
   'validating',
-  'preparing',
   'processing',
   'publishing',
 ];

@@ -1,10 +1,16 @@
+import { useState } from 'react';
 import { Button } from '@heroui/react';
 import { CalendarClock, Clapperboard, Send, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../../app/store';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router';
+import { useCreatePublicationMutation, useGetAccountsQuery } from '../../api';
+import { messageOf, statusOf } from '../../api/errors';
+import type { AppDispatch, RootState } from '../../app/store';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
 import { getLabelFor } from '../../platforms/registry';
+import { clearVideo } from './composerSlice';
+import { uploadReset } from '../upload';
 
 const SCHEDULE_FORMAT: Intl.DateTimeFormatOptions = {
   weekday: 'short',
@@ -16,15 +22,66 @@ const SCHEDULE_FORMAT: Intl.DateTimeFormatOptions = {
 
 export function SummaryPanel() {
   const { t, i18n } = useTranslation('composer');
-  const { video, title, publishAt, selectedPlatforms } = useSelector(
-    (state: RootState) => state.composer,
-  );
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+
+  const { video, title, description, hashtags, publishAt, selectedPlatforms, platformSettings } =
+    useSelector((state: RootState) => state.composer);
+  const uploadStatus = useSelector((state: RootState) => state.upload.status);
+
+  const { data: accounts } = useGetAccountsQuery();
+  const [createPublication, { isLoading: isPublishing }] = useCreatePublicationMutation();
+  const [error, setError] = useState('');
+
+  const targets = selectedPlatforms.flatMap((platform) => {
+    const account = accounts?.find(
+      (candidate) => candidate.platform === platform && !candidate.needsReauth,
+    );
+    return account
+      ? [{ platform, socialAccountId: account.id, settings: platformSettings[platform] }]
+      : [];
+  });
+
+  const isUploading = uploadStatus === 'hashing' || uploadStatus === 'uploading';
 
   const blocker = !video
     ? t('summary.needsVideo')
-    : selectedPlatforms.length === 0
-      ? t('summary.needsPlatform')
-      : undefined;
+    : !video.mediaAssetId
+      ? t('summary.needsUpload')
+      : selectedPlatforms.length === 0
+        ? t('summary.needsPlatform')
+        : targets.length === 0
+          ? t('summary.needsAccount')
+          : undefined;
+
+  async function publish() {
+    if (!video?.mediaAssetId) return;
+    setError('');
+    try {
+      const publication = await createPublication({
+        mediaAssetId: Number(video.mediaAssetId),
+        title,
+        description,
+        hashtags,
+        publishAt,
+        targets,
+      }).unwrap();
+
+      // The server owns it now; the composer starts empty for the next one.
+      dispatch(clearVideo());
+      dispatch(uploadReset());
+      void navigate(`/publications/${publication.id}`);
+    } catch (cause) {
+      const status = statusOf(cause);
+      setError(
+        status === 'quota_exceeded'
+          ? t('summary.error.dailyLimit')
+          : status === 'conflict'
+            ? t('summary.error.accountNeedsReauth')
+            : (messageOf(cause) ?? t('summary.error.unknown')),
+      );
+    }
+  }
 
   return (
     <aside className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5">
@@ -79,11 +136,24 @@ export function SummaryPanel() {
         )}
       </p>
 
-      <Button variant="primary" size="lg" fullWidth isDisabled>
+      <Button
+        variant="primary"
+        size="lg"
+        fullWidth
+        isDisabled={Boolean(blocker) || isUploading || isPublishing}
+        onPress={() => void publish()}
+      >
         <Send className="size-4" />
         {publishAt ? t('summary.schedule') : t('summary.publish')}
       </Button>
-      <p className="text-center text-xs text-muted">{blocker ?? t('summary.unavailable')}</p>
+
+      {error ? (
+        <p role="alert" className="text-center text-xs text-danger">
+          {error}
+        </p>
+      ) : (
+        blocker && <p className="text-center text-xs text-muted">{blocker}</p>
+      )}
     </aside>
   );
 }

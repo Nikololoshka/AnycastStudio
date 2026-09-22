@@ -81,8 +81,14 @@
     "scheduling": "Scheduling…",
     "needsVideo": "Add a video to publish.",
     "needsPlatform": "Turn on at least one platform in its tab.",
-    "unavailable": "Publishing moves to the server in the next step.",
-    "platformsTitle": "Goes to"
+    "platformsTitle": "Goes to",
+    "needsUpload": "Wait for the upload to finish.",
+    "needsAccount": "Connect a YouTube account first.",
+    "error": {
+      "dailyLimit": "You have reached today's publication limit.",
+      "accountNeedsReauth": "The account needs reconnecting.",
+      "unknown": "Could not start publishing. Try again."
+    }
   },
   "progress": {
     "enable": "Publish to {{platform}}",

@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "django.contrib.admin",
     "accounts",
     "media",
+    "publishing",
     "social",
 ]
 
@@ -216,6 +217,29 @@ if not TOKEN_ENCRYPTION_KEYS:
         "\"from cryptography.fernet import Fernet; "
         "print('v1:' + Fernet.generate_key().decode())\""
     )
+
+# --- Background work ---
+
+# Redis is the broker as well as the cache; nothing new is introduced for it.
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = None
+
+# A task killed mid-upload is handed out again rather than lost. Claiming the
+# target with a conditional UPDATE keeps that from becoming a second upload.
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+# One at a time: a worker must not hoard hour-long tasks it cannot start.
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 3 * 60 * 60}
+
+CELERY_BEAT_SCHEDULE = {
+    "sweep-upload-sessions": {"task": "media.sweep_upload_sessions", "schedule": 900.0},
+    "sweep-orphan-assets": {"task": "media.sweep_orphan_assets", "schedule": 3600.0},
+    "refresh-expiring-tokens": {"task": "social.refresh_expiring_tokens", "schedule": 1800.0},
+}
+
+# Tests run the pipeline directly; nothing should reach a broker.
+CELERY_TASK_ALWAYS_EAGER = False
 
 # --- Limits ---
 

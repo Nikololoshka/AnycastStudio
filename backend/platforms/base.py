@@ -44,6 +44,38 @@ class TokenBundle:
 
 
 @dataclass(frozen=True)
+class Capabilities:
+    """What a platform supports. The browser uses it to adapt the composer."""
+
+    label: str
+    scheduling: str  # native | stagedPublish | deferredUpload | unsupported
+    title: bool
+    description: bool
+    hashtags: bool
+    drafts: bool
+    max_file_size: int | None = None
+    supported_mime_types: tuple[str, ...] = field(default_factory=tuple)
+
+    def as_json(self) -> dict:
+        return {
+            "label": self.label,
+            "scheduling": self.scheduling,
+            "title": self.title,
+            "description": self.description,
+            "hashtags": self.hashtags,
+            "drafts": self.drafts,
+            "maxFileSize": self.max_file_size,
+            "supportedMimeTypes": list(self.supported_mime_types),
+        }
+
+
+@dataclass(frozen=True)
+class ValidationResult:
+    valid: bool
+    errors: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class Identity:
     """Who the token belongs to, in the platform's own terms."""
 

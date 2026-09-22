@@ -18,6 +18,10 @@ DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memor
 # No Redis in tests. Each test case clears the cache, so per-process counters are enough.
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
+# An in-memory broker, so a test that reaches .delay does not put a task on a
+# real queue for a real worker to pick up.
+CELERY_BROKER_URL = "memory://"
+
 # Hashing a password with Argon2 dominates the runtime of an authentication test.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 

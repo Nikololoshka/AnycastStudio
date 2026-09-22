@@ -1,0 +1,91 @@
+"""A publication and what it is doing on each platform.
+
+The status vocabulary is the one the desktop client used and the browser still
+speaks; see frontend/src/domain/publication/types.ts. It is the wire contract,
+so the strings do not change.
+"""
+
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+
+
+class Publication(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="publications"
+    )
+    asset = models.ForeignKey(
+        "media.MediaAsset", on_delete=models.PROTECT, related_name="publications"
+    )
+
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    hashtags = models.JSONField(default=list, blank=True)
+
+    # When the platform should make it visible. Absent means as soon as possible.
+    publish_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return self.title or f"publication {self.pk}"
+
+
+class PublicationTarget(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = "queued"
+        VALIDATING = "validating"
+        UPLOADING = "uploading"
+        PROCESSING = "processing"
+        PUBLISHING = "publishing"
+        SCHEDULED = "scheduled"
+        COMPLETED = "completed"
+        FAILED = "failed"
+        CANCELLED = "cancelled"
+
+    ACTIVE = (Status.QUEUED, Status.VALIDATING, Status.UPLOADING, Status.PROCESSING, Status.PUBLISHING)
+    TERMINAL = (Status.SCHEDULED, Status.COMPLETED, Status.FAILED, Status.CANCELLED)
+
+    publication = models.ForeignKey(
+        Publication, on_delete=models.CASCADE, related_name="targets"
+    )
+    platform = models.CharField(max_length=32)
+    social_account = models.ForeignKey(
+        "social.SocialAccount", on_delete=models.PROTECT, related_name="targets"
+    )
+
+    settings = models.JSONField(default=dict, blank=True)
+
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.QUEUED)
+    progress = models.PositiveSmallIntegerField(default=0)
+    uploaded_bytes = models.BigIntegerField(default=0)
+    total_bytes = models.BigIntegerField(default=0)
+
+    # The platform's own id for the media, once it has one.
+    uploaded_media_id = models.CharField(max_length=128, blank=True)
+    # Where to carry on from if the worker dies mid-upload.
+    resume_state = models.JSONField(null=True, blank=True)
+
+    published_url = models.URLField(blank=True, max_length=500)
+    error = models.JSONField(null=True, blank=True)
+
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    cancel_requested = models.BooleanField(default=False)
+
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["publication", "platform"], name="unique_target_per_platform"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.platform}:{self.status}"
+
+    @property
+    def is_active(self) -> bool:
+        return self.status in self.ACTIVE
