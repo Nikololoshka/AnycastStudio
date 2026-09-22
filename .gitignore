@@ -23,8 +23,9 @@ dist-ssr/
 # Rust
 target/
 
-# Uploaded media
-media/
+# Uploaded media. The path is exact: a bare "media/" would also ignore the
+# backend app of that name.
+/backend/media_files/
 
 # Logs
 logs/

@@ -39,14 +39,29 @@
   "video": {
     "drop": "Drop a video here",
     "release": "Release to add video",
-    "reading": "Reading video…",
     "browsePrefix": "or",
     "browse": "browse files",
     "formats": "MP4, MOV, WebM, AVI or MKV.",
-    "readFailed": "This file couldn't be read as a video. Try MP4, MOV, WebM, AVI or MKV.",
     "remove": "Remove video",
     "sizeMegabytes": "{{value}} MB",
-    "filterName": "Video"
+    "preparing": "Preparing the video…",
+    "uploading": "Uploading to the server…",
+    "cancelUpload": "Cancel",
+    "stored": "Stored on the server",
+    "resumeTitle": "Continue uploading {{name}}?",
+    "resumeHint": "{{done}} of {{total}} MB already reached the server. Choose the same file to carry on.",
+    "resumeChoose": "Choose the file",
+    "resumeDiscard": "Start over",
+    "resumeMismatch": "That is a different file. Choose the one the upload started with.",
+    "error": {
+      "payload_too_large": "That file is larger than your per-file limit.",
+      "quota_exceeded": "Not enough storage left. Delete something first.",
+      "conflict": "Too many uploads at once. Wait for one to finish.",
+      "invalid": "The upload did not arrive intact. Try again.",
+      "unauthorized": "Your session expired. Sign in again.",
+      "network": "The connection failed. Try again.",
+      "unknown": "The upload failed. Try again."
+    }
   },
   "platformTab": {
     "publishTo": "Publish to {{platform}}",

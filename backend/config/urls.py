@@ -5,6 +5,7 @@ urlpatterns = [
     # Reachable only over an SSH tunnel: no public server config routes it.
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
+    path("api/media/", include("media.urls")),
     path("api/social/", include("social.urls")),
 ]
 

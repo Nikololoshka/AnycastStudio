@@ -1,19 +1,21 @@
 import { useRef, useState, type DragEvent, type ReactNode } from 'react';
-import { Button, Spinner, Tooltip } from '@heroui/react';
+import { Button, ProgressBar, Spinner, Tooltip } from '@heroui/react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Clapperboard,
   Clock,
   HardDrive,
   Maximize2,
+  RotateCcw,
   Upload,
   X,
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearVideo, setVideo } from '../../features/composer';
-import { describeVideoFile, forgetFile } from '../../services/files';
+import { clearVideo } from '../../features/composer';
+import { useVideoUpload } from '../../features/upload';
+import { forgetFile } from '../../services/files';
 import type { RootState } from '../../app/store';
 
 const ACCEPTED_TYPES = 'video/*';
@@ -33,33 +35,101 @@ export function VideoDropZone() {
   const { t } = useTranslation('composer');
   const dispatch = useDispatch();
   const video = useSelector((state: RootState) => state.composer.video);
+  const { upload, start, resumeWith, cancel, dismissResume } = useVideoUpload();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isReading, setIsReading] = useState(false);
-  const [readError, setReadError] = useState<string>();
+  const [mismatch, setMismatch] = useState(false);
 
-  async function accept(file: File | undefined) {
-    if (!file || isReading) return;
-    setIsReading(true);
-    setReadError(undefined);
-    try {
-      dispatch(setVideo(await describeVideoFile(file)));
-    } catch {
-      setReadError(t('video.readFailed'));
-    } finally {
-      setIsReading(false);
+  const isBusy = upload.status === 'hashing' || upload.status === 'uploading';
+  const resumable = upload.resumable;
+
+  function accept(file: File | undefined) {
+    if (!file || isBusy) return;
+    setMismatch(false);
+
+    if (resumable) {
+      // The same file continues where the interrupted transfer stopped; a
+      // different one would corrupt it, so say so instead.
+      if (resumeWith(file)) return;
+      setMismatch(true);
+      return;
     }
+
+    start(file);
   }
 
   function handleDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     setIsDragOver(false);
-    void accept(event.dataTransfer.files[0]);
+    accept(event.dataTransfer.files[0]);
   }
 
   function remove() {
     if (video) forgetFile(video.id);
+    cancel();
     dispatch(clearVideo());
+  }
+
+  if (isBusy) {
+    return (
+      <div className="flex h-44 flex-col justify-center gap-3 rounded-2xl border border-border bg-surface-secondary px-6">
+        <div className="flex items-center gap-3">
+          <Spinner size="sm" />
+          <span className="font-medium">
+            {upload.status === 'hashing' ? t('video.preparing') : t('video.uploading')}
+          </span>
+          <span className="ml-auto text-sm text-muted tabular-nums">{upload.percent}%</span>
+        </div>
+        <ProgressBar
+          aria-label={t('video.uploading')}
+          value={upload.percent}
+          className="w-full"
+        />
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span className="tabular-nums">
+            {t('video.sizeMegabytes', { value: megabytesOf(upload.uploadedBytes) })} /{' '}
+            {t('video.sizeMegabytes', { value: megabytesOf(upload.totalBytes) })}
+          </span>
+          <Button size="sm" variant="ghost" onPress={cancel}>
+            {t('video.cancelUpload')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (resumable) {
+    return (
+      <div className="flex h-44 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface-secondary px-6 text-center">
+        <RotateCcw className="size-6 text-muted" />
+        <p className="font-medium">{t('video.resumeTitle', { name: resumable.filename })}</p>
+        <p className="text-sm text-muted">
+          {t('video.resumeHint', {
+            done: megabytesOf(resumable.offset),
+            total: megabytesOf(resumable.sizeBytes),
+          })}
+        </p>
+        {mismatch && <p className="text-sm text-danger">{t('video.resumeMismatch')}</p>}
+        <div className="flex gap-2">
+          <Button size="sm" variant="primary" onPress={() => inputRef.current?.click()}>
+            {t('video.resumeChoose')}
+          </Button>
+          <Button size="sm" variant="ghost" onPress={dismissResume}>
+            {t('video.resumeDiscard')}
+          </Button>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={ACCEPTED_TYPES}
+          className="hidden"
+          onChange={(event) => {
+            accept(event.target.files?.[0]);
+            event.target.value = '';
+          }}
+        />
+      </div>
+    );
   }
 
   return (
@@ -97,6 +167,9 @@ export function VideoDropZone() {
                 <VideoFact icon={Clock}>{formatDuration(video.duration)}</VideoFact>
               ) : null}
             </div>
+            {video.mediaAssetId && (
+              <p className="mt-1.5 text-xs text-success">{t('video.stored')}</p>
+            )}
           </div>
           <Tooltip delay={400}>
             <Button
@@ -122,7 +195,6 @@ export function VideoDropZone() {
           }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={handleDrop}
-          disabled={isReading}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -139,7 +211,7 @@ export function VideoDropZone() {
             accept={ACCEPTED_TYPES}
             className="hidden"
             onChange={(event) => {
-              void accept(event.target.files?.[0]);
+              accept(event.target.files?.[0]);
               event.target.value = '';
             }}
           />
@@ -150,10 +222,10 @@ export function VideoDropZone() {
               isDragOver ? 'bg-accent text-accent-foreground' : 'bg-surface text-foreground'
             }`}
           >
-            {isReading ? <Spinner size="sm" color="current" /> : <Upload className="size-5" />}
+            <Upload className="size-5" />
           </motion.span>
           <span className="font-display text-lg font-semibold tracking-tight">
-            {isReading ? t('video.reading') : isDragOver ? t('video.release') : t('video.drop')}
+            {isDragOver ? t('video.release') : t('video.drop')}
           </span>
           <span className="text-sm text-muted">
             {t('video.browsePrefix')}{' '}
@@ -162,7 +234,11 @@ export function VideoDropZone() {
             </span>
             . {t('video.formats')}
           </span>
-          {readError && <span className="text-sm text-danger">{readError}</span>}
+          {upload.status === 'failed' && (
+            <span className="text-sm text-danger">
+              {t(`video.error.${upload.error}`, { defaultValue: t('video.error.unknown') })}
+            </span>
+          )}
         </motion.button>
       )}
     </AnimatePresence>

@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { baseApi } from '../../api';
 import composerReducer from '../../features/composer';
 import settingsReducer from '../../features/settings';
+import uploadReducer from '../../features/upload';
 import { persistMiddleware } from './persistMiddleware';
 
 export const store = configureStore({
@@ -9,6 +10,7 @@ export const store = configureStore({
     [baseApi.reducerPath]: baseApi.reducer,
     composer: composerReducer,
     settings: settingsReducer,
+    upload: uploadReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()

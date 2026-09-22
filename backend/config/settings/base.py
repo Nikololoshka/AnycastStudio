@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.admin",
     "accounts",
+    "media",
     "social",
 ]
 
@@ -105,6 +106,15 @@ TEMPLATES = [
 ]
 
 STATIC_URL = "static/"
+
+# Uploaded video. Served by nobody: the worker reads it from disk and the
+# browser never gets a URL to it.
+MEDIA_ROOT = os.environ.get("MEDIA_ROOT", str(BASE_DIR / "media_files"))
+
+# A chunk arrives as a raw body and is streamed to disk, so nothing large is
+# ever held in memory. Keep the form-data limits small so a mistake is loud.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
 
 # The server runs under uvicorn (ASGI) so the async /poll view can hold long-poll
 # connections without tying up a thread each.
