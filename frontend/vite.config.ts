@@ -18,6 +18,9 @@ export default defineConfig(() => ({
     proxy: {
       '/api': { target: BACKEND, changeOrigin: false },
       '/admin': { target: BACKEND, changeOrigin: false },
+      // The admin's stylesheets. Without this Vite answers with index.html and
+      // the admin renders unstyled.
+      '/static': { target: BACKEND, changeOrigin: false },
     },
   },
   test: {
