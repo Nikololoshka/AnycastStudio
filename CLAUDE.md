@@ -268,7 +268,8 @@ cp .env.example .env                              # then fill it in
 .venv/Scripts/python manage.py migrate
 .venv/Scripts/python manage.py createsuperuser
 .venv/Scripts/python -m uvicorn config.asgi:application --port 8000 --no-access-log
-.venv/Scripts/python -m celery -A config worker -B --pool=solo -l info
+.venv/Scripts/python -m celery -A config worker --pool=solo -l info
+.venv/Scripts/python -m celery -A config beat -l info
 
 cd ../frontend
 npm install
@@ -295,7 +296,8 @@ npm run dev                                        # http://localhost:5173
 | Backend tests | `.venv/Scripts/python manage.py test --settings=config.settings.test` | No network, no Redis, no disk |
 | Migrations | `manage.py makemigrations` / `manage.py migrate` | |
 | Backend server | `python -m uvicorn config.asgi:application --port 8000 --no-access-log` | Access log off on purpose: the OAuth callback URL carries a one-time code |
-| Worker | `python -m celery -A config worker -B --pool=solo -l info` | `-B` runs the periodic sweeps in the same process |
+| Worker | `python -m celery -A config worker --pool=solo -l info` | `--pool=solo` because Windows has no fork |
+| Beat | `python -m celery -A config beat -l info` | Separate process: `-B` is refused on Windows |
 | Media sweep | `manage.py sweep_media` | What the periodic tasks do, on demand |
 | Frontend dev | `npm run dev` | Proxies `/api` and `/admin` to Django |
 | Frontend build | `npm run build` | Runs `tsc` then `vite build` |

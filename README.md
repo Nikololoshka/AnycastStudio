@@ -56,9 +56,10 @@ cp .env.example .env                                   # fill it in — see belo
 .venv/Scripts/python manage.py migrate
 .venv/Scripts/python manage.py createsuperuser
 
-# 3. Two backend processes
+# 3. Three backend processes, each in its own terminal
 .venv/Scripts/python -m uvicorn config.asgi:application --port 8000 --no-access-log
-.venv/Scripts/python -m celery -A config worker -B --pool=solo -l info
+.venv/Scripts/python -m celery -A config worker --pool=solo -l info
+.venv/Scripts/python -m celery -A config beat -l info      # periodic sweeps
 
 # 4. Frontend
 cd ../frontend
