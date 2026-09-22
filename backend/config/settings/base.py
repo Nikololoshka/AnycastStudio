@@ -197,6 +197,15 @@ CSRF_COOKIE_HTTPONLY = False
 
 # Newest key first; see common/fields.py for the format and the rotation procedure.
 TOKEN_ENCRYPTION_KEYS = env_list("TOKEN_ENCRYPTION_KEYS")
+if not TOKEN_ENCRYPTION_KEYS:
+    # Refuse to start rather than fail later: without a key no platform account
+    # can be stored, and a key invented at startup would make every row written
+    # with it unreadable after a restart.
+    raise RuntimeError(
+        "TOKEN_ENCRYPTION_KEYS must be set. Generate one with: python -c "
+        "\"from cryptography.fernet import Fernet; "
+        "print('v1:' + Fernet.generate_key().decode())\""
+    )
 
 # --- Limits ---
 
@@ -267,36 +276,21 @@ LOGGING = {
     },
 }
 
-# --- OAuth broker: Facebook ---
+# --- Platforms ---
 
-# App ID and App Secret from the Facebook developer console (App settings -> Basic).
-# The secret must only ever come from the environment and is never logged or returned.
-FB_APP_ID = os.environ.get("FB_APP_ID", "")
-FB_APP_SECRET = os.environ.get("FB_APP_SECRET", "")
-# Graph API version used for both the login dialog and the token endpoint.
-# Update to the current version when Facebook deprecates this one.
-FB_GRAPH_VERSION = os.environ.get("FB_GRAPH_VERSION", "v23.0")
-# Permissions requested in the login dialog.
-FB_SCOPE = "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement"
+# Google Cloud console, OAuth client of type "Web application", YouTube Data API
+# v3 enabled. The secret only ever comes from the environment and is never logged,
+# returned in a response, or compiled into the frontend bundle.
+YOUTUBE_CLIENT_ID = os.environ.get("YOUTUBE_CLIENT_ID", "")
+YOUTUBE_CLIENT_SECRET = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
 
-# --- OAuth broker: common (all providers) ---
+# --- OAuth ---
 
-# Tokens that allow a client (the desktop app) to call /start, sent as `Authorization: Bearer <token>`.
-# Comma-separated, so a token can be rotated by adding the new one before removing the old one.
-# Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-CLIENT_TOKENS = env_list("CLIENT_TOKENS")
-if not CLIENT_TOKENS and not DEBUG:
-    raise RuntimeError("CLIENT_TOKENS must be set when DJANGO_DEBUG is off")
+# How long the person has to finish the consent screen, in seconds. After that
+# the callback is refused and the row is swept on the next attempt.
+OAUTH_SESSION_TTL = 600
 
-# How long an auth session lives after /start, in seconds. After that the callback
-# is rejected, /poll answers 410, and the row is deleted on the next /start.
-AUTH_SESSION_TTL = 600
-# How long a single /poll request is held open before answering "pending", in seconds.
-# Clients must use a longer HTTP timeout than this.
-POLL_TIMEOUT = 25
-# How often /poll re-checks the session status while waiting, in seconds.
-POLL_INTERVAL = 1
-# Timeout for server-to-provider calls (e.g. exchanging the code for a token), in seconds.
+# Timeout for server-to-platform calls, in seconds.
 HTTP_TIMEOUT = 10
 
 # Per-client-IP limits as (max requests, window in seconds). Exceeding them returns 429.
@@ -307,8 +301,6 @@ RATE_LIMITS = {
     "connect": (20, 300),
     "uploads": (60, 60),
     "publications": (30, 60),
-    "start": (10, 60),
-    "poll": (120, 60),
 }
 # Take the client IP from the rightmost X-Forwarded-For entry (the one a proxy adds).
 # Off by default because the server is reached directly while it runs locally, and a

@@ -1,48 +1,65 @@
+"""Where the platform sends the browser back.
+
+This is a GET the provider redirects to, so it cannot carry a CSRF token; the
+`state` parameter is the defence, and it is checked twice — that it is a
+session we issued and still pending, and that it belongs to the person whose
+session cookie is on this request.
+"""
+
 import logging
 
-from django.shortcuts import render
+from django.http import HttpResponseRedirect
 from django.views.decorators.http import require_GET
 
-from .. import sessions
-from ..providers import PROVIDERS, ExchangeError
+from platforms.base import ProviderError
+
+from .. import services, sessions
+from ..providers import get_provider
 
 logger = logging.getLogger(__name__)
 
-
-def page(request, outcome, status=200):
-    return render(request, "social/callback.html", {"outcome": outcome}, status=status)
+RETURN_PATH = "/settings/accounts"
 
 
-def denied_result(params) -> dict:
-    result = {"error": (params.get("error") or "missing_code")[:200]}
-    if params.get("error_reason"):
-        result["error_reason"] = params["error_reason"][:200]
-    return result
+def back_to_app(platform: str, outcome: str) -> HttpResponseRedirect:
+    return HttpResponseRedirect(f"{RETURN_PATH}?platform={platform}&result={outcome}")
 
 
 @require_GET
-def callback(request, provider):
-    provider = PROVIDERS[provider]
-    params = request.GET
+def callback(request, platform: str):
+    provider = get_provider(platform)
+    if provider is None:
+        return back_to_app(platform, "invalid")
 
-    session = sessions.claim(provider.name, params.get("state", ""))
+    session = sessions.claim(provider.name, request.GET.get("state", ""))
     if session is None:
-        return page(request, "invalid", status=400)
+        return back_to_app(platform, "invalid")
 
-    code = params.get("code")
-    if params.get("error") or not code:
-        sessions.fail(session, denied_result(params))
-        return page(request, "cancelled")
+    # The state was ours, but this browser must also be the one that asked for it.
+    if not request.user.is_authenticated or session.user_id != request.user.pk:
+        sessions.finish(session, sessions.Status.ERROR)
+        logger.warning("OAuth session %s was opened by a different session", session.pk)
+        return back_to_app(platform, "invalid")
+
+    code = request.GET.get("code")
+    if request.GET.get("error") or not code:
+        sessions.finish(session, sessions.Status.ERROR)
+        return back_to_app(platform, "cancelled")
 
     try:
-        token = provider.exchange_code(code)
-    except ExchangeError as exc:
-        sessions.fail(session, {"error": provider.error_code, "message": exc.message})
-        return page(request, "failed", status=502)
+        bundle = provider.exchange_code(code, session.code_verifier or None)
+        identity = provider.fetch_identity(bundle.access_token)
+    except ProviderError as error:
+        sessions.finish(session, sessions.Status.ERROR)
+        logger.info("OAuth session %s failed: %s", session.pk, error.message)
+        return back_to_app(platform, "failed")
     except Exception:
-        logger.exception("Auth session %s: unexpected error during token exchange", session.pk)
-        sessions.fail(session, {"error": "server_error"})
-        return page(request, "failed", status=500)
+        # Never let the traceback reach the browser: it can contain the request
+        # body of the token exchange, which carries client_secret.
+        logger.exception("OAuth session %s: unexpected error", session.pk)
+        sessions.finish(session, sessions.Status.ERROR)
+        return back_to_app(platform, "failed")
 
-    sessions.complete(session, {"provider": provider.name, **token})
-    return page(request, "done")
+    services.save_account(session.user, provider.name, bundle, identity)
+    sessions.finish(session, sessions.Status.DONE)
+    return back_to_app(platform, "connected")

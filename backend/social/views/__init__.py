@@ -1,5 +1,5 @@
+from .accounts import account, accounts
 from .callback import callback
-from .poll import poll
-from .start import start
+from .connect import connect
 
-__all__ = ["start", "callback", "poll"]
+__all__ = ["account", "accounts", "callback", "connect"]

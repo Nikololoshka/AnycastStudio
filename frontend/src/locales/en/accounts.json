@@ -4,16 +4,23 @@
     "subtitle": "AnycastStudio publishes on behalf of these accounts."
   },
   "status": {
-    "unavailable": "Connecting moves to the server in the next step",
     "waiting": "Waiting for browser…",
     "disconnecting": "Disconnecting…",
     "signedIn": "Signed in as {{name}}",
-    "none": "No account connected"
+    "none": "No account connected",
+    "needsReauth": "Access expired. Reconnect to keep publishing."
   },
   "actions": {
     "connect": "Connect {{platform}}",
     "disconnect": "Disconnect",
     "disconnecting": "Disconnecting…",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "reconnect": "Reconnect"
+  },
+  "callback": {
+    "connected": "Account connected.",
+    "cancelled": "Sign-in was cancelled.",
+    "failed": "The platform refused the connection. Try again.",
+    "invalid": "That link is no longer valid. Start again."
   }
 }
