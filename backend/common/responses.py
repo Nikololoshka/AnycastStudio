@@ -1,13 +1,7 @@
-"""The JSON contract every endpoint answers with.
-
-A response always carries a `status` string; the HTTP code follows from it.
-Clients branch on the string, so adding an outcome means adding a row here
-rather than inventing a new body shape.
-"""
-
 from django.http import JsonResponse
 
 HTTP_STATUS = {
+    "ok": 200,
     "invalid": 400,
     "unauthorized": 401,
     "forbidden": 403,
@@ -23,11 +17,19 @@ HTTP_STATUS = {
 
 
 def api_response(status: str, headers=None, **fields) -> JsonResponse:
-    return JsonResponse({"status": status, **fields}, status=HTTP_STATUS.get(status, 200), headers=headers)
+    return JsonResponse({"status": status, **fields}, status=HTTP_STATUS[status], headers=headers)
 
 
-def unauthorized_response() -> JsonResponse:
-    return api_response("unauthorized", headers={"WWW-Authenticate": "Bearer"})
+def bad_request(request, exception=None):
+    return api_response("invalid")
+
+
+def permission_denied(request, exception=None):
+    return api_response("forbidden")
+
+
+def csrf_failure(request, reason=""):
+    return api_response("forbidden")
 
 
 def not_found(request, exception=None):

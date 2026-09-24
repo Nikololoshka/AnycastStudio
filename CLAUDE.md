@@ -60,7 +60,7 @@ Unless asked otherwise:
 - Introduce a new dependency when an existing one can solve the problem.
 - Put publishing logic, tokens or platform API calls in the browser — they
   belong on the server.
-- Add comments explaining what code does (see Code Style).
+- Add comments or docstrings (see Code Style).
 - Guess around OAuth, token storage, or credential handling (see Security).
 
 ---
@@ -329,11 +329,12 @@ npm run dev                                        # http://localhost:5173
 - Formatter: Prettier (`frontend/.prettierrc.json`)
 - Linter: ESLint (typescript-eslint + `eslint-plugin-react-hooks`)
 - Type policy: strict (`strict`, `noUnusedLocals`, `noUnusedParameters`)
-- Comments policy: write self-explanatory code instead of comments. Name things
-  clearly, extract functions to convey intent, let types carry the shape. Do
-  not add comments explaining *what* code does. **Do** record *why*, when the
-  reason is external and not visible in the code: a platform's constraint, a
-  quota, a protocol requirement, a decision that looks arbitrary.
+- Comments policy: no comments and no docstrings. Code documents itself: name
+  things clearly, extract a function whose name states the intent, let types
+  carry the shape, put the reason for a refusal in its error or log message.
+  A *why* that the code cannot carry (a platform's constraint, a quota, an
+  operational procedure such as key rotation) goes in the README or an ADR.
+  Test names and their Given / When / Then steps are the one exception.
 - Import policy: relative within a module, no path aliases
 - Styling: Tailwind utilities in `className`; no CSS modules, no `style` props
 
@@ -348,7 +349,7 @@ Do:
 
 Don't:
 
-- add comments explaining what code does;
+- add comments or docstrings;
 - put unrelated logic in a shared "utils" file;
 - hardcode colours or add a second component library;
 - call `fetch` from a component.

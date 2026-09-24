@@ -1,20 +1,11 @@
-"""Decorators that reject a request before the view runs.
-
-`guard` turns a plain check into a decorator that works on sync and async
-views alike, which is why the project does not need a framework layer here.
-A check returns a response to stop the request, or None to let it through.
-"""
-
 import inspect
 from functools import wraps
 
 from .ratelimit import is_rate_limited
-from .responses import api_response, unauthorized_response
+from .responses import api_response
 
 
 def guard(check):
-    """Turn `check(request, **kwargs) -> JsonResponse | None` into a decorator for sync and async views."""
-
     def decorator(view):
         if inspect.iscoroutinefunction(view):
 
@@ -62,15 +53,7 @@ def rate_limit(scope: str):
     return decorator
 
 
-def bearer_token(request) -> str | None:
-    scheme, _, token = request.headers.get("Authorization", "").partition(" ")
-    if scheme.lower() != "bearer" or not token.strip():
-        return None
-    return token.strip()
-
-
 __all__ = [
-    "bearer_token",
     "guard",
     "rate_limit",
     "require_auth",
@@ -78,5 +61,4 @@ __all__ = [
     "require_get",
     "require_method",
     "require_post",
-    "unauthorized_response",
 ]

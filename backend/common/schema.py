@@ -1,10 +1,3 @@
-"""Request body validation.
-
-`validate` parses the JSON body into a pydantic model and hands it to the view
-as `data`. A malformed body never reaches the view, and the error shape is the
-same for every endpoint, so the client has one branch to write.
-"""
-
 import json
 from functools import wraps
 
@@ -27,7 +20,7 @@ def validate(model: type[BaseModel]):
         def wrapper(request, *args, **kwargs):
             try:
                 payload = json.loads(request.body or b"{}")
-            except json.JSONDecodeError:
+            except (ValueError, RecursionError):
                 return api_response("invalid", errors=[{"field": "", "message": "body is not valid JSON"}])
 
             if not isinstance(payload, dict):

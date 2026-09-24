@@ -243,7 +243,8 @@ class EncryptionScenarios(SocialTestCase):
         ):
             fields.reset_cipher_cache()
             try:
-                account.refresh_from_db()
+                with self.assertLogs("common.fields", level="WARNING") as logs:
+                    account.refresh_from_db()
                 unreadable = account.access_token
             finally:
                 fields.reset_cipher_cache()
@@ -251,3 +252,8 @@ class EncryptionScenarios(SocialTestCase):
         # Then: it reads as missing rather than crashing, so the person is asked
         # to reconnect instead of meeting a 500
         self.assertEqual(unreadable, "")
+        # And: the log names the field but never the stored value
+        output = "\n".join(logs.output)
+        self.assertIn("SocialAccount.access_token", output)
+        self.assertNotIn(ACCESS_TOKEN, output)
+        self.assertNotIn(REFRESH_TOKEN, output)
