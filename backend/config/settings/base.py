@@ -20,10 +20,9 @@ def env_bool(name, default=False):
 def env_list(name, default=""):
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
 
-load_dotenv(BASE_DIR / ".env", override=False)
-
 # --- Core ---
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(BASE_DIR / ".env", override=False)
 DEBUG = env_bool("DJANGO_DEBUG", False)
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or ("dev-insecure-key" if DEBUG else None)
