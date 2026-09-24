@@ -38,7 +38,7 @@ The tests mock the Graph API and need no network access.
 
 ## Token encryption
 
-Platform tokens are stored as Fernet ciphertext (`common/fields.py`), so a copy
+Platform tokens are stored as Fernet ciphertext (`common/encryption/`), so a copy
 of the database file is not a copy of the tokens. The keys are not derived from
 `DJANGO_SECRET_KEY`: they rotate on a different schedule, and losing them costs
 every user every connected account.

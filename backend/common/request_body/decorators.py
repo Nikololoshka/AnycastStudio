@@ -3,7 +3,7 @@ from functools import wraps
 
 from pydantic import BaseModel, ValidationError
 
-from .responses import api_response
+from ..responses import api_response
 
 
 def _field_path(error) -> str:

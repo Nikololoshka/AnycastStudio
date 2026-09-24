@@ -10,9 +10,10 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from common.guards import rate_limit, require_auth, require_delete, require_get, require_post
+from common.access import require_auth, require_delete, require_get, require_post
+from common.rate_limit import rate_limit
+from common.request_body import validate
 from common.responses import api_response
-from common.schema import validate
 
 from .. import services
 from ..models import UploadSession

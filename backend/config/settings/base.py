@@ -134,7 +134,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = False
-CSRF_FAILURE_VIEW = "common.responses.csrf_failure"
+CSRF_FAILURE_VIEW = "common.responses.error_views.csrf_failure"
 
 # --- Token encryption ---
 TOKEN_ENCRYPTION_KEYS = env_list("TOKEN_ENCRYPTION_KEYS")

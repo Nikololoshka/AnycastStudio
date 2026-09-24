@@ -10,9 +10,10 @@ from django.contrib.auth import login as start_session
 from django.contrib.auth import logout as end_session
 from django.middleware.csrf import get_token
 
-from common.guards import rate_limit, require_auth, require_get, require_post
+from common.access import require_auth, require_get, require_post
+from common.rate_limit import rate_limit
+from common.request_body import validate
 from common.responses import api_response
-from common.schema import validate
 
 from ..schemas import LoginSchema
 from ..serializers import user_json

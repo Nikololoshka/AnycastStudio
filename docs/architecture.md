@@ -98,8 +98,8 @@ here — the desktop client needed one only for platforms that lack this.
 
 ### No Django REST Framework
 
-`common/responses.py` already defines the contract — a `status` string with the
-HTTP code derived from it — and `common/guards.py::guard` builds both sync and
+`common/responses/` already defines the contract — a `status` string with the
+HTTP code derived from it — and `common/guard.py::guard` builds both sync and
 async wrappers from one check. `APIView` is sync-only, so an async endpoint
 would live outside it and split the codebase into two conventions. There is one
 client, no browsable API, and the types are mirrored in TypeScript anyway.

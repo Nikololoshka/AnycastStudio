@@ -1,6 +1,6 @@
 """Listing and removing connected accounts."""
 
-from common.guards import require_auth, require_delete, require_get
+from common.access import require_auth, require_delete, require_get
 from common.responses import api_response
 
 from .. import services

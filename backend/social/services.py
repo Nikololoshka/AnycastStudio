@@ -5,7 +5,7 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 
-from common.fields import current_key_version
+from common.encryption import current_key_version
 from platforms.base import Identity, ProviderError, TokenBundle
 
 from .models import SocialAccount

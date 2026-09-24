@@ -14,7 +14,7 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += staticfiles_urlpatterns()
 
-handler400 = "common.responses.bad_request"
-handler403 = "common.responses.permission_denied"
-handler404 = "common.responses.not_found"
-handler500 = "common.responses.server_error"
+handler400 = "common.responses.error_views.bad_request"
+handler403 = "common.responses.error_views.permission_denied"
+handler404 = "common.responses.error_views.not_found"
+handler500 = "common.responses.error_views.server_error"

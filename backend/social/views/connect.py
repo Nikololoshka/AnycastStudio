@@ -6,7 +6,8 @@ no polling is needed: the person is signed in the whole time.
 
 import logging
 
-from common.guards import rate_limit, require_auth, require_post
+from common.access import require_auth, require_post
+from common.rate_limit import rate_limit
 from common.responses import api_response
 from platforms.base import ProviderError
 

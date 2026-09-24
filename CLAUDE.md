@@ -84,10 +84,10 @@ Unless asked otherwise:
 
 | Area | Library | Purpose | Notes / Constraints |
 | --- | --- | --- | --- |
-| API | plain Django views | HTTP layer | No DRF. `common/responses.py` is the contract, `common/guards.py` the decorators |
-| Validation | pydantic 2 | Request bodies | Through `common/schema.py::validate` |
+| API | plain Django views | HTTP layer | No DRF. `common/responses/` is the contract, `common/access/` and `common/rate_limit/` the decorators |
+| Validation | pydantic 2 | Request bodies | Through `common/request_body::validate` |
 | Queue | celery[redis] 5.6 | Background uploads | `acks_late`; no task-level retry, the pipeline decides |
-| Encryption | cryptography | Platform tokens at rest | `MultiFernet`, rotatable; see `common/fields.py` |
+| Encryption | cryptography | Platform tokens at rest | `MultiFernet`, rotatable; see `common/encryption/` |
 | Passwords | argon2-cffi | Hashing | First in `PASSWORD_HASHERS` |
 | HTTP (server) | requests | Platform calls | Only through `platforms/http.py` |
 | Config | python-dotenv | Reads `backend/.env` | Real env vars win |
@@ -199,7 +199,7 @@ triggered by `database is locked` appearing in the worker log.
 ### API conventions
 
 Every response carries a `status` string; the HTTP code follows from it
-(`common/responses.py::HTTP_STATUS`). Clients branch on the string, so a new
+(`common/responses/contract.py::HTTP_STATUS`). Clients branch on the string, so a new
 outcome is a new row there, not a new body shape.
 
 ```python
@@ -220,7 +220,7 @@ project does not need a framework layer here.
 ```text
 backend/
 ├─ config/        settings/{base,dev,test}.py, urls, asgi, celery
-├─ common/        responses, guards, schema(pydantic), fields(encryption), ratelimit
+├─ common/        one package per task: responses, access, rate_limit, request_body, encryption
 ├─ accounts/      User, Quota, sign-in
 ├─ social/        SocialAccount, OAuthSession, provider registry, connect/callback
 ├─ media/         MediaAsset, UploadSession, chunked upload, storage, sweeps
@@ -378,7 +378,7 @@ Treat this section as mandatory.
 ### Human Approval Required Before
 
 - changing OAuth or credential handling (`backend/social/`,
-  `backend/platforms/*/oauth.py`, `backend/common/fields.py`);
+  `backend/platforms/*/oauth.py`, `backend/common/encryption/`);
 - deleting user data or stored media;
 - installing or replacing major dependencies;
 - rotating secrets or changing how `.env` is read;
@@ -386,9 +386,9 @@ Treat this section as mandatory.
 
 ### Sensitive Areas
 
-- Authentication: `backend/accounts/`, `backend/common/guards.py`
+- Authentication: `backend/accounts/`, `backend/common/access/`, `backend/common/guard.py`
 - Platform authorisation: `backend/social/`, `backend/platforms/*/oauth.py`
-- Encryption: `backend/common/fields.py`
+- Encryption: `backend/common/encryption/`
 - Configuration: `backend/.env`
 
 ---

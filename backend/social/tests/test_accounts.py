@@ -236,18 +236,18 @@ class EncryptionScenarios(SocialTestCase):
         account = self.only_account()
 
         # When: every key is replaced
-        from common import fields
+        from common.encryption import keys
 
         with mock.patch.object(
-            fields.settings, "TOKEN_ENCRYPTION_KEYS", [OTHER_KEY], create=True
+            keys.settings, "TOKEN_ENCRYPTION_KEYS", [OTHER_KEY], create=True
         ):
-            fields.reset_cipher_cache()
+            keys.reset_cipher_cache()
             try:
-                with self.assertLogs("common.fields", level="WARNING") as logs:
+                with self.assertLogs("common.encryption.fields", level="WARNING") as logs:
                     account.refresh_from_db()
                 unreadable = account.access_token
             finally:
-                fields.reset_cipher_cache()
+                keys.reset_cipher_cache()
 
         # Then: it reads as missing rather than crashing, so the person is asked
         # to reconnect instead of meeting a 500

@@ -4,7 +4,7 @@ Served from here rather than duplicated in the frontend, so the capability the
 composer shows and the capability the server enforces cannot drift apart.
 """
 
-from common.guards import require_auth, require_get
+from common.access import require_auth, require_get
 from common.responses import api_response
 from platforms import youtube
 

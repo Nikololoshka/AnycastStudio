@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from common.fields import EncryptedTextField
+from common.encryption import EncryptedTextField
 
 # A token is refreshed this long before it expires, so a request that starts now
 # does not finish with a token that expired mid-upload.
