@@ -1,21 +1,21 @@
-from dataclasses import dataclass
+from pydantic import Field
 
+from ..http import PlatformModel
 from ..upload import fresh_token_on_rejection
 from .api import API_ROOT, call
 
 CREATOR_INFO_ENDPOINT = f"{API_ROOT}/post/publish/creator_info/query/"
 
 
-@dataclass(frozen=True)
-class CreatorInfo:
-    username: str
-    nickname: str
-    avatar_url: str
-    privacy_level_options: tuple[str, ...]
-    comment_disabled: bool
-    duet_disabled: bool
-    stitch_disabled: bool
-    max_video_post_duration_sec: int | None
+class CreatorInfo(PlatformModel):
+    username: str = Field("", alias="creator_username")
+    nickname: str = Field("", alias="creator_nickname")
+    avatar_url: str = Field("", alias="creator_avatar_url")
+    privacy_level_options: tuple[str, ...] = ()
+    comment_disabled: bool = False
+    duet_disabled: bool = False
+    stitch_disabled: bool = False
+    max_video_post_duration_sec: int | None = None
 
     def as_json(self) -> dict:
         return {
@@ -31,16 +31,4 @@ class CreatorInfo:
 
 
 def query(access_token: str) -> CreatorInfo:
-    data = fresh_token_on_rejection(lambda: call("POST", CREATOR_INFO_ENDPOINT, access_token))
-
-    duration = data.get("max_video_post_duration_sec")
-    return CreatorInfo(
-        username=str(data.get("creator_username") or ""),
-        nickname=str(data.get("creator_nickname") or ""),
-        avatar_url=str(data.get("creator_avatar_url") or ""),
-        privacy_level_options=tuple(str(option) for option in data.get("privacy_level_options") or ()),
-        comment_disabled=bool(data.get("comment_disabled")),
-        duet_disabled=bool(data.get("duet_disabled")),
-        stitch_disabled=bool(data.get("stitch_disabled")),
-        max_video_post_duration_sec=int(duration) if isinstance(duration, (int, float)) else None,
-    )
+    return fresh_token_on_rejection(lambda: call("POST", CREATOR_INFO_ENDPOINT, access_token, CreatorInfo))

@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from pydantic import Field
 
-from ..http import AUTHENTICATION, FILE, PLATFORM, VALIDATION, PlatformFailure
+from ..http import AUTHENTICATION, FILE, PLATFORM, VALIDATION, PlatformFailure, PlatformModel
 from ..upload import fresh_token_on_rejection
 from .api import API_ROOT, call
 
@@ -31,11 +31,10 @@ FAIL_REASONS = {
 }
 
 
-@dataclass(frozen=True)
-class PublishStatus:
-    status: str
+class PublishStatus(PlatformModel):
+    status: str = ""
     fail_reason: str = ""
-    post_ids: tuple[str, ...] = ()
+    post_ids: tuple[str, ...] = Field((), alias="publicaly_available_post_id")
 
     @property
     def is_complete(self) -> bool:
@@ -47,15 +46,8 @@ class PublishStatus:
 
 
 def fetch_status(access_token: str, publish_id: str) -> PublishStatus:
-    data = fresh_token_on_rejection(
-        lambda: call("POST", STATUS_ENDPOINT, access_token, json={"publish_id": publish_id})
-    )
-
-    post_ids = data.get("publicaly_available_post_id") or ()
-    return PublishStatus(
-        status=str(data.get("status") or ""),
-        fail_reason=str(data.get("fail_reason") or ""),
-        post_ids=tuple(str(post_id) for post_id in post_ids),
+    return fresh_token_on_rejection(
+        lambda: call("POST", STATUS_ENDPOINT, access_token, PublishStatus, json={"publish_id": publish_id})
     )
 
 

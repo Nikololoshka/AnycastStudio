@@ -1,6 +1,7 @@
 from ..http import PlatformFailure
 from ..oauth import Identity, OAuth2Provider, ProviderError, pkce
 from .api import API_ROOT, data_of, send
+from .responses import UserData
 
 AUTH_ENDPOINT = "https://www.tiktok.com/v2/auth/authorize/"
 TOKEN_ENDPOINT = f"{API_ROOT}/oauth/token/"
@@ -33,18 +34,11 @@ class TikTokProvider(OAuth2Provider):
             headers={"Authorization": f"Bearer {access_token}"},
         )
         try:
-            user = data_of(response).get("user") or {}
+            user = data_of(response, UserData, refusal="TikTok did not say which account signed in").user
         except PlatformFailure as failure:
             raise ProviderError(failure.message) from None
 
-        if not user.get("open_id"):
-            raise ProviderError("TikTok did not say which account signed in")
-
-        return Identity(
-            external_id=str(user["open_id"]),
-            display_name=user.get("display_name", ""),
-            avatar_url=user.get("avatar_url", ""),
-        )
+        return Identity(external_id=user.open_id, display_name=user.display_name, avatar_url=user.avatar_url)
 
     def revoke(self, access_token: str, refresh_token: str) -> None:
         self._send(

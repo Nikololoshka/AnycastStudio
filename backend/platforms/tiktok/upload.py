@@ -7,6 +7,7 @@ from django.conf import settings
 from ..http import PLATFORM, PlatformFailure
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
 from .api import API_ROOT, call, send
+from .responses import InitData
 
 INIT_ENDPOINT = f"{API_ROOT}/post/publish/video/init/"
 
@@ -81,14 +82,13 @@ def start(access_token: str, post_info: PostInfo, size: int) -> ResumeState:
             "total_chunk_count": total_chunks,
         },
     }
-    data = fresh_token_on_rejection(lambda: call("POST", INIT_ENDPOINT, access_token, json=body))
-
-    if not data.get("publish_id") or not data.get("upload_url"):
-        raise PlatformFailure(PLATFORM, "TikTok did not open an upload")
+    data = fresh_token_on_rejection(
+        lambda: call("POST", INIT_ENDPOINT, access_token, InitData, refusal="TikTok did not open an upload", json=body)
+    )
 
     return ResumeState(
-        publish_id=str(data["publish_id"]),
-        upload_url=str(data["upload_url"]),
+        publish_id=data.publish_id,
+        upload_url=data.upload_url,
         chunk_size=chunk_size,
         total_chunks=total_chunks,
         expires_at=time.time() + UPLOAD_URL_LIFETIME_SECONDS,

@@ -11,7 +11,7 @@ from .failures import (
     PlatformFailure,
     classify,
 )
-from .parsing import PlatformModel, Present, parse
+from .parsing import PlatformModel, Present, parse, parse_body
 from .retry import backoff_ms, with_retry
 from .transport import request, send
 
@@ -32,6 +32,7 @@ __all__ = [
     "json_dict",
     "message_of",
     "parse",
+    "parse_body",
     "request",
     "send",
     "with_retry",
