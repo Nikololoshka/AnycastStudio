@@ -1,32 +1,25 @@
+from typing import TypeVar
+
+from pydantic import BaseModel
+
 from .. import http
-from ..http import (
-    AUTHORIZATION,
-    RATE_LIMIT,
-    PlatformFailure,
-    classify,
-    json_dict,
-)
+from ..http import AUTHORIZATION, RATE_LIMIT, PlatformFailure, classify, parse
+from .responses import Data, Problem, ProblemAnswer
 
 LABEL = "X"
 API_ROOT = "https://api.x.com/2"
-PROBLEM_PREFIX = "https://api.x.com/2/problems/"
 
 USAGE_CAPPED = "usage-capped"
 CLIENT_FORBIDDEN = "client-forbidden"
 
-
-def _problem_of(body: dict) -> dict:
-    if body.get("type") or body.get("detail") or body.get("title"):
-        return body
-    errors = body.get("errors")
-    if isinstance(errors, list) and errors and isinstance(errors[0], dict) and not body.get("data"):
-        return errors[0]
-    return {}
+M = TypeVar("M", bound=BaseModel)
 
 
-def problem_kind(problem: dict) -> str:
-    kind = str(problem.get("type") or "")
-    return kind.removeprefix(PROBLEM_PREFIX)
+def _problem_of(response) -> Problem:
+    try:
+        return parse(response, ProblemAnswer, label=LABEL).problem
+    except PlatformFailure:
+        return Problem()
 
 
 def failure_of(response) -> PlatformFailure | None:
@@ -34,15 +27,15 @@ def failure_of(response) -> PlatformFailure | None:
     if failure is None:
         return None
 
-    problem = _problem_of(json_dict(response))
-    kind = problem_kind(problem)
-    message = problem.get("detail") or problem.get("title") or problem.get("message") or failure.message
+    problem = _problem_of(response)
+    kind = problem.kind
+    message = (problem.text or failure.message)[:500]
 
     if kind == USAGE_CAPPED:
-        return PlatformFailure(RATE_LIMIT, str(message)[:500], details=kind)
+        return PlatformFailure(RATE_LIMIT, message, details=kind)
     if kind == CLIENT_FORBIDDEN:
-        return PlatformFailure(AUTHORIZATION, str(message)[:500], details=kind)
-    return PlatformFailure(failure.type, str(message)[:500], details=kind, retryable=failure.retryable)
+        return PlatformFailure(AUTHORIZATION, message, details=kind)
+    return PlatformFailure(failure.type, message, details=kind, retryable=failure.retryable)
 
 
 def send(method: str, url: str, *, attempts: int | None = None, **kwargs):
@@ -53,12 +46,10 @@ def bearer(access_token: str) -> dict:
     return {"Authorization": f"Bearer {access_token}"}
 
 
-def call(method: str, path: str, access_token: str, *, attempts: int | None = None, **kwargs) -> dict:
+def call(method: str, path: str, access_token: str, *, attempts: int | None = None, **kwargs):
     headers = {**bearer(access_token), **kwargs.pop("headers", {})}
-    return json_dict(send(method, f"{API_ROOT}/{path}", attempts=attempts, headers=headers, **kwargs))
+    return send(method, f"{API_ROOT}/{path}", attempts=attempts, headers=headers, **kwargs)
 
 
-def data_of(body: dict) -> dict:
-    data = body.get("data")
-    return data if isinstance(data, dict) else {}
-
+def data_of(response, model: type[M], *, refusal: str | None = None) -> M:
+    return parse(response, Data[model], label=LABEL, refusal=refusal).data

@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 
-from ..http import FILE, PLATFORM, PlatformFailure
+from ..http import FILE, PlatformFailure, parse, parse_body
 from ..upload import fresh_token_on_rejection
-from .api import call, data_of
+from .api import LABEL, call, data_of
+from .responses import Created, MediaStatusAnswer
 from .video_options import VideoOptions
 
-PENDING = "pending"
 IN_PROGRESS = "in_progress"
 SUCCEEDED = "succeeded"
 FAILED = "failed"
@@ -27,20 +27,22 @@ class ProcessingStatus:
         return self.state == FAILED
 
 
-def status_of(body: dict) -> ProcessingStatus:
-    info = data_of(body).get("processing_info")
-    if not isinstance(info, dict):
+def _status(answer: MediaStatusAnswer) -> ProcessingStatus:
+    info = answer.data.processing_info
+    if info is None:
         return ProcessingStatus(SUCCEEDED)
-    error = info.get("error")
-    message = (error.get("message") or error.get("name")) if isinstance(error, dict) else ""
-    return ProcessingStatus(state=str(info.get("state") or PENDING), error=str(message or "")[:500])
+    return ProcessingStatus(state=info.state, error=info.error.text[:500])
+
+
+def status_of(body: dict) -> ProcessingStatus:
+    return _status(parse_body(body, MediaStatusAnswer, label=LABEL))
 
 
 def fetch_status(access_token: str, media_id: str) -> ProcessingStatus:
-    body = fresh_token_on_rejection(
+    response = fresh_token_on_rejection(
         lambda: call("GET", "media/upload", access_token, params={"command": "STATUS", "media_id": media_id})
     )
-    return status_of(body)
+    return _status(parse(response, MediaStatusAnswer, label=LABEL))
 
 
 def failure_of(status: ProcessingStatus) -> PlatformFailure:
@@ -49,11 +51,8 @@ def failure_of(status: ProcessingStatus) -> PlatformFailure:
 
 def create_post(access_token: str, text: str, media_id: str, options: VideoOptions) -> str:
     body = {"text": text, "media": {"media_ids": [media_id]}, **options.as_post_fields()}
-    answer = fresh_token_on_rejection(lambda: call("POST", "tweets", access_token, attempts=1, json=body))
-    post_id = data_of(answer).get("id")
-    if not post_id:
-        raise PlatformFailure(PLATFORM, "X did not say which post it created")
-    return str(post_id)
+    response = fresh_token_on_rejection(lambda: call("POST", "tweets", access_token, attempts=1, json=body))
+    return data_of(response, Created, refusal="X did not say which post it created").id
 
 
 def post_url(post_id: str) -> str:

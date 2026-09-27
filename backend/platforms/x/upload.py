@@ -4,9 +4,10 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import PLATFORM, VALIDATION, PlatformFailure
+from ..http import VALIDATION, PlatformFailure
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
 from .api import call, data_of
+from .responses import Created
 
 MAX_SEGMENT_BYTES = 4 * 1024**2
 MEDIA_LIFETIME_SECONDS = 23 * 60 * 60
@@ -38,7 +39,7 @@ def segment_bytes() -> int:
 
 
 def start(access_token: str, size: int, mime_type: str) -> ResumeState:
-    body = fresh_token_on_rejection(
+    response = fresh_token_on_rejection(
         lambda: call(
             "POST",
             "media/upload/initialize",
@@ -47,10 +48,8 @@ def start(access_token: str, size: int, mime_type: str) -> ResumeState:
             json={"media_type": mime_type, "total_bytes": size, "media_category": MEDIA_CATEGORY},
         )
     )
-    media_id = data_of(body).get("id")
-    if not media_id:
-        raise PlatformFailure(PLATFORM, "X did not open an upload")
-    return ResumeState(media_id=str(media_id), segment_bytes=segment_bytes(), created_at=time.time())
+    media = data_of(response, Created, refusal="X did not open an upload")
+    return ResumeState(media_id=media.id, segment_bytes=segment_bytes(), created_at=time.time())
 
 
 def _resumed(resume: ResumeState | None, size: int) -> ResumeState | None:

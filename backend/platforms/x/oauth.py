@@ -1,6 +1,6 @@
-from ..http import json_dict
 from ..oauth import Identity, OAuth2Provider, ProviderError
-from .api import API_ROOT, bearer, data_of, send
+from .api import API_ROOT, bearer, send
+from .responses import Data, User
 
 AUTH_ENDPOINT = "https://x.com/i/oauth2/authorize"
 TOKEN_ENDPOINT = f"{API_ROOT}/oauth2/token"
@@ -27,17 +27,19 @@ class XProvider(OAuth2Provider):
         return {"data": {**grant, "client_id": self.client_id()}, "auth": self._client_auth()}
 
     def fetch_identity(self, access_token: str) -> Identity:
-        response = self._send(
-            "GET", USER_INFO_ENDPOINT, params={"user.fields": "profile_image_url"}, headers=bearer(access_token)
-        )
-        user = data_of(json_dict(response))
-        if not user.get("id"):
-            raise ProviderError("X did not say which account signed in")
+        user = self._answer(
+            "GET",
+            USER_INFO_ENDPOINT,
+            Data[User],
+            refusal="X did not say which account signed in",
+            params={"user.fields": "profile_image_url"},
+            headers=bearer(access_token),
+        ).data
 
         return Identity(
-            external_id=str(user["id"]),
-            display_name=str(user.get("username") or user.get("name") or ""),
-            avatar_url=str(user.get("profile_image_url") or ""),
+            external_id=user.id,
+            display_name=user.username or user.name,
+            avatar_url=user.profile_image_url,
         )
 
     def _revoke_one(self, token: str, hint: str) -> None:
