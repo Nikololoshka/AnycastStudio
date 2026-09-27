@@ -3,67 +3,57 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.urls import reverse
 
+from ..http import PlatformFailure, json_dict
 from ..oauth import Identity, ProviderError, TokenBundle, pkce
-from ..http import PlatformFailure, json_dict, request, with_retry
+from .api import API_ROOT, data_of, send
 
-AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
-TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
-REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"
-CHANNELS_ENDPOINT = "https://www.googleapis.com/youtube/v3/channels"
+AUTH_ENDPOINT = "https://www.tiktok.com/v2/auth/authorize/"
+TOKEN_ENDPOINT = f"{API_ROOT}/oauth/token/"
+REVOKE_ENDPOINT = f"{API_ROOT}/oauth/revoke/"
+USER_INFO_ENDPOINT = f"{API_ROOT}/user/info/"
 
-LABEL = "Google"
 OAUTH_ATTEMPTS = 3
 
 
 def _send(method: str, url: str, attempts: int = OAUTH_ATTEMPTS, **kwargs):
     try:
-        return with_retry(
-            lambda: request(method, url, label=LABEL, **kwargs),
-            label=LABEL,
-            attempts=attempts,
-        )
+        return send(method, url, attempts=attempts, **kwargs)
     except PlatformFailure as failure:
         raise ProviderError(failure.message, transient=failure.retryable) from None
 
 
-class YouTubeProvider:
-    name = "youtube"
-    label = "YouTube"
+class TikTokProvider:
+    name = "tiktok"
+    label = "TikTok"
     uses_pkce = True
-    scopes = (
-        "https://www.googleapis.com/auth/youtube.upload",
-        "https://www.googleapis.com/auth/youtube",
-    )
+    scopes = ("user.info.basic", "video.publish")
 
     @property
     def redirect_uri(self) -> str:
         return f"{settings.PUBLIC_ORIGIN}{reverse('social-callback', args=[self.name])}"
 
     @staticmethod
-    def _client_id() -> str:
-        if not settings.YOUTUBE_CLIENT_ID:
-            raise ProviderError("YOUTUBE_CLIENT_ID is not configured")
-        return settings.YOUTUBE_CLIENT_ID
+    def _client_key() -> str:
+        if not settings.TIKTOK_CLIENT_KEY:
+            raise ProviderError("TIKTOK_CLIENT_KEY is not configured")
+        return settings.TIKTOK_CLIENT_KEY
 
     @staticmethod
     def _client_secret() -> str:
-        if not settings.YOUTUBE_CLIENT_SECRET:
-            raise ProviderError("YOUTUBE_CLIENT_SECRET is not configured")
-        return settings.YOUTUBE_CLIENT_SECRET
+        if not settings.TIKTOK_CLIENT_SECRET:
+            raise ProviderError("TIKTOK_CLIENT_SECRET is not configured")
+        return settings.TIKTOK_CLIENT_SECRET
 
     def code_challenge(self, verifier: str) -> str:
-        return pkce.s256_challenge(verifier)
+        return pkce.hex_s256_challenge(verifier)
 
     def authorize_url(self, state: str, code_challenge: str | None) -> str:
         params = {
-            "client_id": self._client_id(),
+            "client_key": self._client_key(),
             "redirect_uri": self.redirect_uri,
             "response_type": "code",
-            "scope": " ".join(self.scopes),
+            "scope": ",".join(self.scopes),
             "state": state,
-            "access_type": "offline",
-            "prompt": "consent",
-            "include_granted_scopes": "true",
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
         }
@@ -74,19 +64,21 @@ class YouTubeProvider:
         body = json_dict(response)
 
         if not body.get("access_token"):
-            raise ProviderError(f"Unexpected response from Google (HTTP {response.status_code})")
+            reason = body.get("error_description") or body.get("error") or f"HTTP {response.status_code}"
+            raise ProviderError(f"TikTok refused the token request: {str(reason)[:200]}")
 
+        scopes = tuple(scope for scope in str(body.get("scope", "")).split(",") if scope)
         return TokenBundle(
             access_token=body["access_token"],
             refresh_token=body.get("refresh_token"),
             expires_in=body.get("expires_in"),
-            scopes=tuple(str(body.get("scope", "")).split()) or self.scopes,
+            scopes=scopes or self.scopes,
         )
 
     def exchange_code(self, code: str, code_verifier: str | None) -> TokenBundle:
         return self._post_token(
             {
-                "client_id": self._client_id(),
+                "client_key": self._client_key(),
                 "client_secret": self._client_secret(),
                 "code": code,
                 "code_verifier": code_verifier or "",
@@ -98,7 +90,7 @@ class YouTubeProvider:
     def refresh(self, refresh_token: str) -> TokenBundle:
         return self._post_token(
             {
-                "client_id": self._client_id(),
+                "client_key": self._client_key(),
                 "client_secret": self._client_secret(),
                 "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
@@ -108,25 +100,28 @@ class YouTubeProvider:
     def fetch_identity(self, access_token: str) -> Identity:
         response = _send(
             "GET",
-            CHANNELS_ENDPOINT,
-            params={"part": "snippet", "mine": "true"},
+            USER_INFO_ENDPOINT,
+            params={"fields": "open_id,display_name,avatar_url"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
+        try:
+            user = data_of(response).get("user") or {}
+        except PlatformFailure as failure:
+            raise ProviderError(failure.message) from None
 
-        items = json_dict(response).get("items") or []
-        if not items:
-            raise ProviderError("This Google account has no YouTube channel")
-
-        channel = items[0]
-        snippet = channel.get("snippet") or {}
-        thumbnails = snippet.get("thumbnails") or {}
+        if not user.get("open_id"):
+            raise ProviderError("TikTok did not say which account signed in")
 
         return Identity(
-            external_id=str(channel.get("id", "")),
-            display_name=snippet.get("title", ""),
-            avatar_url=(thumbnails.get("default") or {}).get("url", ""),
-            extra={"customUrl": snippet.get("customUrl", "")},
+            external_id=str(user["open_id"]),
+            display_name=user.get("display_name", ""),
+            avatar_url=user.get("avatar_url", ""),
         )
 
     def revoke(self, access_token: str, refresh_token: str) -> None:
-        _send("POST", REVOKE_ENDPOINT, attempts=1, data={"token": refresh_token})
+        _send(
+            "POST",
+            REVOKE_ENDPOINT,
+            attempts=1,
+            data={"client_key": self._client_key(), "client_secret": self._client_secret(), "token": access_token},
+        )

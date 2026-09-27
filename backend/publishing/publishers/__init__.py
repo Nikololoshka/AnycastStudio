@@ -1,9 +1,9 @@
 from types import ModuleType
 
-from . import youtube
+from . import tiktok, youtube
 from .outcome import Interrupted, NeedsFreshToken, Published, UploadCancelled
 
-PUBLISHERS: dict[str, ModuleType] = {"youtube": youtube}
+PUBLISHERS: dict[str, ModuleType] = {"youtube": youtube, "tiktok": tiktok}
 
 
 def publisher_for(platform: str) -> ModuleType:

@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import timedelta
 
 from django.db.models import Q, Value
@@ -6,18 +7,22 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from media import storage
-from platforms.http import AUTHENTICATION, FILE, NETWORK, UNKNOWN, VALIDATION, PlatformFailure
+from platforms.http import AUTHENTICATION, FILE, NETWORK, PLATFORM, UNKNOWN, VALIDATION, PlatformFailure
 from platforms.oauth import ProviderError
 from social import services as social_services
 
 from .models import PublicationTarget
-from .publishers import NeedsFreshToken, UploadCancelled, publisher_for
+from .publishers import NeedsFreshToken, Published, UploadCancelled, publisher_for
 
 logger = logging.getLogger(__name__)
 
 Status = PublicationTarget.Status
 
 ABANDONED_AFTER = timedelta(minutes=15)
+RESUMABLE_BY_CLAIM = tuple(status for status in PublicationTarget.RUNNING if status != Status.PROCESSING)
+
+POLL_DELAYS_SECONDS = (10, 30, 60, 120)
+CONFIRM_WITHIN_SECONDS = 30 * 60
 
 
 class Cancelled(Exception):
@@ -50,7 +55,7 @@ def _error_of(exception: Exception) -> dict:
 
 def _claimable():
     queued = Q(status=Status.QUEUED)
-    abandoned = Q(status__in=PublicationTarget.RUNNING, last_activity_at__lt=timezone.now() - ABANDONED_AFTER)
+    abandoned = Q(status__in=RESUMABLE_BY_CLAIM, last_activity_at__lt=timezone.now() - ABANDONED_AFTER)
     return queued | abandoned
 
 
@@ -162,13 +167,69 @@ def _publish(target: PublicationTarget, media_id: str) -> str:
 
     token = social_services.get_valid_access_token(target.social_account)
     published = publisher_for(target.platform).publish(target, media_id, token)
-
-    _set(
-        target,
-        status=published.status,
-        published_url=published.url,
-        resume_state=None,
-        finished_at=timezone.now(),
-    )
-    logger.info("Target %s ended as %s", target.pk, published.status)
+    _record(target, published)
     return published.status
+
+
+def _record(target: PublicationTarget, published: Published) -> None:
+    fields = {"status": published.status, "published_url": published.url, "resume_state": published.resume_state}
+    if published.status not in PublicationTarget.ACTIVE:
+        fields["finished_at"] = timezone.now()
+    _set(target, **fields)
+    logger.info("Target %s is now %s", target.pk, published.status)
+
+
+def _claim_confirmation(target_id: int) -> PublicationTarget | None:
+    target = (
+        PublicationTarget.objects.select_related("publication", "social_account")
+        .filter(pk=target_id, status=Status.PROCESSING)
+        .first()
+    )
+    if target is None:
+        return None
+    now = timezone.now()
+    claimed = PublicationTarget.objects.filter(
+        pk=target_id, status=Status.PROCESSING, last_activity_at=target.last_activity_at
+    ).update(last_activity_at=now)
+    if not claimed:
+        return None
+    target.last_activity_at = now
+    return target
+
+
+def _ask_for_confirmation(target: PublicationTarget) -> Published | None:
+    publisher = publisher_for(target.platform)
+    token = social_services.get_valid_access_token(target.social_account)
+    try:
+        return publisher.confirm(target, token)
+    except NeedsFreshToken:
+        return publisher.confirm(target, social_services.refresh_access_token(target.social_account))
+
+
+def confirm_target(target_id: int) -> int | None:
+    target = _claim_confirmation(target_id)
+    if target is None:
+        logger.info("Target %s is not waiting for confirmation", target_id)
+        return None
+
+    state = target.resume_state or {}
+    polls = int(state.get("polls", 0))
+    since = float(state.get("confirming_since", time.time()))
+
+    try:
+        published = _ask_for_confirmation(target)
+    except Exception as exception:
+        logger.exception("Target %s raised while confirming", target_id)
+        _fail(target, _error_of(exception))
+        return None
+
+    if published is not None:
+        _record(target, published)
+        return None
+
+    if time.time() - since >= CONFIRM_WITHIN_SECONDS:
+        _fail(target, {"type": PLATFORM, "message": "The platform did not confirm the publish in time; check it there"})
+        return None
+
+    _set(target, resume_state={**state, "confirming_since": since, "polls": polls + 1})
+    return POLL_DELAYS_SECONDS[min(polls + 1, len(POLL_DELAYS_SECONDS) - 1)]

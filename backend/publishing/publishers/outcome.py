@@ -19,3 +19,4 @@ class NeedsFreshToken(Interrupted):
 class Published:
     status: str
     url: str = ""
+    resume_state: dict | None = None

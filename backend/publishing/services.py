@@ -77,7 +77,7 @@ def dispatch(publication: Publication) -> None:
 
 
 def request_cancel(target: PublicationTarget) -> bool:
-    if not target.is_active:
+    if not target.is_active or target.status == Status.PROCESSING:
         return False
 
     PublicationTarget.objects.filter(pk=target.pk).update(cancel_requested=True)

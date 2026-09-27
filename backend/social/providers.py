@@ -1,6 +1,7 @@
 from platforms.oauth import PlatformProvider
+from platforms.tiktok import TikTokProvider
 from platforms.youtube import YouTubeProvider
 
 PROVIDERS: dict[str, PlatformProvider] = {
-    provider.name: provider for provider in (YouTubeProvider(),)
+    provider.name: provider for provider in (YouTubeProvider(), TikTokProvider())
 }

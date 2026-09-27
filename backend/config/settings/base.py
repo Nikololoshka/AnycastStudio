@@ -201,6 +201,8 @@ LOGGING = {
 # --- Platforms ---
 YOUTUBE_CLIENT_ID = os.environ.get("YOUTUBE_CLIENT_ID", "")
 YOUTUBE_CLIENT_SECRET = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
+TIKTOK_CLIENT_KEY = os.environ.get("TIKTOK_CLIENT_KEY", "")
+TIKTOK_CLIENT_SECRET = os.environ.get("TIKTOK_CLIENT_SECRET", "")
 
 # --- OAuth ---
 OAUTH_SESSION_TTL = 600
@@ -209,6 +211,7 @@ HTTP_TIMEOUT = 10
 RATE_LIMITS = {
     "login": (10, 300),
     "connect": (20, 300),
+    "creator_info": (30, 60),
     "uploads": (60, 60),
     "publications": (30, 60),
 }

@@ -145,7 +145,7 @@ def disconnect(account: SocialAccount) -> None:
     provider = PROVIDERS.get(account.platform)
     if provider is not None and account.refresh_token:
         try:
-            provider.revoke(account.refresh_token)
+            provider.revoke(account.access_token, account.refresh_token)
         except ProviderError as error:
             logger.info("Revoking %s account %s failed: %s", account.platform, account.pk, error.message)
 

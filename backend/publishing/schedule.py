@@ -9,6 +9,7 @@ from .publishers import PUBLISHERS
 Status = PublicationTarget.Status
 
 REDISPATCH_AFTER = timedelta(minutes=15)
+CONFIRMATION_STALLED_AFTER = timedelta(minutes=5)
 
 
 def deferred_platforms() -> list[str]:
@@ -38,3 +39,10 @@ def take_due_targets() -> list[int]:
             last_activity_at=now
         )
     ]
+
+
+def take_stalled_confirmations() -> list[int]:
+    now = timezone.now()
+    stalled = Q(status=Status.PROCESSING, last_activity_at__lt=now - CONFIRMATION_STALLED_AFTER)
+    candidates = PublicationTarget.objects.filter(stalled).values_list("pk", flat=True)
+    return [pk for pk in list(candidates) if PublicationTarget.objects.filter(stalled, pk=pk).update(last_activity_at=now)]
