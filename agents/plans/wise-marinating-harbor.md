@@ -1,144 +1,84 @@
-# Unify platform implementations
+# Typed platform responses instead of `json_dict`
 
 ## Context
 
-The four platforms (YouTube, TikTok, Instagram, X) were ported one by one, and each copied the
-previous one. The result is the same machinery written four times with small drifts:
+`platforms/http/body.py::json_dict` turns every platform answer into a plain `dict`, and about 110 call
+sites dig into it with `.get(...)`, `isinstance(...)`, `str(... or "")`, `int(...)`. The shape of each
+answer lives only in those scattered lookups: a typo in a key is silent (it just becomes `""`), the
+same defensive code repeats per platform, and nothing documents what we actually rely on. The TODO in
+`body.py` asks for a native structure per response.
 
-- `Cancelled` / `NeedsFreshToken` — identical in `instagram/errors.py`, `tiktok/errors.py`,
-  `x/errors.py`, and again inside `youtube/upload.py`. Each publisher then translates them into
-  `publishing/publishers/outcome.py` exceptions with the same `except` blocks.
-- "AUTHENTICATION failure → NeedsFreshToken" — `fresh_token_on_rejection` in `instagram/status.py`
-  and `x/api.py`, inline `try/except` in `tiktok/upload.py`, `tiktok/status.py`, `youtube/upload.py`.
-- `api.py::_attempt` + `send` — the same two functions in instagram, tiktok, x; only `failure_of`
-  differs. YouTube has no `api.py` and builds `Bearer` headers by hand in `upload.py` and `publish.py`.
-- `LABEL` lives in `api.py` (instagram, x) or `capabilities.py` (youtube, tiktok).
-- `upload.py` — every platform has the same loop (cancel check → read piece → length check → send →
-  advance → `on_progress`) and the same hand-written `ResumeState.as_dict` / `ResumeState.of`.
-- `publishing/publishers/<p>.py` — plain modules with an implicit contract (`capabilities`,
-  `validate`, `upload`, `publish`, `confirm`), typed as `ModuleType`. `_caption`, the upload wrapper
-  and "PROCESSING with `confirming_since` / `polls`" are repeated. YouTube has no `confirm`.
-- `publishing/views/platforms.py::CAPABILITIES` repeats the `PUBLISHERS` registry.
-- OAuth providers (~130 lines each): `_send`, `_client_id` / `_client_secret`, `_post_token`,
-  `authorize_url` differ only in parameters.
-- Public names drift: `container_status` / `publish_status` / `processing_status`;
-  `watch_url` / `post_url` / `permalink`.
+Goal: every answer we read is parsed once, at the edge, into its own model; the rest of the code works
+with typed attributes. Behaviour stays the same, including the refusal messages people see.
 
-Goal: one shape every platform fits, so a fifth platform fills in parameters and platform-specific
-steps only. Behaviour does not change; the existing tests (mocked at
-`platforms.http.transport.requests.request`) are the safety net and must stay green after each stage.
-Each stage is a separate commit.
+## Approach
 
-## Target shape
+**pydantic 2** — already a dependency (`requirements.txt`, used by `common/request_body`), works in the
+plain `platforms/` package (no Django), gives aliases, coercion and nested models. No new dependency.
 
-```
-platforms/
-├─ http/        + send(method, url, *, label, failure_of=classify, attempts=None, **kwargs)
-├─ upload/      NEW: UploadCancelled, NeedsFreshToken, fresh_token_on_rejection,
-│               ResumableState, read_piece, UploadSession (Protocol), drive()
-├─ oauth/       + OAuth2Provider base (stage 6)
-└─ <p>/
-   ├─ api.py            LABEL, roots, auth header, failure_of, call()     (youtube gets one)
-   ├─ capabilities.py   capabilities(), validate()
-   ├─ upload.py         ResumeState(ResumableState), <P>Session(UploadSession), upload()
-   ├─ status.py         fetch_status(), failure_of(), post_url()
-   ├─ video_options.py
-   └─ oauth.py          <P>Provider(OAuth2Provider)
+### 1. One parsing entry point — `platforms/http/body.py`
 
-publishing/publishers/
-├─ publisher.py   NEW: Publisher base class
-├─ outcome.py     Published + awaiting_confirmation()   (Interrupted classes removed)
-└─ <p>.py         class <P>Publisher(Publisher)
+```python
+def parse(response, model: type[M], *, label: str, refusal: str | None = None) -> M
 ```
 
-## Stages
+- `model.model_validate(response.json())`.
+- Not JSON or `ValidationError` → `PlatformFailure(PLATFORM, refusal or f"{label} answered in an unexpected shape", details=<field paths only>)`.
+- **Never** put `ValidationError` text or input values in the message, details or a log: token
+  responses carry `access_token` / `refresh_token`. Only `error["loc"]` paths go out.
+- Base model `PlatformModel(BaseModel)`: `model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)`.
+  Lenient by default: fields we only display get defaults; fields we cannot continue without are
+  required, and the call passes the existing domain message as `refusal`
+  (e.g. `"X did not open an upload"`), so people see the same text as today.
+- `json_dict` / `message_of` stay only for the generic error-message extraction in `failures.classify`,
+  where the body shape is unknown by design.
 
-### 1. Shared interruptions — `platforms/upload/`
+### 2. Models per platform — `platforms/<p>/responses.py`
 
-- `platforms/upload/errors.py`: `UploadCancelled(state: dict)` and `NeedsFreshToken(state: dict | None, message)`.
-  The platform stores `state.as_dict()`, so the exception already carries what `resume_state` stores.
-- `platforms/upload/tokens.py`: `fresh_token_on_rejection(action, state=None)` — the one copy.
-- Delete `instagram/errors.py`, `tiktok/errors.py`, `x/errors.py`, and the two classes in
-  `youtube/upload.py`. Replace every inline AUTHENTICATION → NeedsFreshToken block with the helper.
-- `publishing/pipeline.py` catches `platforms.upload.UploadCancelled` / `NeedsFreshToken` directly;
-  on `stale.state is None`, it keeps `target.resume_state` (today's `resume or {}` in each publisher).
-- Remove `Interrupted`, `UploadCancelled`, `NeedsFreshToken` from `publishing/publishers/outcome.py`
-  and the translating `except` blocks from all four publishers.
-- `social/views/creator_info.py` switches from `tiktok.NeedsFreshToken` to the shared class.
+Wire shapes only, named after what they are, with aliases for the platform's field names:
 
-### 2. One request path — `platforms/http/send`
+- **YouTube**: `TokenAnswer` (shared shape, lives in `platforms/oauth/`), `ChannelList` → `Channel` →
+  `Snippet` / `Thumbnails`, `UploadedVideo(id)`.
+- **TikTok**: generic `Envelope[T]` with `error: EnvelopeError(code="ok", message)` and `data: T`
+  (replaces `data_of`); `InitData(publish_id, upload_url)`, `StatusData`, `CreatorData`, `UserInfo`.
+- **X**: `Problem` (type/detail/title) for `failure_of`, `Data[T]`, `MediaInit(id)`, `ProcessingInfo`
+  (state, error), `CreatedPost(id)`, `User`.
+- **Instagram**: `GraphError` (code, error_subcode, message, error_user_msg) for `failure_of`,
+  `Created(id)`, `ContainerStatusAnswer` (status_code, status, video_status.uploading_phase.bytes_transferred),
+  `Page`, `PageList`, `DebugToken` (granular_scopes, user_id), `Permalink`.
 
-- Add `send(method, url, *, label, failure_of=classify, attempts=None, **kwargs)` to `platforms/http/`
-  (wraps `request` + `failure_of` + `with_retry`) — replaces `_attempt` + `send` in instagram, tiktok, x.
-  TikTok's `failure.details = error_code(...)` moves into a `tiktok/api.py::failure_of`.
-- New `youtube/api.py`: `LABEL`, `bearer()`, `send()`; `youtube/upload.py`, `youtube/publish.py`
-  and `youtube/oauth.py` use it. `LABEL` moves to `api.py` in every platform.
+Where a hand-written dataclass today is just "the answer plus properties" (`ContainerStatus`,
+`ProcessingStatus`, `PublishStatus`, `CreatorInfo`), it **becomes** the pydantic model — properties such
+as `is_ready` / `is_failed` stay on it, one layer instead of two. `CreatorInfo.as_json()` keeps its
+camelCase output via `model_dump(by_alias=...)` or stays explicit.
 
-### 3. Resume state and the upload loop — `platforms/upload/`
+### 3. Call sites
 
-- `ResumableState` (dataclass base): `as_dict()` via `dataclasses.asdict`; `of(raw)` returns `None`
-  when `raw` is not a dict or a field without a default is missing/empty, and casts each value by the
-  field type. The four `ResumeState` classes keep only their fields and platform properties
-  (`expired`, `uploaded_bytes`, `bounds_of`, …).
-- `read_piece(handle, offset, length) -> bytes` raises `PlatformFailure(FILE, "The video is shorter…")`.
-- `UploadSession` Protocol: `state`, `done`, `uploaded`, `send_next(handle)`, `finish() -> str`.
-- `drive(session, *, path, size, on_progress, should_cancel) -> str`: open file, loop while not
-  `done` — cancel check (`UploadCancelled(session.state.as_dict())`), `send_next`, `on_progress`;
-  then `finish()`.
-- Each `upload.py` keeps `start` / `_resumed` (platform-specific: YouTube asks the server for the
-  offset, Instagram reads `bytes_transferred`, TikTok/X check expiry) and a small session class:
-  - YouTube: `send_next` PUTs a piece, completion comes from the response, `finish` returns the id
-    already received; keeps the "no progress for N chunks" guard.
-  - TikTok: fixed chunk plan, last chunk must answer 201; `finish` returns `publish_id`.
-  - X: segments; `finish` calls `finalize`.
-  - Instagram: offset-based; `finish` returns `container_id`.
-- `upload(...)` in every platform = choose/start state, `return drive(Session(...), ...)`.
-  `on_progress(uploaded, total, state_dict)` — the lambda in each publisher disappears.
+Each `json_dict(...)` + `.get` chain becomes `parse(response, Model, label=LABEL, refusal=...)` and
+attribute access. Platform `call(...)` helpers return a parsed model when given one:
+`call(method, path, token, model=Created, refusal="Instagram did not open an upload")`.
 
-### 4. Uniform public surface per platform
+Order, one commit each, tests green after every step:
 
-Every `platforms/<p>/__init__.py` exports the same core names: `LABEL`, `<P>Provider`,
-`capabilities`, `validate`, `upload`, `ResumeState`, `VideoOptions`, `video_options_of`, plus
-`fetch_status`, `failure_of`, `post_url` where the platform confirms. Renames:
-`container_status` / `publish_status` / `processing_status` → `fetch_status`; YouTube `watch_url`,
-Instagram `permalink` → `post_url`. Platform-only extras (`publish_container`, `create_post`,
-`creator_info`, `schedule`) stay under their own names.
+1. `parse` + `PlatformModel` + tests (`platforms/tests/test_http_parse.py`).
+2. OAuth token answers (`platforms/oauth/base.py::_post_token`, Instagram `_user_token`) — sensitive
+   area, same rule as before: nothing from the body in logs.
+3. YouTube → TikTok → X → Instagram, one platform per commit.
+4. Remove `data_of` helpers and the TODO; `json_dict` stays private to `failures`.
 
-### 5. Publisher classes — `publishing/publishers/`
+## Critical files
 
-- `publisher.py::Publisher` base class:
-  - `platform` (module from `platforms/`), `capabilities()` delegating to it;
-  - `caption(target)` default via `platform.caption_of(title, description, hashtags)`;
-  - abstract `validate(target)`, `upload(target, token, resume, on_progress, should_cancel)`;
-  - `publish(target, media_id, token)` default `awaiting_confirmation()`;
-  - `confirm(target, token)` default raises `NotImplementedError` (YouTube never reaches PROCESSING).
-- `outcome.py::awaiting_confirmation(**extra) -> Published` replaces the three copies of
-  `Published(Status.PROCESSING, resume_state={"confirming_since": …, "polls": 0})`.
-- `YouTubePublisher`, `TikTokPublisher`, `InstagramPublisher`, `XPublisher` keep only what differs
-  (metadata/post info building, TikTok creator checks, Instagram publish step, X post-once logic).
-- `PUBLISHERS: dict[str, Publisher]`; `publisher_for` unchanged for callers.
-- `publishing/views/platforms.py` builds from `PUBLISHERS` and drops `CAPABILITIES`.
-- CLAUDE.md "File Placement Rules": a new platform needs a line in `social/providers.py` and
-  `publishing/publishers/__init__.py` only.
-
-### 6. OAuth base — **ask for approval before starting** (sensitive area)
-
-- `platforms/oauth/base.py::OAuth2Provider` holding the shared flow: `redirect_uri`, settings-backed
-  `client_id` / `client_secret` (by setting name), `_send` → `ProviderError`, `authorize_url` from
-  `authorize_params()`, `_post_token` parsing (`scope_separator`), `exchange_code`, `refresh`.
-- Per platform: endpoints, scopes, PKCE method, client-id param name (`client_key` for TikTok),
-  extra authorize params (Google `access_type` / `prompt`), client auth style (X basic auth),
-  `fetch_identity`, `revoke`. Instagram keeps its Page-selection logic in its own subclass.
-- Token handling, `state` checks and storage in `social/` are not touched.
+- `backend/platforms/http/body.py`, `backend/platforms/http/__init__.py`
+- `backend/platforms/oauth/base.py`
+- `backend/platforms/<p>/{api,upload,status,oauth}.py`, new `backend/platforms/<p>/responses.py`
+- `backend/platforms/tiktok/creator_info.py`
+- Docs: `docs/platforms/adding-a-platform.md` (add `responses.py` to the file table), CLAUDE.md shape list.
 
 ## Verification
 
-- After every stage: `.venv/Scripts/python manage.py test --settings=config.settings.test`
-  (397 tests today, all green). Tests mock `platforms.http.transport.requests.request`, so the real
-  chunking, retry and resume paths run.
-- New tests (Given / When / Then) in `platforms/tests/`: `ResumableState.of` (missing field, wrong
-  type, round-trip), `drive` (cancel mid-upload carries state; progress per piece), `http.send` with
-  a custom `failure_of`, `fresh_token_on_rejection`.
-- Stage 6: existing `test_*_oauth.py` must pass unchanged; `grep` that no token/secret reaches a log.
-- Manual: `npm run dev` + uvicorn + worker, connect one account, publish a short video to each
-  connected platform, kill the worker mid-upload once and confirm it resumes.
+- `.venv/Scripts/python manage.py test --settings=config.settings.test` after each commit (419 today).
+  Existing tests feed JSON through `FakeResponse`, so they exercise the new parsing unchanged.
+- New tests (Given / When / Then): unexpected shape → `PLATFORM` failure with the domain message;
+  a token answer with a missing field → the refusal names no token value (assert the secret string is
+  absent from message and details); extra fields are ignored; numeric strings coerce (`bytes_transferred: "1024"`).
+- Manual: connect and publish once per platform after the last commit.
