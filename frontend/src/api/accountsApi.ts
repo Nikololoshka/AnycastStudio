@@ -18,6 +18,22 @@ interface AccountsResponse {
   platforms: Platform[];
 }
 
+export interface CreatorInfo {
+  username: string;
+  nickname: string;
+  avatarUrl: string;
+  privacyLevelOptions: string[];
+  commentDisabled: boolean;
+  duetDisabled: boolean;
+  stitchDisabled: boolean;
+  maxVideoPostDurationSec: number | null;
+}
+
+interface CreatorInfoResponse {
+  status: string;
+  creatorInfo: CreatorInfo;
+}
+
 interface ConnectResponse {
   status: string;
   authUrl: string;
@@ -38,6 +54,12 @@ export const accountsApi = baseApi.injectEndpoints({
       transformResponse: (response: ConnectResponse) => response.authUrl,
     }),
 
+    getCreatorInfo: build.query<CreatorInfo, number>({
+      query: (id) => `/social/accounts/${id}/creator-info`,
+      transformResponse: (response: CreatorInfoResponse) => response.creatorInfo,
+      providesTags: ['Account'],
+    }),
+
     disconnectAccount: build.mutation<void, number>({
       query: (id) => ({ url: `/social/accounts/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Account'],
@@ -45,5 +67,9 @@ export const accountsApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useGetAccountsQuery, useStartConnectMutation, useDisconnectAccountMutation } =
-  accountsApi;
+export const {
+  useGetAccountsQuery,
+  useGetCreatorInfoQuery,
+  useStartConnectMutation,
+  useDisconnectAccountMutation,
+} = accountsApi;

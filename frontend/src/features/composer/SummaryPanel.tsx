@@ -8,7 +8,8 @@ import { useCreatePublicationMutation, useGetAccountsQuery } from '../../api';
 import { messageOf, statusOf } from '../../api/errors';
 import type { AppDispatch, RootState } from '../../app/store';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
-import { getLabelFor } from '../../platforms/registry';
+import { getDescriptorFor, getLabelFor } from '../../platforms/registry';
+import { TikTokConsent } from '../../platforms/tiktok';
 import { clearVideo } from './composerSlice';
 import { uploadReset } from '../upload';
 
@@ -44,15 +45,36 @@ export function SummaryPanel() {
 
   const isUploading = uploadStatus === 'hashing' || uploadStatus === 'uploading';
 
+  const withoutAccount = selectedPlatforms.find(
+    (platform) => !targets.some((target) => target.platform === platform),
+  );
+
+  const draftError = selectedPlatforms.flatMap((platform) =>
+    getDescriptorFor(platform)
+      .validate({
+        video,
+        title,
+        description,
+        hashtags,
+        publishAt,
+        settings: platformSettings[platform],
+      })
+      .errors.map((code) => ({ platform, code })),
+  )[0];
+
   const blocker = !video
     ? t('summary.needsVideo')
     : !video.mediaAssetId
       ? t('summary.needsUpload')
       : selectedPlatforms.length === 0
         ? t('summary.needsPlatform')
-        : targets.length === 0
-          ? t('summary.needsAccount')
-          : undefined;
+        : withoutAccount
+          ? t('summary.needsAccount', { platform: getLabelFor(withoutAccount) })
+          : draftError
+            ? t(`summary.invalid.${draftError.code}`, {
+                platform: getLabelFor(draftError.platform),
+              })
+            : undefined;
 
   async function publish() {
     if (!video?.mediaAssetId) return;
@@ -146,6 +168,8 @@ export function SummaryPanel() {
         <Send className="size-4" />
         {publishAt ? t('summary.schedule') : t('summary.publish')}
       </Button>
+
+      {selectedPlatforms.includes('tiktok') && <TikTokConsent />}
 
       {error ? (
         <p role="alert" className="text-center text-xs text-danger">

@@ -1,9 +1,19 @@
 import type { PlatformCapabilities, PlatformSettings } from '../domain/platform/types';
 import type { VideoFile } from '../domain/video/types';
 
+export type DraftError =
+  | 'titleRequired'
+  | 'videoRequired'
+  | 'fileTooLarge'
+  | 'unsupportedType'
+  | 'captionTooLong'
+  | 'privacyRequired'
+  | 'commercialContentUnspecified'
+  | 'brandedContentCannotBePrivate';
+
 export interface ValidationResult {
   valid: boolean;
-  errors: string[];
+  errors: DraftError[];
 }
 
 /** What the composer knows about a publication before it is sent to the server. */

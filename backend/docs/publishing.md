@@ -56,9 +56,32 @@ already reached the platform, so it continues rather than starts over.
 
 ## Scheduling
 
-A scheduled video is uploaded `private`, and `publishAt` is sent together with
-`privacyStatus: private`: YouTube ignores `publishAt` otherwise. Nothing of ours
-runs at the scheduled moment; YouTube publishes it.
+- YouTube (`native`): a scheduled video is uploaded `private`, and `publishAt`
+  is sent together with `privacyStatus: private`: YouTube ignores `publishAt`
+  otherwise. Nothing of ours runs at the scheduled moment.
+- TikTok (`deferredUpload`): Direct Post publishes as soon as the upload ends,
+  so a scheduled target stays `queued` until its time. `dispatch_due_targets`
+  (Celery beat, every minute) hands it to the worker. It stamps
+  `last_activity_at` with a conditional UPDATE so two sweeps do not queue it
+  twice, and queues it again if no worker took it within `REDISPATCH_AFTER`.
+
+## Confirming an asynchronous publish
+
+TikTok accepts the file and publishes it minutes later, or refuses it. The
+desktop client reported success at the end of the upload; this one does not.
+
+- `publish` leaves the target `processing`, and `publishing.confirm_target`
+  asks the platform again after 10, 30, 60, then every 120 seconds. Each task
+  schedules the next, so the solo worker is never blocked while waiting.
+- A confirmation claims the target optimistically on `last_activity_at`, so a
+  redelivered task does nothing.
+- After `CONFIRM_WITHIN_SECONDS` (30 minutes) without an answer the target
+  fails, and the person is told to check the platform. It is not retried: the
+  file is already there.
+- If the chain is lost (a worker killed between polls), the beat sweep resumes
+  it for targets silent longer than `CONFIRMATION_STALLED_AFTER`. The upload
+  claim leaves `processing` targets alone, so the file is not sent twice.
+- A `processing` target cannot be cancelled; the platform has the video.
 
 ## Dispatch
 

@@ -25,6 +25,7 @@ export function TargetRow({ target }: { target: PublicationTarget }) {
 
   const isIndeterminate = INDETERMINATE_STATUSES.includes(target.status);
   const canRetry = target.status === 'failed' || target.status === 'cancelled';
+  const canCancel = target.isActive && target.status !== 'processing';
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border px-4 py-3">
@@ -48,14 +49,24 @@ export function TargetRow({ target }: { target: PublicationTarget }) {
           </a>
         )}
 
-        {target.isActive && (
-          <Button size="sm" variant="ghost" isDisabled={isCancelling} onPress={() => void cancel(target.id)}>
+        {canCancel && (
+          <Button
+            size="sm"
+            variant="ghost"
+            isDisabled={isCancelling}
+            onPress={() => void cancel(target.id)}
+          >
             {t('actions.cancel')}
           </Button>
         )}
 
         {canRetry && (
-          <Button size="sm" variant="primary" isDisabled={isRetrying} onPress={() => void retry(target.id)}>
+          <Button
+            size="sm"
+            variant="primary"
+            isDisabled={isRetrying}
+            onPress={() => void retry(target.id)}
+          >
             {t('actions.retry')}
           </Button>
         )}

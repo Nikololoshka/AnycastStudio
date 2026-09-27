@@ -3,8 +3,8 @@
 Publish one video to your platforms from a single composer. Upload it, write
 the title once, press Publish — and close the tab. The server finishes the job.
 
-> **Status.** The first web release covers **YouTube** and runs locally. X,
-> Instagram and TikTok were written for the earlier desktop client and come
+> **Status.** The web release covers **YouTube** and **TikTok** and runs
+> locally. X and Instagram were written for the earlier desktop client and come
 > back one at a time; they are preserved under the `v0-desktop` tag. Accounts
 > are created by an administrator — there is no sign-up.
 
@@ -20,17 +20,18 @@ Browser (Vite dev server, :5173)
 Django / uvicorn (:8000) ──► SQLite (WAL)
   │                       └─► Redis (cache, sessions, Celery broker)
   ▼
-Celery worker ──► backend/media_files ──► YouTube Data API
+Celery worker ──► backend/media_files ──► YouTube Data API, TikTok Content Posting API
 ```
 
 The browser hands the video to the server in resumable chunks, then asks the
 server to publish it. From that point nothing depends on the tab staying open:
 a worker uploads the file, and if it dies partway it continues from the offset
-YouTube confirmed rather than starting the file again.
+the platform confirmed rather than starting the file again.
 
-Scheduling is handed to the platform. A video due later goes up private with a
-`publishAt`, and YouTube publishes it — so nothing of ours has to be running at
-that moment.
+YouTube schedules by itself: a video due later goes up private with a
+`publishAt`, and YouTube publishes it. TikTok cannot schedule, so the worker
+starts the upload at the chosen time, and the Celery beat process has to be
+running for that.
 
 ---
 
@@ -82,6 +83,7 @@ variable — the frontend bundle is public.
 | `TOKEN_ENCRYPTION_KEYS` | yes | Encrypts platform tokens at rest. The server refuses to start without it; the error prints the command that generates one. Comma-separated, newest first, so a key can be rotated without downtime. **Back it up separately from the database** — losing it means everyone reconnects every account. |
 | `PUBLIC_ORIGIN` | yes | `http://localhost:5173`. OAuth redirect URIs are built from it. |
 | `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` | for YouTube | From Google Cloud, see below |
+| `TIKTOK_CLIENT_KEY` / `TIKTOK_CLIENT_SECRET` | for TikTok | From TikTok for Developers, see below |
 | `REDIS_URL` | no | Defaults to `redis://127.0.0.1:6379/0` |
 | `SQLITE_PATH` | no | Defaults to `backend/db.sqlite3` |
 | `MEDIA_ROOT` | no | Defaults to `backend/media_files` |
@@ -113,6 +115,21 @@ costs about 1,600 — six uploads a day, for the whole project rather than per
 person. The app refuses past `User.max_publications_per_day` (5 by default)
 with a reason instead of letting Google refuse without one, and a failed publication is never retried
 automatically.
+
+---
+
+## Connecting TikTok
+
+1. In TikTok for Developers, create an app of platform type **Desktop** and add
+   **Login Kit** and the **Content Posting API** with Direct Post.
+2. Request the scopes `user.info.basic` and `video.publish`.
+3. Add `http://localhost:5173/api/social/tiktok/callback` as the redirect URI.
+4. Put the client key and secret in `backend/.env`. The pair shipped in the
+   desktop bundle is compromised; create a new one.
+5. Sign in to the app and connect the account from **Accounts**.
+
+Until TikTok audits the app, it can post only as **Only me** and only to a
+private account. Details in `docs/platforms/tiktok.md`.
 
 ---
 

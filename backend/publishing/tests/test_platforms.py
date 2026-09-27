@@ -1,3 +1,8 @@
+import re
+from pathlib import Path
+
+from platforms import tiktok, youtube
+
 from .base import PublishingTestCase
 
 
@@ -16,26 +21,29 @@ class PlatformScenarios(PublishingTestCase):
         self.assertEqual(self.client.get("/api/platforms").status_code, 401)
 
 
+def frontend_defaults(module: str, constant: str, type_name: str) -> dict[str, str]:
+    source = Path(__file__).resolve().parents[3] / f"frontend/src/platforms/{module}/settings.ts"
+    block = re.search(rf"{constant}: {type_name} = \{{(.+?)\}};", source.read_text(), re.S).group(1)
+    return dict(re.findall(r"(\w+):\s*'?([\w]+)'?,", block))
+
+
+def backend_defaults(options) -> dict[str, str]:
+    return {key: "null" if value is None else str(value) for key, value in options.as_json().items()}
+
+
 class ContractScenarios(PublishingTestCase):
-    def test_the_default_settings_match_the_browsers(self):
-        # Given: the composer ships its own defaults so it can render before asking
-        # the server. Then: they match, or a person sees one thing and gets another
-        from pathlib import Path
-        import re
+    # Given: the composer ships its own defaults so it can render before asking
+    # the server. Then: they match, or a person sees one thing and gets another
 
-        from platforms.youtube import video_options_of
-
-        source = Path(__file__).resolve().parents[3] / "frontend/src/platforms/youtube/settings.ts"
-        block = re.search(
-            r"YOUTUBE_DEFAULT_SETTINGS: YouTubeSettings = \{(.+?)\};", source.read_text(), re.S
-        ).group(1)
-
-        frontend = dict(
-            re.findall(r"(\w+):\s*'?([\w]+)'?,", block)
-        )
-        backend = {key: str(value) for key, value in video_options_of({}).as_json().items()}
-
+    def assert_defaults_agree(self, frontend: dict[str, str], backend: dict[str, str]):
+        self.assertEqual(set(frontend), set(backend))
         for key, value in frontend.items():
-            self.assertEqual(
-                backend[key].lower(), value.lower(), f"default for {key} differs"
-            )
+            self.assertEqual(backend[key].lower(), value.lower(), f"default for {key} differs")
+
+    def test_the_youtube_defaults_match_the_browsers(self):
+        frontend = frontend_defaults("youtube", "YOUTUBE_DEFAULT_SETTINGS", "YouTubeSettings")
+        self.assert_defaults_agree(frontend, backend_defaults(youtube.video_options_of({})))
+
+    def test_the_tiktok_defaults_match_the_browsers(self):
+        frontend = frontend_defaults("tiktok", "TIKTOK_DEFAULT_SETTINGS", "TikTokSettings")
+        self.assert_defaults_agree(frontend, backend_defaults(tiktok.video_options_of({})))

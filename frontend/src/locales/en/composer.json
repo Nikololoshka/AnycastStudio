@@ -34,7 +34,8 @@
     "timeSlotsLabel": "Time options",
     "openTimeSlots": "Choose a time",
     "nativePlan": "{{platform}} schedules it on its side. You can close the tab.",
-    "serverPlan": "AnycastStudio publishes it at that moment. You can close the tab."
+    "serverPlan": "AnycastStudio publishes it at that moment. You can close the tab.",
+    "deferredPlan": "AnycastStudio starts the upload to {{platform}} at that moment; the post appears a few minutes later. You can close the tab."
   },
   "video": {
     "drop": "Drop a video here",
@@ -83,11 +84,21 @@
     "needsPlatform": "Turn on at least one platform in its tab.",
     "platformsTitle": "Goes to",
     "needsUpload": "Wait for the upload to finish.",
-    "needsAccount": "Connect a YouTube account first.",
+    "needsAccount": "Connect a {{platform}} account or turn {{platform}} off.",
     "error": {
       "dailyLimit": "You have reached today's publication limit.",
       "accountNeedsReauth": "The account needs reconnecting.",
       "unknown": "Could not start publishing. Try again."
+    },
+    "invalid": {
+      "titleRequired": "Add a title for {{platform}}.",
+      "videoRequired": "Add a video to publish.",
+      "fileTooLarge": "The video is too large for {{platform}}.",
+      "unsupportedType": "{{platform}} does not accept this video format.",
+      "captionTooLong": "Title, description and hashtags together are too long for {{platform}}.",
+      "privacyRequired": "Choose who can watch the video in the {{platform}} tab.",
+      "commercialContentUnspecified": "Say whose brand the {{platform}} post promotes.",
+      "brandedContentCannotBePrivate": "Branded content on {{platform}} cannot be private."
     }
   },
   "progress": {

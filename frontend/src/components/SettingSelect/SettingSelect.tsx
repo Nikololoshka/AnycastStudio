@@ -10,12 +10,14 @@ export function SettingSelect<T extends string>({
   description,
   value,
   options,
+  placeholder,
   isDisabled,
   onChange,
 }: {
   label: string;
   description?: string;
-  value: T;
+  value: T | null;
+  placeholder?: string;
   options: SettingSelectOption<T>[];
   isDisabled?: boolean;
   onChange: (value: T) => void;
@@ -23,6 +25,7 @@ export function SettingSelect<T extends string>({
   return (
     <Select
       selectedKey={value}
+      placeholder={placeholder}
       isDisabled={isDisabled}
       onSelectionChange={(key) => onChange(key as T)}
       fullWidth

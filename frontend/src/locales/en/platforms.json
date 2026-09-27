@@ -83,17 +83,29 @@
     }
   },
   "tiktok": {
-    "sandboxNotice": {
-      "title": "Posts are private for now",
-      "description": "TikTok sandbox apps can only post privately (visible to you only) until this app passes TikTok's review."
+    "creator": {
+      "postingAs": "Posting as {{name}}",
+      "notConnected": "Connect a TikTok account in Settings to choose these options.",
+      "unavailable": "TikTok did not answer. Reload the page to try again.",
+      "tooLong": "This account can post videos up to {{seconds}} seconds long. Shorten the video or turn TikTok off.",
+      "turnedOff": "Turned off in your TikTok settings."
     },
-    "disableDuet": {
-      "label": "Disable duet",
-      "description": "Stops others from posting their video side by side with yours."
+    "privacy": {
+      "label": "Who can watch",
+      "description": "Choose for every post. TikTok offers only what this account allows.",
+      "placeholder": "Choose who can watch",
+      "PUBLIC_TO_EVERYONE": "Everyone",
+      "MUTUAL_FOLLOW_FRIENDS": "Friends",
+      "FOLLOWER_OF_CREATOR": "Followers",
+      "SELF_ONLY": "Only me"
     },
     "disableComment": {
       "label": "Disable comments",
       "description": "Nobody can comment under the video."
+    },
+    "disableDuet": {
+      "label": "Disable duet",
+      "description": "Stops others from posting their video side by side with yours."
     },
     "disableStitch": {
       "label": "Disable stitch",
@@ -103,9 +115,26 @@
       "label": "AI-generated content",
       "description": "TikTok labels the video as created with AI."
     },
-    "brandOrganicToggle": {
-      "label": "Promoting your own brand",
-      "description": "Marks the video as promotion of your own business."
+    "discloseContent": {
+      "label": "Disclose video content",
+      "description": "Turn on if the video promotes a brand, a product or a service."
+    },
+    "brandOrganic": {
+      "label": "Your brand",
+      "description": "You are promoting yourself or your own business."
+    },
+    "brandContent": {
+      "label": "Branded content",
+      "description": "You are promoting another brand or a third party. Cannot be private."
+    },
+    "disclosure": {
+      "promotional": "Your video will be labeled \"Promotional content\".",
+      "paidPartnership": "Your video will be labeled \"Paid partnership\".",
+      "chooseOne": "Choose at least one of the two."
+    },
+    "consent": {
+      "music": "By posting, you agree to TikTok's <music>Music Usage Confirmation</music>.",
+      "withBrandedContent": "By posting, you agree to TikTok's <branded>Branded Content Policy</branded> and <music>Music Usage Confirmation</music>."
     }
   },
   "coverFrame": {

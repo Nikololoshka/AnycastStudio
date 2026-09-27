@@ -24,7 +24,7 @@ when to stop and ask a person.
 
 ### What is in scope today
 
-**YouTube only.** The X, Instagram and TikTok integrations were written for the
+**YouTube and TikTok.** The X and Instagram integrations were written for the
 desktop client and removed from the working tree during the web migration. They
 are recoverable from the `v0-desktop` tag and come back one platform at a time.
 
@@ -241,8 +241,10 @@ frontend/src/
 ### File Placement Rules
 
 - Anything touching a platform API, a token or a stored file is backend code.
-- A new platform goes in `backend/platforms/<platform>/` plus one line in
-  `social/providers.py` and one in `publishing/views/platforms.py`.
+- A new platform goes in `backend/platforms/<platform>/` and
+  `publishing/publishers/<platform>.py`, plus one line each in
+  `social/providers.py`, `publishing/views/platforms.py` and
+  `publishing/publishers/__init__.py`.
 - New screens go in `frontend/src/features/<feature>/`.
 - Cross-feature reusable UI goes in `frontend/src/components/`.
 - A new endpoint goes in `<app>/views/<name>.py`, one file per endpoint group.

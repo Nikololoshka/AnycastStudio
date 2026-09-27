@@ -1,41 +1,36 @@
 import type { PlatformCapabilities } from '../../domain/platform/types';
-import type {
-  DraftError,
-  PlatformDescriptor,
-  PublicationDraft,
-  ValidationResult,
-} from '../PlatformDescriptor';
+import type { PlatformDescriptor, PublicationDraft, ValidationResult } from '../PlatformDescriptor';
+import {
+  TIKTOK_MAX_CAPTION_LENGTH,
+  tiktokCaptionOf,
+  tiktokSettingErrors,
+  tiktokSettingsOf,
+} from './settings';
 
 const CAPABILITIES: PlatformCapabilities = {
-  label: 'YouTube',
-  scheduling: 'native',
+  label: 'TikTok',
+  scheduling: 'deferredUpload',
   title: true,
   description: true,
   hashtags: true,
-  drafts: true,
-  maxFileSize: 128 * 1024 ** 3,
-  supportedMimeTypes: [
-    'video/mp4',
-    'video/quicktime',
-    'video/x-msvideo',
-    'video/x-ms-wmv',
-    'video/x-flv',
-    'video/3gpp',
-    'video/webm',
-    'video/mpeg',
-  ],
+  drafts: false,
+  maxFileSize: 4 * 1024 ** 3,
+  supportedMimeTypes: ['video/mp4', 'video/quicktime', 'video/webm'],
 };
 
-export class YouTubeDescriptor implements PlatformDescriptor {
+export class TikTokDescriptor implements PlatformDescriptor {
   getCapabilities(): PlatformCapabilities {
     return CAPABILITIES;
   }
 
   validate(draft: PublicationDraft): ValidationResult {
-    const errors: DraftError[] = [];
+    const errors = tiktokSettingErrors(tiktokSettingsOf(draft.settings));
 
-    if (!draft.title.trim()) {
-      errors.push('titleRequired');
+    if (
+      tiktokCaptionOf(draft.title, draft.description, draft.hashtags).length >
+      TIKTOK_MAX_CAPTION_LENGTH
+    ) {
+      errors.push('captionTooLong');
     }
     if (!draft.video) {
       errors.push('videoRequired');

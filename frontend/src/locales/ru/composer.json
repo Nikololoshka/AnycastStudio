@@ -36,7 +36,8 @@
     "timeSlotsLabel": "Варианты времени",
     "openTimeSlots": "Выбрать время",
     "nativePlan": "{{platform}} опубликует сам в нужный момент. Вкладку можно закрыть.",
-    "serverPlan": "AnycastStudio опубликует в нужный момент. Вкладку можно закрыть."
+    "serverPlan": "AnycastStudio опубликует в нужный момент. Вкладку можно закрыть.",
+    "deferredPlan": "AnycastStudio начнёт загрузку в {{platform}} в это время; пост появится через несколько минут. Вкладку можно закрыть."
   },
   "video": {
     "drop": "Перетащите видео сюда",
@@ -85,11 +86,21 @@
     "needsPlatform": "Включите хотя бы одну площадку на её вкладке.",
     "platformsTitle": "Уйдёт в",
     "needsUpload": "Дождитесь окончания загрузки.",
-    "needsAccount": "Сначала подключите аккаунт YouTube.",
+    "needsAccount": "Подключите аккаунт {{platform}} или отключите {{platform}}.",
     "error": {
       "dailyLimit": "Дневной лимит публикаций исчерпан.",
       "accountNeedsReauth": "Аккаунт нужно подключить заново.",
       "unknown": "Не удалось начать публикацию. Попробуйте ещё раз."
+    },
+    "invalid": {
+      "titleRequired": "Добавьте заголовок для {{platform}}.",
+      "videoRequired": "Добавьте видео для публикации.",
+      "fileTooLarge": "Видео слишком большое для {{platform}}.",
+      "unsupportedType": "{{platform}} не принимает этот формат видео.",
+      "captionTooLong": "Заголовок, описание и хэштеги вместе слишком длинные для {{platform}}.",
+      "privacyRequired": "Выберите, кто может смотреть видео, на вкладке {{platform}}.",
+      "commercialContentUnspecified": "Укажите, чей бренд продвигает пост в {{platform}}.",
+      "brandedContentCannotBePrivate": "Брендированный контент в {{platform}} не может быть приватным."
     }
   },
   "progress": {

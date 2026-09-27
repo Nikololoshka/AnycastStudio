@@ -145,17 +145,21 @@ is `database is locked` in the worker log.
 
 ## Adding a platform
 
-1. `backend/platforms/<platform>/` — `oauth.py`, `upload.py`, `publish.py`,
-   `video_options.py`, `capabilities.py`, and `tests/` in `backend/platforms/`.
+1. `backend/platforms/<platform>/` — `oauth.py`, `upload.py`,
+   `video_options.py`, `capabilities.py`, and tests in `backend/platforms/tests/`.
    No imports from another platform folder.
 2. Register the provider in `social/providers.py` and the capabilities in
    `publishing/views/platforms.py`.
-3. Teach `publishing/pipeline.py` to dispatch on the target's platform.
-4. Add the settings panel and the `AVAILABLE_PLATFORMS` entry in the frontend.
+3. Add `publishing/publishers/<platform>.py` — `capabilities`, `validate`,
+   `upload`, `publish`, and `confirm` if the platform publishes asynchronously —
+   and register it in `publishing/publishers/__init__.py`. The pipeline picks
+   it by the target's platform.
+4. Add `frontend/src/platforms/<platform>/` — settings, descriptor, panel — and
+   the `AVAILABLE_PLATFORMS` entry, then register it in `platforms/registry.ts`,
+   `platforms/settings.ts` and `features/composer/PlatformTab.tsx`.
 
-The three platforms that left the tree during the migration are in the
-`v0-desktop` tag, along with the Rust upload loops that document each one's
-protocol. Three defects in that code must be fixed while porting rather than
-carried over: X does not poll `STATUS` after `FINALIZE`, Instagram does not
-poll the container status before `media_publish`, and TikTok's `publish()`
-reports success unconditionally.
+X and Instagram are in the `v0-desktop` tag, along with the Rust upload loops
+that document each one's protocol. Two defects in that code must be fixed while
+porting rather than carried over: X does not poll `STATUS` after `FINALIZE`,
+and Instagram does not poll the container status before `media_publish`. Both
+fit `confirm`, as TikTok's status polling does.

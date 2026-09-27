@@ -1,10 +1,12 @@
 import type { PlatformCapabilities } from '../domain/platform/types';
 import type { AvailablePlatform } from '../domain/platform/order';
 import type { PlatformDescriptor } from './PlatformDescriptor';
+import { TikTokDescriptor } from './tiktok/TikTokDescriptor';
 import { YouTubeDescriptor } from './youtube/YouTubeDescriptor';
 
 const descriptors: Record<AvailablePlatform, PlatformDescriptor> = {
   youtube: new YouTubeDescriptor(),
+  tiktok: new TikTokDescriptor(),
 };
 
 export function getDescriptorFor(platform: AvailablePlatform): PlatformDescriptor {

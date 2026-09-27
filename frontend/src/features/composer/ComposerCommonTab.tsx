@@ -54,10 +54,12 @@ function SchedulePlan() {
 
   if (selectedPlatforms.length === 0) return null;
 
-  const describe = (platform: AvailablePlatform) =>
-    getCapabilitiesFor(platform).scheduling === 'native'
-      ? t('timing.nativePlan', { platform: getCapabilitiesFor(platform).label })
-      : t('timing.serverPlan', { platform: getCapabilitiesFor(platform).label });
+  const describe = (platform: AvailablePlatform) => {
+    const { scheduling, label } = getCapabilitiesFor(platform);
+    if (scheduling === 'native') return t('timing.nativePlan', { platform: label });
+    if (scheduling === 'deferredUpload') return t('timing.deferredPlan', { platform: label });
+    return t('timing.serverPlan', { platform: label });
+  };
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-secondary px-4 py-3">
