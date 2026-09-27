@@ -5,10 +5,9 @@ from dataclasses import dataclass
 from django.conf import settings
 
 from ..http import FILE, PLATFORM, VALIDATION, PlatformFailure, json_dict
+from ..upload import UploadCancelled, fresh_token_on_rejection
 from .api import RUPLOAD_ROOT, authorization, call, send
-from .errors import Cancelled
 from .status import fetch as container_status
-from .status import fresh_token_on_rejection
 
 CONTAINER_LIFETIME_SECONDS = 23 * 60 * 60
 
@@ -115,7 +114,7 @@ def upload(
     with open(path, "rb") as handle:
         while state.offset < size:
             if should_cancel and should_cancel():
-                raise Cancelled(state)
+                raise UploadCancelled(state.as_dict())
 
             state.offset += _send_chunk(access_token, state, handle, size)
             if on_progress:

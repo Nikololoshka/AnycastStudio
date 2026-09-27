@@ -8,6 +8,7 @@ from common.responses import api_response
 from platforms import tiktok
 from platforms.http import PlatformFailure
 from platforms.oauth import ProviderError
+from platforms.upload import NeedsFreshToken
 
 from .. import services
 from ..models import SocialAccount
@@ -24,7 +25,7 @@ def _cache_key(account: SocialAccount) -> str:
 def _query(account: SocialAccount) -> tiktok.CreatorInfo:
     try:
         return tiktok.creator_info(services.get_valid_access_token(account))
-    except tiktok.NeedsFreshToken:
+    except NeedsFreshToken:
         return tiktok.creator_info(services.refresh_access_token(account))
 
 
@@ -55,7 +56,7 @@ def social_creator_info(request, pk: int):
             if error.transient:
                 return _platform_unavailable(account, error.message)
             return api_response("conflict", message="account_needs_reauth", platform=account.platform)
-        except tiktok.NeedsFreshToken:
+        except NeedsFreshToken:
             return api_response("conflict", message="account_needs_reauth", platform=account.platform)
         except PlatformFailure as failure:
             return _platform_unavailable(account, failure.message)

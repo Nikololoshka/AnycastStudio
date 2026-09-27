@@ -2,7 +2,6 @@ import requests
 
 from platforms.http import FILE, NETWORK, PLATFORM, PlatformFailure
 from platforms.instagram import (
-    NeedsFreshToken,
     caption_of,
     container_status,
     failure_of,
@@ -12,6 +11,7 @@ from platforms.instagram import (
 )
 from platforms.instagram.api import GRAPH_ROOT
 from platforms.instagram.capabilities import MAX_FILE_BYTES
+from platforms.upload import NeedsFreshToken
 
 from .base import FakeResponse, PlatformTestCase
 

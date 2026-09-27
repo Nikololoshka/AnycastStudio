@@ -1,15 +1,12 @@
 from .capabilities import LABEL, capabilities, validate
 from .oauth import YouTubeProvider
 from .publish import publish, schedule, watch_url
-from .upload import Cancelled as UploadCancelled
-from .upload import NeedsFreshToken, ResumeState, VideoMetadata, upload
+from .upload import ResumeState, VideoMetadata, upload
 from .video_options import VideoOptions, description_with_hashtags, video_options_of
 
 __all__ = [
     "LABEL",
-    "NeedsFreshToken",
     "ResumeState",
-    "UploadCancelled",
     "VideoMetadata",
     "VideoOptions",
     "YouTubeProvider",

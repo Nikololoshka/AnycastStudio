@@ -1,5 +1,6 @@
 from platforms.http import AUTHORIZATION, FILE, PLATFORM, RATE_LIMIT, PlatformFailure
-from platforms.x import NeedsFreshToken, VideoOptions, create_post, failure_of, processing_status, validate
+from platforms.upload import NeedsFreshToken
+from platforms.x import VideoOptions, create_post, failure_of, processing_status, validate
 from platforms.x.api import API_ROOT
 from platforms.x.status import status_of
 

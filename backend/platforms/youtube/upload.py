@@ -4,7 +4,8 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import AUTHENTICATION, FILE, PLATFORM, PlatformFailure, json_dict, request, with_retry
+from ..http import FILE, PLATFORM, PlatformFailure, json_dict, request, with_retry
+from ..upload import UploadCancelled, fresh_token_on_rejection
 from .capabilities import LABEL
 
 UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/youtube/v3/videos"
@@ -62,18 +63,6 @@ class VideoMetadata:
         }
 
 
-class Cancelled(Exception):
-    def __init__(self, state: ResumeState):
-        super().__init__("cancelled")
-        self.state = state
-
-
-class NeedsFreshToken(Exception):
-    def __init__(self, state: ResumeState, message: str):
-        super().__init__(message)
-        self.state = state
-
-
 def start_session(access_token: str, metadata: VideoMetadata, size: int, mime_type: str) -> str:
     params = {
         "uploadType": "resumable",
@@ -110,15 +99,13 @@ def _is_complete(response) -> bool:
 
 
 def _put(state: ResumeState, headers: dict, body: bytes = b""):
-    try:
-        return with_retry(
+    return fresh_token_on_rejection(
+        lambda: with_retry(
             lambda: request("PUT", state.session_uri, label=LABEL, headers=headers, data=body),
             label=LABEL,
-        )
-    except PlatformFailure as failure:
-        if failure.type == AUTHENTICATION:
-            raise NeedsFreshToken(state, failure.message) from None
-        raise
+        ),
+        state,
+    )
 
 
 def _ask_progress(state: ResumeState, size: int):
@@ -165,7 +152,7 @@ def upload(
     with open(path, "rb") as handle:
         while True:
             if should_cancel and should_cancel():
-                raise Cancelled(state)
+                raise UploadCancelled(state.as_dict())
 
             handle.seek(state.offset)
             piece = handle.read(chunk_size)

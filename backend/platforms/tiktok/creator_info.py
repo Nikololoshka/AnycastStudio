@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 
-from ..http import AUTHENTICATION, PlatformFailure
+from ..upload import fresh_token_on_rejection
 from .api import API_ROOT, call
-from .errors import NeedsFreshToken
 
 CREATOR_INFO_ENDPOINT = f"{API_ROOT}/post/publish/creator_info/query/"
 
@@ -32,12 +31,7 @@ class CreatorInfo:
 
 
 def query(access_token: str) -> CreatorInfo:
-    try:
-        data = call("POST", CREATOR_INFO_ENDPOINT, access_token)
-    except PlatformFailure as failure:
-        if failure.type == AUTHENTICATION:
-            raise NeedsFreshToken(None, failure.message) from None
-        raise
+    data = fresh_token_on_rejection(lambda: call("POST", CREATOR_INFO_ENDPOINT, access_token))
 
     duration = data.get("max_video_post_duration_sec")
     return CreatorInfo(

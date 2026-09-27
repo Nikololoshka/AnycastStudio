@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from ..http import FILE, PLATFORM, PlatformFailure
-from .api import call, data_of, fresh_token_on_rejection
+from ..upload import fresh_token_on_rejection
+from .api import call, data_of
 from .video_options import VideoOptions
 
 PENDING = "pending"

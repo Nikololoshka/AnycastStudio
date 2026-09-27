@@ -1,7 +1,8 @@
 import time
 
 from platforms.http import VALIDATION, PlatformFailure
-from platforms.x import NeedsFreshToken, ResumeState, UploadCancelled, upload
+from platforms.upload import NeedsFreshToken, UploadCancelled
+from platforms.x import ResumeState, upload
 from platforms.x.api import API_ROOT
 
 from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
@@ -139,8 +140,8 @@ class XUploadScenarios(PlatformTestCase):
         # When / Then: the upload stops asking for a fresh token, holding the next segment
         with self.assertRaises(NeedsFreshToken) as raised:
             self.send(on_progress=expire_after_first)
-        self.assertEqual(raised.exception.state.media_id, MEDIA_ID)
-        self.assertEqual(raised.exception.state.next_segment, 1)
+        self.assertEqual(raised.exception.state["media_id"], MEDIA_ID)
+        self.assertEqual(raised.exception.state["next_segment"], 1)
 
     def test_a_cancel_stops_before_the_next_segment(self):
         double = XDouble()
@@ -153,7 +154,7 @@ class XUploadScenarios(PlatformTestCase):
 
         with self.assertRaises(UploadCancelled) as raised:
             self.send(should_cancel=cancel_after_two)
-        self.assertEqual(raised.exception.state.next_segment, 2)
+        self.assertEqual(raised.exception.state["next_segment"], 2)
         self.assertEqual(double.finalized, [])
 
     def test_a_refused_file_is_not_retried(self):

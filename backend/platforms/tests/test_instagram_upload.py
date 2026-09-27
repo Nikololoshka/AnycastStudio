@@ -1,8 +1,9 @@
 import time
 
 from platforms.http import AUTHENTICATION, FILE, PLATFORM, RATE_LIMIT, PlatformFailure
-from platforms.instagram import NeedsFreshToken, ReelInfo, ResumeState, UploadCancelled, upload
+from platforms.instagram import ReelInfo, ResumeState, upload
 from platforms.instagram.api import GRAPH_ROOT, RUPLOAD_ROOT
+from platforms.upload import NeedsFreshToken, UploadCancelled
 
 from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
 
@@ -169,8 +170,8 @@ class InstagramUploadScenarios(PlatformTestCase):
         # When / Then: a fresh token is asked for, with the place to resume from
         with self.assertRaises(NeedsFreshToken) as raised:
             self.send(resume=resume)
-        self.assertEqual(raised.exception.state.container_id, CONTAINER_ID)
-        self.assertEqual(raised.exception.state.offset, 2 * CHUNK)
+        self.assertEqual(raised.exception.state["container_id"], CONTAINER_ID)
+        self.assertEqual(raised.exception.state["offset"], 2 * CHUNK)
 
     def test_a_rejected_token_at_the_container_asks_for_a_fresh_one(self):
         self.http.side_effect = [FakeResponse(400, {"error": {"message": "expired", "code": 190}})]
@@ -234,7 +235,7 @@ class InstagramUploadScenarios(PlatformTestCase):
         with self.assertRaises(UploadCancelled) as raised:
             self.send(should_cancel=lambda: next(answers))
 
-        self.assertEqual(raised.exception.state.offset, CHUNK)
+        self.assertEqual(raised.exception.state["offset"], CHUNK)
 
     def test_a_file_shorter_than_declared_fails(self):
         self.http.side_effect = InstagramDouble(size=len(CONTENT) + CHUNK)

@@ -9,10 +9,11 @@ from django.utils import timezone
 from media import storage
 from platforms.http import AUTHENTICATION, FILE, NETWORK, PLATFORM, UNKNOWN, VALIDATION, PlatformFailure
 from platforms.oauth import ProviderError
+from platforms.upload import NeedsFreshToken, UploadCancelled
 from social import services as social_services
 
 from .models import PublicationTarget
-from .publishers import NeedsFreshToken, Published, UploadCancelled, publisher_for
+from .publishers import Published, publisher_for
 
 logger = logging.getLogger(__name__)
 
@@ -153,9 +154,10 @@ def _upload(target: PublicationTarget) -> str:
         raise Cancelled() from None
     except NeedsFreshToken as stale:
         logger.info("Target %s: refreshing the token and resuming", target.pk)
-        _set(target, resume_state=stale.state)
+        state = stale.state if stale.state is not None else target.resume_state
+        _set(target, resume_state=state)
         fresh = social_services.refresh_access_token(target.social_account)
-        media_id = send(fresh, stale.state)
+        media_id = send(fresh, state)
 
     _set(target, uploaded_media_id=media_id, progress=100, uploaded_bytes=asset.size_bytes)
     return media_id

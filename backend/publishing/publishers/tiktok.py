@@ -5,9 +5,10 @@ from media import storage
 from platforms import tiktok
 from platforms.capabilities import ValidationResult
 from platforms.http import VALIDATION, PlatformFailure
+from platforms.upload import NeedsFreshToken
 
 from ..models import PublicationTarget
-from .outcome import NeedsFreshToken, Published, UploadCancelled
+from .outcome import Published
 
 logger = logging.getLogger(__name__)
 
@@ -62,27 +63,21 @@ def _post_info(target: PublicationTarget, options: tiktok.VideoOptions, creator:
 def upload(target: PublicationTarget, access_token: str, resume: dict | None, on_progress, should_cancel) -> str:
     asset = target.publication.asset
     options = _options(target)
-    try:
-        creator = tiktok.creator_info(access_token)
-        refusals = creator_refusals(creator, options, asset.duration_seconds)
-        if refusals:
-            raise PlatformFailure(VALIDATION, "; ".join(refusals), details=",".join(refusals))
+    creator = tiktok.creator_info(access_token)
+    refusals = creator_refusals(creator, options, asset.duration_seconds)
+    if refusals:
+        raise PlatformFailure(VALIDATION, "; ".join(refusals), details=",".join(refusals))
 
-        return tiktok.upload(
-            path=storage.absolute(asset.storage_path),
-            size=asset.size_bytes,
-            mime_type=asset.mime_type,
-            post_info=_post_info(target, options, creator),
-            access_token=access_token,
-            resume=tiktok.ResumeState.of(resume),
-            on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
-            should_cancel=should_cancel,
-        )
-    except tiktok.UploadCancelled as cancelled:
-        raise UploadCancelled(cancelled.state.as_dict()) from None
-    except tiktok.NeedsFreshToken as stale:
-        state = stale.state.as_dict() if stale.state else resume or {}
-        raise NeedsFreshToken(state, str(stale)) from None
+    return tiktok.upload(
+        path=storage.absolute(asset.storage_path),
+        size=asset.size_bytes,
+        mime_type=asset.mime_type,
+        post_info=_post_info(target, options, creator),
+        access_token=access_token,
+        resume=tiktok.ResumeState.of(resume),
+        on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
+        should_cancel=should_cancel,
+    )
 
 
 def publish(target: PublicationTarget, publish_id: str, access_token: str) -> Published:
@@ -94,18 +89,14 @@ def _url_of(post_ids: tuple[str, ...], access_token: str) -> str:
         return ""
     try:
         username = tiktok.creator_info(access_token).username
-    except (PlatformFailure, tiktok.NeedsFreshToken) as error:
+    except (PlatformFailure, NeedsFreshToken) as error:
         logger.info("Could not learn the TikTok username for the post link: %s", error.__class__.__name__)
         return ""
     return tiktok.post_url(username, post_ids[0]) if username else ""
 
 
 def confirm(target: PublicationTarget, access_token: str) -> Published | None:
-    try:
-        result = tiktok.publish_status(access_token, target.uploaded_media_id)
-    except tiktok.NeedsFreshToken as stale:
-        raise NeedsFreshToken({}, str(stale)) from None
-
+    result = tiktok.publish_status(access_token, target.uploaded_media_id)
     if result.is_failed:
         raise tiktok.failure_of(result.fail_reason)
     if not result.is_complete:

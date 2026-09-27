@@ -5,9 +5,10 @@ from media import storage
 from platforms import x
 from platforms.capabilities import ValidationResult
 from platforms.http import NETWORK, PLATFORM, PlatformFailure
+from platforms.upload import NeedsFreshToken
 
 from ..models import PublicationTarget
-from .outcome import NeedsFreshToken, Published, UploadCancelled
+from .outcome import Published
 
 logger = logging.getLogger(__name__)
 
@@ -36,21 +37,15 @@ def validate(target: PublicationTarget) -> ValidationResult:
 
 def upload(target: PublicationTarget, access_token: str, resume: dict | None, on_progress, should_cancel) -> str:
     asset = target.publication.asset
-    try:
-        return x.upload(
-            path=storage.absolute(asset.storage_path),
-            size=asset.size_bytes,
-            mime_type=asset.mime_type,
-            access_token=access_token,
-            resume=x.ResumeState.of(resume),
-            on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
-            should_cancel=should_cancel,
-        )
-    except x.UploadCancelled as cancelled:
-        raise UploadCancelled(cancelled.state.as_dict()) from None
-    except x.NeedsFreshToken as stale:
-        state = stale.state.as_dict() if stale.state else resume or {}
-        raise NeedsFreshToken(state, str(stale)) from None
+    return x.upload(
+        path=storage.absolute(asset.storage_path),
+        size=asset.size_bytes,
+        mime_type=asset.mime_type,
+        access_token=access_token,
+        resume=x.ResumeState.of(resume),
+        on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
+        should_cancel=should_cancel,
+    )
 
 
 def _posting_started(target: PublicationTarget) -> float | None:
@@ -81,7 +76,7 @@ def _post(target: PublicationTarget, access_token: str) -> str:
     before = _mark_posting(target)
     try:
         return x.create_post(access_token, _caption(target), target.uploaded_media_id, x.video_options_of(target.settings))
-    except x.NeedsFreshToken:
+    except NeedsFreshToken:
         _set_resume_state(target, before)
         raise
     except PlatformFailure as failure:
@@ -99,16 +94,13 @@ def confirm(target: PublicationTarget, access_token: str) -> Published | None:
     if _posting_started(target) is not None:
         raise _maybe_posted()
 
-    try:
-        status = x.processing_status(access_token, target.uploaded_media_id)
-        if status.is_failed:
-            raise x.failure_of(status)
-        if not status.is_ready:
-            return None
+    status = x.processing_status(access_token, target.uploaded_media_id)
+    if status.is_failed:
+        raise x.failure_of(status)
+    if not status.is_ready:
+        return None
 
-        post_id = _post(target, access_token)
-    except x.NeedsFreshToken as stale:
-        raise NeedsFreshToken({}, str(stale)) from None
+    post_id = _post(target, access_token)
 
     logger.info("Target %s: X post %s created", target.pk, post_id)
     return Published(Status.COMPLETED, x.post_url(post_id))

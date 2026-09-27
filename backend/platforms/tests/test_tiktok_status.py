@@ -1,6 +1,7 @@
 from platforms.http import AUTHENTICATION, FILE, PLATFORM
-from platforms.tiktok import NeedsFreshToken, caption_of, failure_of, publish_status, validate, video_options_of
+from platforms.tiktok import caption_of, failure_of, publish_status, validate, video_options_of
 from platforms.tiktok.status import FAIL_REASONS
+from platforms.upload import NeedsFreshToken
 
 from .base import FakeResponse, PlatformTestCase
 

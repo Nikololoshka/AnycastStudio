@@ -1,6 +1,4 @@
 from .capabilities import capabilities, validate
-from .errors import Cancelled as UploadCancelled
-from .errors import NeedsFreshToken
 from .oauth import InstagramProvider
 from .status import ContainerStatus, failure_of, permalink
 from .status import fetch as container_status
@@ -11,10 +9,8 @@ from .video_options import VideoOptions, caption_of, video_options_of
 __all__ = [
     "ContainerStatus",
     "InstagramProvider",
-    "NeedsFreshToken",
     "ReelInfo",
     "ResumeState",
-    "UploadCancelled",
     "VideoOptions",
     "capabilities",
     "caption_of",

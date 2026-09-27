@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from ..http import AUTHENTICATION, FILE, PLATFORM, VALIDATION, PlatformFailure
+from ..upload import fresh_token_on_rejection
 from .api import API_ROOT, call
-from .errors import NeedsFreshToken
 
 STATUS_ENDPOINT = f"{API_ROOT}/post/publish/status/fetch/"
 
@@ -47,12 +47,9 @@ class PublishStatus:
 
 
 def fetch(access_token: str, publish_id: str) -> PublishStatus:
-    try:
-        data = call("POST", STATUS_ENDPOINT, access_token, json={"publish_id": publish_id})
-    except PlatformFailure as failure:
-        if failure.type == AUTHENTICATION:
-            raise NeedsFreshToken(None, failure.message) from None
-        raise
+    data = fresh_token_on_rejection(
+        lambda: call("POST", STATUS_ENDPOINT, access_token, json={"publish_id": publish_id})
+    )
 
     post_ids = data.get("publicaly_available_post_id") or ()
     return PublishStatus(

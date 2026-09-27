@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from django.conf import settings
 
 from ..http import FILE, PLATFORM, VALIDATION, PlatformFailure
-from .api import call, data_of, fresh_token_on_rejection
-from .errors import Cancelled
+from ..upload import UploadCancelled, fresh_token_on_rejection
+from .api import call, data_of
 
 MAX_SEGMENT_BYTES = 4 * 1024**2
 MEDIA_LIFETIME_SECONDS = 23 * 60 * 60
@@ -127,7 +127,7 @@ def upload(
     with open(path, "rb") as handle:
         while state.next_segment < total:
             if should_cancel and should_cancel():
-                raise Cancelled(state)
+                raise UploadCancelled(state.as_dict())
 
             _send_segment(access_token, state, handle, size)
             state.next_segment += 1

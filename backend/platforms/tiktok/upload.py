@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import AUTHENTICATION, FILE, PLATFORM, PlatformFailure
+from ..http import FILE, PLATFORM, PlatformFailure
+from ..upload import UploadCancelled, fresh_token_on_rejection
 from .api import API_ROOT, call, send
-from .errors import Cancelled, NeedsFreshToken
 
 INIT_ENDPOINT = f"{API_ROOT}/post/publish/video/init/"
 
@@ -104,12 +104,7 @@ def start(access_token: str, post_info: PostInfo, size: int) -> ResumeState:
             "total_chunk_count": total_chunks,
         },
     }
-    try:
-        data = call("POST", INIT_ENDPOINT, access_token, json=body)
-    except PlatformFailure as failure:
-        if failure.type == AUTHENTICATION:
-            raise NeedsFreshToken(None, failure.message) from None
-        raise
+    data = fresh_token_on_rejection(lambda: call("POST", INIT_ENDPOINT, access_token, json=body))
 
     if not data.get("publish_id") or not data.get("upload_url"):
         raise PlatformFailure(PLATFORM, "TikTok did not open an upload")
@@ -155,7 +150,7 @@ def upload(
     with open(path, "rb") as handle:
         while state.next_chunk < state.total_chunks:
             if should_cancel and should_cancel():
-                raise Cancelled(state)
+                raise UploadCancelled(state.as_dict())
 
             response = _send_chunk(state, handle, size, mime_type)
             is_last = state.next_chunk == state.total_chunks - 1

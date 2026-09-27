@@ -1,5 +1,4 @@
 from ..http import (
-    AUTHENTICATION,
     AUTHORIZATION,
     RATE_LIMIT,
     PlatformFailure,
@@ -8,7 +7,6 @@ from ..http import (
     request,
     with_retry,
 )
-from .errors import NeedsFreshToken
 
 LABEL = "X"
 API_ROOT = "https://api.x.com/2"
@@ -73,11 +71,3 @@ def data_of(body: dict) -> dict:
     data = body.get("data")
     return data if isinstance(data, dict) else {}
 
-
-def fresh_token_on_rejection(action, state=None):
-    try:
-        return action()
-    except PlatformFailure as failure:
-        if failure.type == AUTHENTICATION:
-            raise NeedsFreshToken(state, failure.message) from None
-        raise

@@ -3,7 +3,7 @@ from platforms import youtube
 from platforms.capabilities import ValidationResult
 
 from ..models import PublicationTarget
-from .outcome import NeedsFreshToken, Published, UploadCancelled
+from .outcome import Published
 
 Status = PublicationTarget.Status
 
@@ -47,21 +47,16 @@ def _metadata(target: PublicationTarget, options: youtube.VideoOptions) -> youtu
 def upload(target: PublicationTarget, access_token: str, resume: dict | None, on_progress, should_cancel) -> str:
     asset = target.publication.asset
     options = youtube.video_options_of(target.settings)
-    try:
-        return youtube.upload(
-            path=storage.absolute(asset.storage_path),
-            size=asset.size_bytes,
-            mime_type=asset.mime_type,
-            metadata=_metadata(target, options),
-            access_token=access_token,
-            resume=youtube.ResumeState.of(resume),
-            on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
-            should_cancel=should_cancel,
-        )
-    except youtube.UploadCancelled as cancelled:
-        raise UploadCancelled(cancelled.state.as_dict()) from None
-    except youtube.NeedsFreshToken as stale:
-        raise NeedsFreshToken(stale.state.as_dict(), str(stale)) from None
+    return youtube.upload(
+        path=storage.absolute(asset.storage_path),
+        size=asset.size_bytes,
+        mime_type=asset.mime_type,
+        metadata=_metadata(target, options),
+        access_token=access_token,
+        resume=youtube.ResumeState.of(resume),
+        on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
+        should_cancel=should_cancel,
+    )
 
 
 def publish(target: PublicationTarget, video_id: str, access_token: str) -> Published:

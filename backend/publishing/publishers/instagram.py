@@ -7,7 +7,7 @@ from platforms.capabilities import ValidationResult
 from platforms.http import PlatformFailure
 
 from ..models import PublicationTarget
-from .outcome import NeedsFreshToken, Published, UploadCancelled
+from .outcome import Published
 
 logger = logging.getLogger(__name__)
 
@@ -46,22 +46,16 @@ def _reel_info(target: PublicationTarget) -> instagram.ReelInfo:
 
 def upload(target: PublicationTarget, access_token: str, resume: dict | None, on_progress, should_cancel) -> str:
     asset = target.publication.asset
-    try:
-        return instagram.upload(
-            path=storage.absolute(asset.storage_path),
-            size=asset.size_bytes,
-            ig_user_id=target.social_account.external_id,
-            reel=_reel_info(target),
-            access_token=access_token,
-            resume=instagram.ResumeState.of(resume),
-            on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
-            should_cancel=should_cancel,
-        )
-    except instagram.UploadCancelled as cancelled:
-        raise UploadCancelled(cancelled.state.as_dict()) from None
-    except instagram.NeedsFreshToken as stale:
-        state = stale.state.as_dict() if stale.state else resume or {}
-        raise NeedsFreshToken(state, str(stale)) from None
+    return instagram.upload(
+        path=storage.absolute(asset.storage_path),
+        size=asset.size_bytes,
+        ig_user_id=target.social_account.external_id,
+        reel=_reel_info(target),
+        access_token=access_token,
+        resume=instagram.ResumeState.of(resume),
+        on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
+        should_cancel=should_cancel,
+    )
 
 
 def publish(target: PublicationTarget, container_id: str, access_token: str) -> Published:
@@ -87,19 +81,15 @@ def _published_media_id(target: PublicationTarget, access_token: str) -> str | N
 
 
 def confirm(target: PublicationTarget, access_token: str) -> Published | None:
-    try:
-        status = instagram.container_status(access_token, target.uploaded_media_id)
-        if status.is_published:
-            return Published(Status.COMPLETED)
-        if status.is_dead:
-            raise instagram.failure_of(status)
-        if not status.is_ready:
-            return None
+    status = instagram.container_status(access_token, target.uploaded_media_id)
+    if status.is_published:
+        return Published(Status.COMPLETED)
+    if status.is_dead:
+        raise instagram.failure_of(status)
+    if not status.is_ready:
+        return None
 
-        media_id = _published_media_id(target, access_token)
-    except instagram.NeedsFreshToken as stale:
-        raise NeedsFreshToken({}, str(stale)) from None
-
+    media_id = _published_media_id(target, access_token)
     if media_id is None:
         return None
     return Published(Status.COMPLETED, _url_of(media_id, access_token))

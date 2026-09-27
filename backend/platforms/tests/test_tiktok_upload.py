@@ -1,8 +1,9 @@
 import time
 
 from platforms.http import FILE, PLATFORM, PlatformFailure
-from platforms.tiktok import NeedsFreshToken, PostInfo, ResumeState, UploadCancelled, upload
+from platforms.tiktok import PostInfo, ResumeState, upload
 from platforms.tiktok.upload import INIT_ENDPOINT, chunk_plan
+from platforms.upload import NeedsFreshToken, UploadCancelled
 
 from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
 
@@ -164,7 +165,7 @@ class TikTokUploadScenarios(PlatformTestCase):
         with self.assertRaises(UploadCancelled) as raised:
             self.send(should_cancel=lambda: next(answers))
 
-        self.assertEqual(raised.exception.state.next_chunk, 1)
+        self.assertEqual(raised.exception.state["next_chunk"], 1)
 
     def test_a_file_shorter_than_declared_fails(self):
         self.http.side_effect = TikTokDouble()

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from ..http import AUTHENTICATION, FILE, PLATFORM, PlatformFailure
+from ..http import FILE, PLATFORM, PlatformFailure
+from ..upload import fresh_token_on_rejection
 from .api import call
-from .errors import NeedsFreshToken
 
 FINISHED = "FINISHED"
 PUBLISHED = "PUBLISHED"
@@ -29,15 +29,6 @@ class ContainerStatus:
     @property
     def is_dead(self) -> bool:
         return self.status_code in (ERROR, EXPIRED)
-
-
-def fresh_token_on_rejection(action, state=None):
-    try:
-        return action()
-    except PlatformFailure as failure:
-        if failure.type == AUTHENTICATION:
-            raise NeedsFreshToken(state, failure.message) from None
-        raise
 
 
 def _bytes_transferred(body: dict) -> int | None:
