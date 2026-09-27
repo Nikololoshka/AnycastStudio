@@ -11,6 +11,7 @@ from .failures import (
     PlatformFailure,
     classify,
 )
+from .parsing import PlatformModel, parse
 from .retry import backoff_ms, with_retry
 from .transport import request, send
 
@@ -24,10 +25,12 @@ __all__ = [
     "UNKNOWN",
     "VALIDATION",
     "PlatformFailure",
+    "PlatformModel",
     "backoff_ms",
     "classify",
     "json_dict",
     "message_of",
+    "parse",
     "request",
     "send",
     "with_retry",
