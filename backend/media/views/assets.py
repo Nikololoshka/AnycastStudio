@@ -18,7 +18,7 @@ def assets(request):
         "ok",
         assets=[asset_json(asset) for asset in rows],
         usedBytes=services.stored_bytes(request.user),
-        quotaBytes=request.user.quota.max_storage_bytes,
+        quotaBytes=request.user.max_storage_bytes,
     )
 
 

@@ -30,7 +30,7 @@ def check_can_publish(user) -> None:
     """The YouTube Data API allows roughly six uploads a day on the default
     quota, for the whole project rather than per person. Refusing here gives a
     reason; letting it through gives a 403 from Google that nobody can act on."""
-    limit = user.quota.max_publications_per_day
+    limit = user.max_publications_per_day
     used = published_today(user)
     if used >= limit:
         raise DailyLimitReached(limit)

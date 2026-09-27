@@ -44,18 +44,16 @@ def stored_bytes(user) -> int:
 
 def check_can_start(user, size_bytes: int) -> None:
     """Refuse before a single byte is transferred, not after four gigabytes."""
-    quota = user.quota
-
-    if size_bytes > quota.max_media_asset_bytes:
-        raise TooLarge(quota.max_media_asset_bytes)
+    if size_bytes > user.max_media_asset_bytes:
+        raise TooLarge(user.max_media_asset_bytes)
 
     open_sessions = UploadSession.objects.filter(user=user, status=UploadSession.Status.OPEN).count()
-    if open_sessions >= quota.max_concurrent_uploads:
-        raise TooManyUploads(quota.max_concurrent_uploads)
+    if open_sessions >= user.max_concurrent_uploads:
+        raise TooManyUploads(user.max_concurrent_uploads)
 
     used = stored_bytes(user) + reserved_bytes(user)
-    if used + size_bytes > quota.max_storage_bytes:
-        raise QuotaExceeded(used, quota.max_storage_bytes)
+    if used + size_bytes > user.max_storage_bytes:
+        raise QuotaExceeded(used, user.max_storage_bytes)
 
 
 def reserved_bytes(user) -> int:

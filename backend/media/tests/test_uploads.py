@@ -108,9 +108,8 @@ class StartScenarios(UploadTestCase):
             self.assertEqual(self.body(self.start())["chunkSize"], 4096)
 
     def test_a_file_over_the_per_file_limit_is_refused_before_any_bytes_move(self):
-        quota = self.user.quota
-        quota.max_media_asset_bytes = len(CONTENT) - 1
-        quota.save()
+        self.user.max_media_asset_bytes = len(CONTENT) - 1
+        self.user.save()
 
         response = self.start()
 
@@ -119,18 +118,16 @@ class StartScenarios(UploadTestCase):
         self.assertFalse(UploadSession.objects.exists())
 
     def test_a_file_that_would_break_the_storage_quota_is_refused(self):
-        quota = self.user.quota
-        quota.max_storage_bytes = len(CONTENT) - 1
-        quota.save()
+        self.user.max_storage_bytes = len(CONTENT) - 1
+        self.user.save()
 
         response = self.start()
 
         self.assertEqual(self.body(response)["status"], "quota_exceeded")
 
     def test_too_many_transfers_at_once_are_refused(self):
-        quota = self.user.quota
-        quota.max_concurrent_uploads = 1
-        quota.save()
+        self.user.max_concurrent_uploads = 1
+        self.user.save()
 
         self.start()
         response = self.start()
@@ -301,9 +298,8 @@ class AbortScenarios(UploadTestCase):
         self.assertEqual(UploadSession.objects.get().status, UploadSession.Status.ABORTED)
 
     def test_aborting_frees_the_quota_it_was_holding(self):
-        quota = self.user.quota
-        quota.max_concurrent_uploads = 1
-        quota.save()
+        self.user.max_concurrent_uploads = 1
+        self.user.save()
         upload_id = self.body(self.start())["uploadId"]
 
         self.client.delete(f"{START_URL}/{upload_id}/abort")
@@ -325,7 +321,7 @@ class AssetScenarios(UploadTestCase):
 
         self.assertEqual(len(body["assets"]), 1)
         self.assertEqual(body["usedBytes"], len(CONTENT))
-        self.assertEqual(body["quotaBytes"], self.user.quota.max_storage_bytes)
+        self.assertEqual(body["quotaBytes"], self.user.max_storage_bytes)
 
     def test_another_persons_assets_are_not_listed(self):
         self.given_an_asset()

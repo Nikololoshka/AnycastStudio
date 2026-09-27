@@ -97,9 +97,8 @@ class CreateScenarios(PublishingTestCase):
     def test_the_daily_limit_is_enforced_with_a_reason(self):
         # The YouTube quota is per project, so this has to refuse before Google
         # does, otherwise the person meets a 403 they cannot act on.
-        quota = self.user.quota
-        quota.max_publications_per_day = 1
-        quota.save()
+        self.user.max_publications_per_day = 1
+        self.user.save()
 
         self.create_publication()
         second = self.create_publication()

@@ -110,8 +110,8 @@ and is proxied to Django.
 
 **Quota.** The Data API allows roughly 10,000 units a day and a video upload
 costs about 1,600 — six uploads a day, for the whole project rather than per
-person. The app refuses past `MAX_PUBLICATIONS_PER_DAY` with a reason instead
-of letting Google refuse without one, and a failed publication is never retried
+person. The app refuses past `User.max_publications_per_day` (5 by default)
+with a reason instead of letting Google refuse without one, and a failed publication is never retried
 automatically.
 
 ---

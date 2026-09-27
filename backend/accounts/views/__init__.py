@@ -1,3 +1,3 @@
-from .auth import csrf, login, logout, me
+from .auth import account_csrf, account_login, account_logout, account_me
 
-__all__ = ["csrf", "login", "logout", "me"]
+__all__ = ["account_csrf", "account_login", "account_logout", "account_me"]
