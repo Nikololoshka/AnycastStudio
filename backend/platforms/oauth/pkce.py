@@ -13,3 +13,7 @@ def generate_verifier() -> str:
 
 def s256_challenge(verifier: str) -> str:
     return _b64url(hashlib.sha256(verifier.encode()).digest())
+
+
+def hex_s256_challenge(verifier: str) -> str:
+    return hashlib.sha256(verifier.encode()).hexdigest()

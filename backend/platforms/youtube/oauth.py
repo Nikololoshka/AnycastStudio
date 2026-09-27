@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.urls import reverse
 
-from ..oauth import Identity, ProviderError, TokenBundle
+from ..oauth import Identity, ProviderError, TokenBundle, pkce
 from ..http import PlatformFailure, json_dict, request, with_retry
 
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -50,6 +50,9 @@ class YouTubeProvider:
         if not settings.YOUTUBE_CLIENT_SECRET:
             raise ProviderError("YOUTUBE_CLIENT_SECRET is not configured")
         return settings.YOUTUBE_CLIENT_SECRET
+
+    def code_challenge(self, verifier: str) -> str:
+        return pkce.s256_challenge(verifier)
 
     def authorize_url(self, state: str, code_challenge: str | None) -> str:
         params = {

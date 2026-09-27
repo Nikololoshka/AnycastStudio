@@ -19,7 +19,7 @@ def social_connect(request, platform: str):
     if provider is None:
         return api_response("not_found")
 
-    session, challenge = sessions.create(request.user, provider.name, provider.uses_pkce)
+    session, challenge = sessions.create(request.user, provider)
 
     try:
         auth_url = provider.authorize_url(session.state, challenge)
