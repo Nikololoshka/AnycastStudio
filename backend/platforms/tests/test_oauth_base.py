@@ -77,6 +77,18 @@ class OAuth2ProviderScenarios(PlatformTestCase):
         with self.assertRaisesMessage(ProviderError, "Example refused the token request: Bad verifier"):
             ExampleProvider().exchange_code("code", "verifier")
 
+    def test_a_malformed_token_answer_is_refused_without_repeating_the_token(self):
+        # Given: the token arrives next to an expiry that is not a number
+        self.http.return_value = FakeResponse(200, {"access_token": "secret-token", "expires_in": "soon"})
+
+        # When: the code is exchanged
+        with self.assertRaises(ProviderError) as raised:
+            ExampleProvider().exchange_code("code", "verifier")
+
+        # Then: the refusal is final and does not carry the token
+        self.assertFalse(raised.exception.transient)
+        self.assertNotIn("secret-token", raised.exception.message)
+
     def test_a_network_failure_is_transient(self):
         # Given: the platform is unavailable on every attempt
         self.http.return_value = FakeResponse(503)

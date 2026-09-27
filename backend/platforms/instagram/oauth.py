@@ -1,6 +1,7 @@
 import logging
 from ..http import json_dict
 from ..oauth import Identity, OAuth2Provider, ProviderError, TokenBundle
+from .responses import UserToken
 from .api import GRAPH_ROOT, GRAPH_VERSION, authorization, send
 
 AUTH_ENDPOINT = f"https://www.facebook.com/{GRAPH_VERSION}/dialog/oauth"
@@ -55,10 +56,10 @@ class InstagramProvider(OAuth2Provider):
 
     def _user_token(self, grant: dict) -> str:
         credentials = {"client_id": self.client_id(), "client_secret": self.client_secret()}
-        body = self._json("GET", TOKEN_ENDPOINT, params={**credentials, **grant})
-        if not body.get("access_token"):
-            raise ProviderError("Facebook did not issue a token")
-        return str(body["access_token"])
+        answer = self._answer(
+            "GET", TOKEN_ENDPOINT, UserToken, refusal="Facebook did not issue a token", params={**credentials, **grant}
+        )
+        return answer.access_token
 
     def _granted_asset_ids(self, user_token: str) -> list[str]:
         body = self._json(

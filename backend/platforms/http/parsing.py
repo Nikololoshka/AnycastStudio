@@ -1,6 +1,6 @@
-from typing import TypeVar
+from typing import Annotated, TypeVar
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .failures import PLATFORM, PlatformFailure
 
@@ -8,6 +8,8 @@ from .failures import PLATFORM, PlatformFailure
 class PlatformModel(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True, coerce_numbers_to_str=True)
 
+
+Present = Annotated[str, Field(min_length=1)]
 
 M = TypeVar("M", bound=BaseModel)
 

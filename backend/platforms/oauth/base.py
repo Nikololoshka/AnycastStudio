@@ -1,15 +1,19 @@
+from typing import TypeVar
 from urllib.parse import urlencode
 
 from django.conf import settings
+from pydantic import BaseModel
 
 from .. import http
-from ..http import PlatformFailure, json_dict
+from ..http import PlatformFailure, parse
 from . import pkce
 from .errors import ProviderError
 from .redirect import callback_url
-from .tokens import TokenBundle
+from .tokens import TokenAnswer, TokenBundle
 
 OAUTH_ATTEMPTS = 3
+
+M = TypeVar("M", bound=BaseModel)
 
 
 class OAuth2Provider:
@@ -72,21 +76,29 @@ class OAuth2Provider:
         credentials = {self.client_id_param: self.client_id(), "client_secret": self.client_secret()}
         return {"data": {**credentials, **grant}}
 
+    def _answer(self, method: str, url: str, model: type[M], *, refusal: str | None = None, **kwargs) -> M:
+        response = self._send(method, url, **kwargs)
+        try:
+            return parse(response, model, label=self.label, refusal=refusal)
+        except PlatformFailure as failure:
+            raise ProviderError(failure.message) from None
+
     def _post_token(self, grant: dict) -> TokenBundle:
         response = self._send("POST", self.token_endpoint, **self.token_request(grant))
-        body = json_dict(response)
+        try:
+            answer = parse(response, TokenAnswer, label=self.label)
+        except PlatformFailure as failure:
+            raise ProviderError(failure.message) from None
 
-        if not body.get("access_token"):
-            reason = body.get("error_description") or body.get("error") or f"HTTP {response.status_code}"
-            raise ProviderError(f"{self.label} refused the token request: {str(reason)[:200]}")
+        if not answer.access_token:
+            reason = answer.refusal_reason or f"HTTP {response.status_code}"
+            raise ProviderError(f"{self.label} refused the token request: {reason[:200]}")
 
-        listed = str(body.get("scope", "")).split(self.scope_separator)
-        granted = tuple(scope.strip() for scope in listed if scope.strip())
         return TokenBundle(
-            access_token=body["access_token"],
-            refresh_token=body.get("refresh_token"),
-            expires_in=body.get("expires_in"),
-            scopes=granted or self.scopes,
+            access_token=answer.access_token,
+            refresh_token=answer.refresh_token,
+            expires_in=answer.expires_in,
+            scopes=answer.scopes(self.scope_separator) or self.scopes,
         )
 
     def exchange_code(self, code: str, code_verifier: str | None) -> TokenBundle:
