@@ -1,11 +1,10 @@
+from .. import http
 from ..http import (
     AUTHORIZATION,
     RATE_LIMIT,
     PlatformFailure,
     classify,
     json_dict,
-    request,
-    with_retry,
 )
 
 LABEL = "X"
@@ -46,16 +45,8 @@ def failure_of(response) -> PlatformFailure | None:
     return PlatformFailure(failure.type, str(message)[:500], details=kind, retryable=failure.retryable)
 
 
-def _attempt(method: str, url: str, kwargs: dict):
-    response = request(method, url, label=LABEL, **kwargs)
-    failure = failure_of(response)
-    if failure is not None:
-        raise failure
-    return response
-
-
 def send(method: str, url: str, *, attempts: int | None = None, **kwargs):
-    return with_retry(lambda: _attempt(method, url, kwargs), label=LABEL, attempts=attempts)
+    return http.send(method, url, label=LABEL, failure_of=failure_of, attempts=attempts, **kwargs)
 
 
 def bearer(access_token: str) -> dict:

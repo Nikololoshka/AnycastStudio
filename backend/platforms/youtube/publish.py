@@ -1,5 +1,5 @@
-from ..http import json_dict, request, with_retry
-from .capabilities import LABEL
+from ..http import json_dict
+from .api import bearer, send
 from .video_options import VideoOptions
 
 VIDEOS_ENDPOINT = "https://www.googleapis.com/youtube/v3/videos"
@@ -20,20 +20,7 @@ def _status_body(video_id: str, options: VideoOptions, visibility: dict) -> dict
 
 
 def _update(access_token: str, body: dict) -> dict:
-    response = with_retry(
-        lambda: request(
-            "PUT",
-            VIDEOS_ENDPOINT,
-            label=LABEL,
-            params={"part": "status"},
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json; charset=UTF-8",
-            },
-            json=body,
-        ),
-        label=LABEL,
-    )
+    response = send("PUT", VIDEOS_ENDPOINT, params={"part": "status"}, headers=bearer(access_token), json=body)
     return json_dict(response)
 
 

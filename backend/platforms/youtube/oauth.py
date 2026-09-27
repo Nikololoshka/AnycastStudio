@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 
 from ..oauth import Identity, ProviderError, TokenBundle, callback_url, pkce
-from ..http import PlatformFailure, json_dict, request, with_retry
+from ..http import PlatformFailure, json_dict, send
 
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -16,11 +16,7 @@ OAUTH_ATTEMPTS = 3
 
 def _send(method: str, url: str, attempts: int = OAUTH_ATTEMPTS, **kwargs):
     try:
-        return with_retry(
-            lambda: request(method, url, label=LABEL, **kwargs),
-            label=LABEL,
-            attempts=attempts,
-        )
+        return send(method, url, label=LABEL, attempts=attempts, **kwargs)
     except PlatformFailure as failure:
         raise ProviderError(failure.message, transient=failure.retryable) from None
 

@@ -1,7 +1,6 @@
 from ..capabilities import Capabilities, Scheduling, ValidationResult
+from .api import LABEL
 from .video_options import MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH
-
-LABEL = "YouTube"
 
 MAX_FILE_BYTES = 128 * 1024**3
 

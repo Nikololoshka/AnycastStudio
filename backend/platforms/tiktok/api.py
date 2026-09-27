@@ -1,4 +1,5 @@
-from ..http import AUTHENTICATION, PLATFORM, PlatformFailure, classify, json_dict, request, with_retry
+from .. import http
+from ..http import AUTHENTICATION, PLATFORM, PlatformFailure, classify, json_dict
 
 LABEL = "TikTok"
 API_ROOT = "https://open.tiktokapis.com/v2"
@@ -12,17 +13,15 @@ def error_code(response) -> str:
     return str(error.get("code") or "") if isinstance(error, dict) else ""
 
 
-def _attempt(method: str, url: str, kwargs: dict):
-    response = request(method, url, label=LABEL, **kwargs)
+def failure_of(response) -> PlatformFailure | None:
     failure = classify(response, LABEL)
     if failure is not None:
         failure.details = error_code(response)
-        raise failure
-    return response
+    return failure
 
 
 def send(method: str, url: str, *, attempts: int | None = None, **kwargs):
-    return with_retry(lambda: _attempt(method, url, kwargs), label=LABEL, attempts=attempts)
+    return http.send(method, url, label=LABEL, failure_of=failure_of, attempts=attempts, **kwargs)
 
 
 def bearer(access_token: str) -> dict:

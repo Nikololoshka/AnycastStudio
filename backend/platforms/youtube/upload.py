@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import FILE, PLATFORM, PlatformFailure, json_dict, request, with_retry
+from ..http import FILE, PLATFORM, PlatformFailure, json_dict
 from ..upload import UploadCancelled, fresh_token_on_rejection
-from .capabilities import LABEL
+from .api import bearer, send
 
 UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/youtube/v3/videos"
 
@@ -70,18 +70,12 @@ def start_session(access_token: str, metadata: VideoMetadata, size: int, mime_ty
         "notifySubscribers": str(metadata.notify_subscribers).lower(),
     }
     headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json; charset=UTF-8",
+        **bearer(access_token),
         "X-Upload-Content-Type": mime_type,
         "X-Upload-Content-Length": str(size),
     }
 
-    response = with_retry(
-        lambda: request(
-            "POST", UPLOAD_ENDPOINT, label=LABEL, params=params, headers=headers, json=metadata.as_body()
-        ),
-        label=LABEL,
-    )
+    response = send("POST", UPLOAD_ENDPOINT, params=params, headers=headers, json=metadata.as_body())
 
     location = response.headers.get("Location")
     if not location:
@@ -99,13 +93,7 @@ def _is_complete(response) -> bool:
 
 
 def _put(state: ResumeState, headers: dict, body: bytes = b""):
-    return fresh_token_on_rejection(
-        lambda: with_retry(
-            lambda: request("PUT", state.session_uri, label=LABEL, headers=headers, data=body),
-            label=LABEL,
-        ),
-        state,
-    )
+    return fresh_token_on_rejection(lambda: send("PUT", state.session_uri, headers=headers, data=body), state)
 
 
 def _ask_progress(state: ResumeState, size: int):

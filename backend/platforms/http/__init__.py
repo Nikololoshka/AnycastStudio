@@ -12,7 +12,7 @@ from .failures import (
     classify,
 )
 from .retry import backoff_ms, with_retry
-from .transport import request
+from .transport import request, send
 
 __all__ = [
     "AUTHENTICATION",
@@ -29,5 +29,6 @@ __all__ = [
     "json_dict",
     "message_of",
     "request",
+    "send",
     "with_retry",
 ]

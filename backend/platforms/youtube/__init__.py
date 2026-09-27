@@ -1,4 +1,5 @@
-from .capabilities import LABEL, capabilities, validate
+from .api import LABEL
+from .capabilities import capabilities, validate
 from .oauth import YouTubeProvider
 from .publish import publish, schedule, watch_url
 from .upload import ResumeState, VideoMetadata, upload
