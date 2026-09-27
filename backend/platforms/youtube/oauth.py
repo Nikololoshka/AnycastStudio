@@ -1,9 +1,8 @@
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.urls import reverse
 
-from ..oauth import Identity, ProviderError, TokenBundle, pkce
+from ..oauth import Identity, ProviderError, TokenBundle, callback_url, pkce
 from ..http import PlatformFailure, json_dict, request, with_retry
 
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -37,7 +36,7 @@ class YouTubeProvider:
 
     @property
     def redirect_uri(self) -> str:
-        return f"{settings.PUBLIC_ORIGIN}{reverse('social-callback', args=[self.name])}"
+        return callback_url(self.name)
 
     @staticmethod
     def _client_id() -> str:

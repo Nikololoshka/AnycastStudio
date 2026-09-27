@@ -10,6 +10,7 @@ override what differs. Select one with DJANGO_SETTINGS_MODULE.
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -31,9 +32,11 @@ if not SECRET_KEY:
 
 PUBLIC_ORIGIN = os.environ.get("PUBLIC_ORIGIN", "http://localhost:5173").rstrip("/")
 PUBLIC_HOST = os.environ.get("PUBLIC_HOST", "localhost")
+PUBLIC_REDIRECT_ORIGIN = os.environ.get("PUBLIC_REDIRECT_ORIGIN", "").rstrip("/") or PUBLIC_ORIGIN
+PUBLIC_REDIRECT_HOST = urlparse(PUBLIC_REDIRECT_ORIGIN).hostname or PUBLIC_HOST
 
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", PUBLIC_ORIGIN)
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", f"{PUBLIC_HOST}, localhost, 127.0.0.1")
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", f"{PUBLIC_HOST}, {PUBLIC_REDIRECT_HOST}, localhost, 127.0.0.1")
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",

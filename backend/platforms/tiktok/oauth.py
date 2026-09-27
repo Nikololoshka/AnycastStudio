@@ -1,10 +1,9 @@
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.urls import reverse
 
 from ..http import PlatformFailure, json_dict
-from ..oauth import Identity, ProviderError, TokenBundle, pkce
+from ..oauth import Identity, ProviderError, TokenBundle, callback_url, pkce
 from .api import API_ROOT, data_of, send
 
 AUTH_ENDPOINT = "https://www.tiktok.com/v2/auth/authorize/"
@@ -30,7 +29,7 @@ class TikTokProvider:
 
     @property
     def redirect_uri(self) -> str:
-        return f"{settings.PUBLIC_ORIGIN}{reverse('social-callback', args=[self.name])}"
+        return callback_url(self.name)
 
     @staticmethod
     def _client_key() -> str:

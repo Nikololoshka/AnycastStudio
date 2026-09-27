@@ -25,6 +25,23 @@ The pair that shipped in the desktop bundle is public and must not be reused.
 When the app gets a real domain, switch it to the web type and register
 `<PUBLIC_ORIGIN>/api/social/tiktok/callback`. The code does not change.
 
+### Testing a web-type app locally
+
+A web-type app accepts only an HTTPS redirect. Put a tunnel in front of Django
+and send only the OAuth redirect through it:
+
+1. `ngrok http 8000 --domain=<name>.ngrok-free.app`
+2. `backend/.env`: `PUBLIC_REDIRECT_ORIGIN=https://<name>.ngrok-free.app`,
+   `PUBLIC_ORIGIN` stays `http://localhost:5173`.
+3. Register `https://<name>.ngrok-free.app/api/social/tiktok/callback`.
+
+Keep using the app on `localhost:5173`. The callback lands on the tunnel,
+where the browser has no session cookie, so Django sends it on unchanged to
+the same path on `PUBLIC_ORIGIN` and handles it there. The token exchange
+still names the tunnel's redirect URI, as TikTok requires. The redirect origin
+applies to every provider, so while it is set YouTube needs the tunnel's
+callback registered in Google Cloud as well.
+
 ---
 
 ## Sign-in

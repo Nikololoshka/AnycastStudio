@@ -1,5 +1,7 @@
 import logging
+from urllib.parse import urlparse
 
+from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.views.decorators.http import require_GET
 
@@ -17,12 +19,23 @@ def back_to_app(platform: str, outcome: str) -> HttpResponseRedirect:
     return HttpResponseRedirect(f"{RETURN_PATH}?platform={platform}&result={outcome}")
 
 
+def _arrived_off_the_app_origin(request) -> bool:
+    return request.get_host() != urlparse(settings.PUBLIC_ORIGIN).netloc
+
+
+def _on_to_the_app_origin(request) -> HttpResponseRedirect:
+    return HttpResponseRedirect(f"{settings.PUBLIC_ORIGIN}{request.get_full_path()}")
+
+
 def _opened_by_this_browser(request, session) -> bool:
     return request.user.is_authenticated and session.user_id == request.user.pk
 
 
 @require_GET
 def social_callback(request, platform: str):
+    if _arrived_off_the_app_origin(request):
+        return _on_to_the_app_origin(request)
+
     provider = PROVIDERS.get(platform)
     if provider is None:
         return back_to_app(platform, "invalid")

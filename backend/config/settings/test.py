@@ -8,6 +8,7 @@ os.environ.setdefault("TOKEN_ENCRYPTION_KEYS", "v1:0OCGKlCLB8oeiYM9wmmDs9vjshMpd
 from .base import *  # noqa: E402,F401,F403
 
 PUBLIC_ORIGIN = "http://testserver"
+PUBLIC_REDIRECT_ORIGIN = PUBLIC_ORIGIN
 ALLOWED_HOSTS = ["testserver"]
 
 YOUTUBE_CLIENT_ID = "test-client-id"

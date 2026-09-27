@@ -22,7 +22,7 @@ USER = {
 }
 
 
-@override_settings(TIKTOK_CLIENT_KEY="client-key", TIKTOK_CLIENT_SECRET="client-secret", PUBLIC_ORIGIN="http://localhost:5173")
+@override_settings(TIKTOK_CLIENT_KEY="client-key", TIKTOK_CLIENT_SECRET="client-secret", PUBLIC_REDIRECT_ORIGIN="http://localhost:5173")
 class TikTokOAuthScenarios(PlatformTestCase):
     def test_the_consent_url_carries_the_client_key_and_a_hex_challenge(self):
         # Given: a verifier kept on the server
