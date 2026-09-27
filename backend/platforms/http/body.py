@@ -1,3 +1,5 @@
+# todo later: change to decode json to native struct, now dict
+
 def json_dict(response) -> dict:
     try:
         data = response.json()

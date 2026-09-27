@@ -13,7 +13,7 @@ MAX_BACKOFF_MS = 30_000
 
 
 def backoff_ms(attempt: int) -> int:
-    ceiling = min(BASE_BACKOFF_MS * (2**attempt), MAX_BACKOFF_MS)
+    ceiling = min(BASE_BACKOFF_MS * (2 ** attempt), MAX_BACKOFF_MS)
     return random.randint(ceiling // 2, ceiling)
 
 
