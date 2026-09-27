@@ -1,6 +1,6 @@
 from .. import http
-from ..http import json_dict
 from ..oauth import Identity, OAuth2Provider, ProviderError
+from .responses import ChannelList
 
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -34,26 +34,22 @@ class YouTubeProvider(OAuth2Provider):
         }
 
     def fetch_identity(self, access_token: str) -> Identity:
-        response = self._send(
+        channels = self._answer(
             "GET",
             CHANNELS_ENDPOINT,
+            ChannelList,
             params={"part": "snippet", "mine": "true"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
-
-        items = json_dict(response).get("items") or []
-        if not items:
+        if not channels.items:
             raise ProviderError("This Google account has no YouTube channel")
 
-        channel = items[0]
-        snippet = channel.get("snippet") or {}
-        thumbnails = snippet.get("thumbnails") or {}
-
+        channel = channels.items[0]
         return Identity(
-            external_id=str(channel.get("id", "")),
-            display_name=snippet.get("title", ""),
-            avatar_url=(thumbnails.get("default") or {}).get("url", ""),
-            extra={"customUrl": snippet.get("customUrl", "")},
+            external_id=channel.id,
+            display_name=channel.snippet.title,
+            avatar_url=channel.snippet.thumbnails.default.url,
+            extra={"customUrl": channel.snippet.custom_url},
         )
 
     def revoke(self, access_token: str, refresh_token: str) -> None:

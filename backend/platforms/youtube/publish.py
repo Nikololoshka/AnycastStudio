@@ -1,4 +1,3 @@
-from ..http import json_dict
 from .api import bearer, send
 from .video_options import VideoOptions
 
@@ -19,9 +18,8 @@ def _status_body(video_id: str, options: VideoOptions, visibility: dict) -> dict
     }
 
 
-def _update(access_token: str, body: dict) -> dict:
-    response = send("PUT", VIDEOS_ENDPOINT, params={"part": "status"}, headers=bearer(access_token), json=body)
-    return json_dict(response)
+def _update(access_token: str, body: dict) -> None:
+    send("PUT", VIDEOS_ENDPOINT, params={"part": "status"}, headers=bearer(access_token), json=body)
 
 
 def publish(video_id: str, access_token: str, options: VideoOptions) -> str:

@@ -4,9 +4,10 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import PLATFORM, PlatformFailure, json_dict
+from ..http import PLATFORM, PlatformFailure, parse
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
-from .api import bearer, send
+from .api import LABEL, bearer, send
+from .responses import UploadedVideo
 
 UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/youtube/v3/videos"
 
@@ -98,11 +99,9 @@ def _send_piece(state: ResumeState, piece: bytes, size: int, mime_type: str):
 
 
 def _video_id(response, size: int) -> str:
-    video_id = json_dict(response).get("id")
-    if not video_id:
-        raise PlatformFailure(PLATFORM, "YouTube accepted the file but returned no video id")
-    logger.info("Uploaded %d bytes to YouTube as %s", size, video_id)
-    return str(video_id)
+    video = parse(response, UploadedVideo, label=LABEL, refusal="YouTube accepted the file but returned no video id")
+    logger.info("Uploaded %d bytes to YouTube as %s", size, video.id)
+    return video.id
 
 
 @dataclass
