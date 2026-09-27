@@ -1,13 +1,10 @@
+from typing import TypeVar
+
+from pydantic import BaseModel
+
 from .. import http
-from ..http import (
-    AUTHENTICATION,
-    AUTHORIZATION,
-    PLATFORM,
-    RATE_LIMIT,
-    PlatformFailure,
-    classify,
-    json_dict,
-)
+from ..http import AUTHENTICATION, AUTHORIZATION, PLATFORM, RATE_LIMIT, PlatformFailure, classify, parse
+from .responses import ErrorAnswer, GraphError
 
 LABEL = "Instagram"
 GRAPH_VERSION = "v25.0"
@@ -18,21 +15,17 @@ TOKEN_REJECTED_CODES = (102, 190)
 PERMISSION_CODES = (10, *range(200, 300))
 THROTTLED_CODES = (4, 17, 32, 613)
 
-
-def _error_of(body: dict) -> dict:
-    for key in ("error", "debug_info"):
-        if isinstance(body.get(key), dict):
-            return body[key]
-    return {}
+M = TypeVar("M", bound=BaseModel)
 
 
-def error_code(error: dict) -> str:
-    code = str(error.get("code") or "")
-    subcode = str(error.get("error_subcode") or "")
-    return f"{code}/{subcode}" if code and subcode else code
+def _graph_error(response) -> GraphError | None:
+    try:
+        return parse(response, ErrorAnswer, label=LABEL).graph_error
+    except PlatformFailure:
+        return None
 
 
-def _kind_of(code, fallback: PlatformFailure | None) -> tuple[str, bool]:
+def _kind_of(code: int | None, fallback: PlatformFailure | None) -> tuple[str, bool]:
     if code in TOKEN_REJECTED_CODES:
         return AUTHENTICATION, False
     if code in PERMISSION_CODES:
@@ -46,15 +39,16 @@ def _kind_of(code, fallback: PlatformFailure | None) -> tuple[str, bool]:
 
 def failure_of(response) -> PlatformFailure | None:
     failure = classify(response, LABEL)
-    error = _error_of(json_dict(response))
-    if failure is None and not error:
+    error = _graph_error(response)
+    if failure is None and error is None:
         return None
 
-    kind, retryable = _kind_of(error.get("code"), failure)
-    message = error.get("error_user_msg") or error.get("message")
+    error = error or GraphError()
+    kind, retryable = _kind_of(error.code, failure)
+    message = error.error_user_msg or error.message
     if not message:
         message = failure.message if failure is not None else "Instagram refused the request"
-    return PlatformFailure(kind, str(message)[:500], details=error_code(error), retryable=retryable)
+    return PlatformFailure(kind, message[:500], details=error.details, retryable=retryable)
 
 
 def send(method: str, url: str, *, attempts: int | None = None, **kwargs):
@@ -65,6 +59,16 @@ def authorization(access_token: str) -> dict:
     return {"Authorization": f"OAuth {access_token}"}
 
 
-def call(method: str, path: str, access_token: str, *, attempts: int | None = None, **kwargs) -> dict:
+def call(
+    method: str,
+    path: str,
+    access_token: str,
+    model: type[M],
+    *,
+    refusal: str | None = None,
+    attempts: int | None = None,
+    **kwargs,
+) -> M:
     headers = {**authorization(access_token), **kwargs.pop("headers", {})}
-    return json_dict(send(method, f"{GRAPH_ROOT}/{path}", attempts=attempts, headers=headers, **kwargs))
+    response = send(method, f"{GRAPH_ROOT}/{path}", attempts=attempts, headers=headers, **kwargs)
+    return parse(response, model, label=LABEL, refusal=refusal)

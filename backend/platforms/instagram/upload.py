@@ -4,9 +4,10 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import PLATFORM, VALIDATION, PlatformFailure, json_dict
+from ..http import PLATFORM, VALIDATION, PlatformFailure, parse
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
-from .api import RUPLOAD_ROOT, authorization, call, send
+from .api import LABEL, RUPLOAD_ROOT, authorization, call, send
+from .responses import Chunk, Created
 from .status import fetch_status
 
 CONTAINER_LIFETIME_SECONDS = 23 * 60 * 60
@@ -42,12 +43,18 @@ class ResumeState(ResumableState):
 
 
 def start(access_token: str, ig_user_id: str, reel: ReelInfo) -> ResumeState:
-    body = fresh_token_on_rejection(
-        lambda: call("POST", f"{ig_user_id}/media", access_token, attempts=1, data=reel.as_form())
+    container = fresh_token_on_rejection(
+        lambda: call(
+            "POST",
+            f"{ig_user_id}/media",
+            access_token,
+            Created,
+            refusal="Instagram did not open an upload",
+            attempts=1,
+            data=reel.as_form(),
+        )
     )
-    if not body.get("id"):
-        raise PlatformFailure(PLATFORM, "Instagram did not open an upload")
-    return ResumeState(container_id=str(body["id"]), created_at=time.time())
+    return ResumeState(container_id=container.id, created_at=time.time())
 
 
 def _resumed(access_token: str, resume: ResumeState | None, size: int) -> ResumeState | None:
@@ -87,8 +94,9 @@ class Session:
         response = fresh_token_on_rejection(
             lambda: send("POST", f"{RUPLOAD_ROOT}/{self.state.container_id}", headers=headers, data=piece), self.state
         )
-        if json_dict(response).get("success") is not True:
-            raise PlatformFailure(PLATFORM, "Instagram did not accept a piece of the video")
+        refusal = "Instagram did not accept a piece of the video"
+        if not parse(response, Chunk, label=LABEL, refusal=refusal).success:
+            raise PlatformFailure(PLATFORM, refusal)
         self.state.offset += length
 
     def finish(self) -> str:
