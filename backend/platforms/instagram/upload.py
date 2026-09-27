@@ -7,7 +7,7 @@ from django.conf import settings
 from ..http import PLATFORM, VALIDATION, PlatformFailure, json_dict
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
 from .api import RUPLOAD_ROOT, authorization, call, send
-from .status import fetch as container_status
+from .status import fetch_status
 
 CONTAINER_LIFETIME_SECONDS = 23 * 60 * 60
 
@@ -57,7 +57,7 @@ def _resumed(access_token: str, resume: ResumeState | None, size: int) -> Resume
         logger.info("Instagram container %s is too old to finish, starting again", resume.container_id)
         return None
 
-    status = container_status(access_token, resume.container_id, resume)
+    status = fetch_status(access_token, resume.container_id, resume)
     if status.is_dead or status.is_published:
         logger.info("Instagram container %s is %s, starting again", resume.container_id, status.status_code)
         return None

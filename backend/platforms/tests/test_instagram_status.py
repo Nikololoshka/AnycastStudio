@@ -3,8 +3,8 @@ import requests
 from platforms.http import FILE, NETWORK, PLATFORM, PlatformFailure
 from platforms.instagram import (
     caption_of,
-    container_status,
     failure_of,
+    fetch_status,
     publish_container,
     validate,
     video_options_of,
@@ -23,7 +23,7 @@ class ContainerStatusScenarios(PlatformTestCase):
     def test_a_finished_container_is_ready(self):
         self.http.side_effect = [FakeResponse(200, {"status_code": "FINISHED", "status": "Finished: Media has been uploaded"})]
 
-        status = container_status(TOKEN, CONTAINER_ID)
+        status = fetch_status(TOKEN, CONTAINER_ID)
 
         self.assertTrue(status.is_ready)
         self.assertEqual(self.http.call_args.args[1], f"{GRAPH_ROOT}/{CONTAINER_ID}")
@@ -33,7 +33,7 @@ class ContainerStatusScenarios(PlatformTestCase):
             FakeResponse(200, {"status_code": "ERROR", "status": "Error: Media upload has failed with error code 2207026"})
         ]
 
-        status = container_status(TOKEN, CONTAINER_ID)
+        status = fetch_status(TOKEN, CONTAINER_ID)
         failure = failure_of(status)
 
         self.assertTrue(status.is_dead)
@@ -43,7 +43,7 @@ class ContainerStatusScenarios(PlatformTestCase):
     def test_an_expired_container_fails_as_expired(self):
         self.http.side_effect = [FakeResponse(200, {"status_code": "EXPIRED"})]
 
-        failure = failure_of(container_status(TOKEN, CONTAINER_ID))
+        failure = failure_of(fetch_status(TOKEN, CONTAINER_ID))
 
         self.assertEqual((failure.type, failure.details), (PLATFORM, "EXPIRED"))
 
@@ -51,7 +51,7 @@ class ContainerStatusScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(400, {"error": {"message": "expired", "code": 190}})]
 
         with self.assertRaises(NeedsFreshToken):
-            container_status(TOKEN, CONTAINER_ID)
+            fetch_status(TOKEN, CONTAINER_ID)
 
 
 class PublishScenarios(PlatformTestCase):

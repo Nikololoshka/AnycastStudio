@@ -1,12 +1,13 @@
+from .api import LABEL
 from .capabilities import capabilities, validate
 from .oauth import InstagramProvider
-from .status import ContainerStatus, failure_of, permalink
-from .status import fetch as container_status
+from .status import ContainerStatus, failure_of, fetch_status, post_url
 from .status import publish as publish_container
 from .upload import ReelInfo, ResumeState, upload
 from .video_options import VideoOptions, caption_of, video_options_of
 
 __all__ = [
+    "LABEL",
     "ContainerStatus",
     "InstagramProvider",
     "ReelInfo",
@@ -14,9 +15,9 @@ __all__ = [
     "VideoOptions",
     "capabilities",
     "caption_of",
-    "container_status",
     "failure_of",
-    "permalink",
+    "fetch_status",
+    "post_url",
     "publish_container",
     "upload",
     "validate",

@@ -1,6 +1,6 @@
 from platforms.http import AUTHORIZATION, FILE, PLATFORM, RATE_LIMIT, PlatformFailure
 from platforms.upload import NeedsFreshToken
-from platforms.x import VideoOptions, create_post, failure_of, processing_status, validate
+from platforms.x import VideoOptions, create_post, failure_of, fetch_status, validate
 from platforms.x.api import API_ROOT
 from platforms.x.status import status_of
 
@@ -21,7 +21,7 @@ class XProcessingScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(200, processing("in_progress", check_after_secs=5))]
 
         # When: the status is fetched
-        status = processing_status(TOKEN, MEDIA_ID)
+        status = fetch_status(TOKEN, MEDIA_ID)
 
         # Then: it is neither ready nor failed, and it was asked in X's STATUS form
         self.assertFalse(status.is_ready or status.is_failed)
@@ -49,7 +49,7 @@ class XProcessingScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(401, {"title": "Unauthorized"})]
 
         with self.assertRaises(NeedsFreshToken):
-            processing_status(TOKEN, MEDIA_ID)
+            fetch_status(TOKEN, MEDIA_ID)
 
 
 class XPostScenarios(PlatformTestCase):

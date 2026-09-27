@@ -1,5 +1,5 @@
 from platforms.http import AUTHENTICATION, FILE, PLATFORM
-from platforms.tiktok import caption_of, failure_of, publish_status, validate, video_options_of
+from platforms.tiktok import caption_of, failure_of, fetch_status, validate, video_options_of
 from platforms.tiktok.status import FAIL_REASONS
 from platforms.upload import NeedsFreshToken
 
@@ -15,7 +15,7 @@ class PublishStatusScenarios(PlatformTestCase):
         # TikTok spells the field "publicaly"
         self.http.side_effect = [status({"status": "PUBLISH_COMPLETE", "publicaly_available_post_id": [7123]})]
 
-        result = publish_status("act.token", "v_pub_1")
+        result = fetch_status("act.token", "v_pub_1")
 
         self.assertTrue(result.is_complete)
         self.assertEqual(result.post_ids, ("7123",))
@@ -23,7 +23,7 @@ class PublishStatusScenarios(PlatformTestCase):
     def test_a_post_still_processing_is_neither_complete_nor_failed(self):
         self.http.side_effect = [status({"status": "PROCESSING_UPLOAD"})]
 
-        result = publish_status("act.token", "v_pub_1")
+        result = fetch_status("act.token", "v_pub_1")
 
         self.assertFalse(result.is_complete)
         self.assertFalse(result.is_failed)
@@ -31,7 +31,7 @@ class PublishStatusScenarios(PlatformTestCase):
     def test_a_failed_post_reports_why(self):
         self.http.side_effect = [status({"status": "FAILED", "fail_reason": "duration_check_failed"})]
 
-        result = publish_status("act.token", "v_pub_1")
+        result = fetch_status("act.token", "v_pub_1")
 
         self.assertTrue(result.is_failed)
         self.assertEqual(result.fail_reason, "duration_check_failed")
@@ -40,7 +40,7 @@ class PublishStatusScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(401, {"error": {"code": "access_token_invalid"}})]
 
         with self.assertRaises(NeedsFreshToken):
-            publish_status("act.token", "v_pub_1")
+            fetch_status("act.token", "v_pub_1")
 
     def test_every_known_fail_reason_has_its_own_message(self):
         for reason in FAIL_REASONS:

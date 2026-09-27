@@ -26,13 +26,13 @@ def _update(access_token: str, body: dict) -> dict:
 
 def publish(video_id: str, access_token: str, options: VideoOptions) -> str:
     _update(access_token, _status_body(video_id, options, {"privacyStatus": options.privacy_status}))
-    return watch_url(video_id)
+    return post_url(video_id)
 
 
 def schedule(video_id: str, access_token: str, options: VideoOptions, publish_at: str) -> str:
     _update(access_token, _status_body(video_id, options, {"privacyStatus": "private", "publishAt": publish_at}))
-    return watch_url(video_id)
+    return post_url(video_id)
 
 
-def watch_url(video_id: str) -> str:
+def post_url(video_id: str) -> str:
     return f"https://youtu.be/{video_id}"

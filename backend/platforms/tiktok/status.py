@@ -46,7 +46,7 @@ class PublishStatus:
         return self.status == FAILED_STATUS
 
 
-def fetch(access_token: str, publish_id: str) -> PublishStatus:
+def fetch_status(access_token: str, publish_id: str) -> PublishStatus:
     data = fresh_token_on_rejection(
         lambda: call("POST", STATUS_ENDPOINT, access_token, json={"publish_id": publish_id})
     )

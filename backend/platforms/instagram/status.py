@@ -40,7 +40,7 @@ def _bytes_transferred(body: dict) -> int | None:
     return int(transferred) if str(transferred).isdigit() else None
 
 
-def fetch(access_token: str, container_id: str, state=None) -> ContainerStatus:
+def fetch_status(access_token: str, container_id: str, state=None) -> ContainerStatus:
     body = fresh_token_on_rejection(
         lambda: call("GET", container_id, access_token, params={"fields": STATUS_FIELDS}), state
     )
@@ -68,6 +68,6 @@ def publish(access_token: str, ig_user_id: str, container_id: str) -> str:
     return str(body["id"])
 
 
-def permalink(access_token: str, media_id: str) -> str:
+def post_url(access_token: str, media_id: str) -> str:
     body = call("GET", media_id, access_token, params={"fields": "permalink"})
     return str(body.get("permalink") or "")

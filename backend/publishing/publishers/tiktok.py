@@ -96,7 +96,7 @@ def _url_of(post_ids: tuple[str, ...], access_token: str) -> str:
 
 
 def confirm(target: PublicationTarget, access_token: str) -> Published | None:
-    result = tiktok.publish_status(access_token, target.uploaded_media_id)
+    result = tiktok.fetch_status(access_token, target.uploaded_media_id)
     if result.is_failed:
         raise tiktok.failure_of(result.fail_reason)
     if not result.is_complete:

@@ -64,7 +64,7 @@ def publish(target: PublicationTarget, container_id: str, access_token: str) -> 
 
 def _url_of(media_id: str, access_token: str) -> str:
     try:
-        return instagram.permalink(access_token, media_id)
+        return instagram.post_url(access_token, media_id)
     except PlatformFailure as failure:
         logger.info("Could not learn the Instagram post link: %s", failure.type)
         return ""
@@ -81,7 +81,7 @@ def _published_media_id(target: PublicationTarget, access_token: str) -> str | N
 
 
 def confirm(target: PublicationTarget, access_token: str) -> Published | None:
-    status = instagram.container_status(access_token, target.uploaded_media_id)
+    status = instagram.fetch_status(access_token, target.uploaded_media_id)
     if status.is_published:
         return Published(Status.COMPLETED)
     if status.is_dead:

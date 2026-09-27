@@ -36,7 +36,7 @@ def status_of(body: dict) -> ProcessingStatus:
     return ProcessingStatus(state=str(info.get("state") or PENDING), error=str(message or "")[:500])
 
 
-def fetch(access_token: str, media_id: str) -> ProcessingStatus:
+def fetch_status(access_token: str, media_id: str) -> ProcessingStatus:
     body = fresh_token_on_rejection(
         lambda: call("GET", "media/upload", access_token, params={"command": "STATUS", "media_id": media_id})
     )

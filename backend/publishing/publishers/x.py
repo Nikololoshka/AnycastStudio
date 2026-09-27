@@ -94,7 +94,7 @@ def confirm(target: PublicationTarget, access_token: str) -> Published | None:
     if _posting_started(target) is not None:
         raise _maybe_posted()
 
-    status = x.processing_status(access_token, target.uploaded_media_id)
+    status = x.fetch_status(access_token, target.uploaded_media_id)
     if status.is_failed:
         raise x.failure_of(status)
     if not status.is_ready:
