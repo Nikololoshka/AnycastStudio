@@ -143,7 +143,7 @@ def _mark_needs_reauth(account: SocialAccount, reason: str) -> None:
 
 def disconnect(account: SocialAccount) -> None:
     provider = PROVIDERS.get(account.platform)
-    if provider is not None and account.refresh_token:
+    if provider is not None and (account.access_token or account.refresh_token):
         try:
             provider.revoke(account.access_token, account.refresh_token)
         except ProviderError as error:

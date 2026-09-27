@@ -128,4 +128,4 @@ class YouTubeProvider:
         )
 
     def revoke(self, access_token: str, refresh_token: str) -> None:
-        _send("POST", REVOKE_ENDPOINT, attempts=1, data={"token": refresh_token})
+        _send("POST", REVOKE_ENDPOINT, attempts=1, data={"token": refresh_token or access_token})

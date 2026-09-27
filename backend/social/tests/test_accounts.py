@@ -147,6 +147,35 @@ class DisconnectScenarios(SocialTestCase):
 
         revoke_call = self.http.call_args_list[-1]
         self.assertIn("revoke", revoke_call.args[1])
+        self.assertEqual(revoke_call.kwargs["data"], {"token": REFRESH_TOKEN})
+
+    def test_an_account_without_a_refresh_token_is_still_revoked(self):
+        # Given: a connected account that holds only an access token
+        account = self.connect()
+        SocialAccount.objects.filter(pk=account.pk).update(refresh_token="")
+        self.http.side_effect = [FakeResponse(200, {})]
+
+        # When: the person disconnects it
+        self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
+
+        # Then: the platform is asked to revoke the access token
+        revoke_call = self.http.call_args_list[-1]
+        self.assertIn("revoke", revoke_call.args[1])
+        self.assertEqual(revoke_call.kwargs["data"], {"token": ACCESS_TOKEN})
+        self.assert_disconnected(account)
+
+    def test_an_account_without_tokens_is_not_revoked(self):
+        # Given: an account whose tokens are already gone
+        account = self.connect()
+        SocialAccount.objects.filter(pk=account.pk).update(access_token="", refresh_token="")
+        self.http.reset_mock(side_effect=True)
+
+        # When: the person disconnects it
+        self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
+
+        # Then: nothing is sent to the platform
+        self.http.assert_not_called()
+        self.assert_disconnected(account)
 
     def test_the_account_goes_even_if_the_platform_refuses_to_revoke(self):
         # Given: revoking fails, which is Google's business, not the person's
