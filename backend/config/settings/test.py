@@ -15,6 +15,8 @@ YOUTUBE_CLIENT_ID = "test-client-id"
 YOUTUBE_CLIENT_SECRET = "test-client-secret-DO-NOT-LEAK"
 TIKTOK_CLIENT_KEY = "test-client-key"
 TIKTOK_CLIENT_SECRET = "test-tiktok-secret-DO-NOT-LEAK"
+INSTAGRAM_CLIENT_ID = "test-app-id"
+INSTAGRAM_CLIENT_SECRET = "test-instagram-secret-DO-NOT-LEAK"
 
 DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 

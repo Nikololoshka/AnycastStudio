@@ -340,5 +340,5 @@ class TikTokPublishingScenarios(PublishingTestCase):
 
         self.assertEqual(body["platforms"]["tiktok"]["scheduling"], "deferredUpload")
 
-    def test_only_tiktok_waits_for_the_publish_time(self):
-        self.assertEqual(schedule.deferred_platforms(), ["tiktok"])
+    def test_only_the_platforms_without_native_scheduling_wait_for_the_publish_time(self):
+        self.assertEqual(schedule.deferred_platforms(), ["tiktok", "instagram"])

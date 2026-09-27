@@ -50,7 +50,7 @@ class AccountListScenarios(SocialTestCase):
 
         body = self.body(self.client.get(ACCOUNTS_URL))
 
-        self.assertEqual(body["platforms"], ["tiktok", "youtube"])
+        self.assertEqual(body["platforms"], ["instagram", "tiktok", "youtube"])
 
     def test_another_persons_accounts_are_not_listed(self):
         # Given: somebody else has connected a channel

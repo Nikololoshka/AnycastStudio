@@ -1,8 +1,12 @@
 from common.access import require_auth, require_get
 from common.responses import api_response
-from platforms import tiktok, youtube
+from platforms import instagram, tiktok, youtube
 
-CAPABILITIES = {"youtube": youtube.capabilities, "tiktok": tiktok.capabilities}
+CAPABILITIES = {
+    "youtube": youtube.capabilities,
+    "tiktok": tiktok.capabilities,
+    "instagram": instagram.capabilities,
+}
 
 
 @require_get
