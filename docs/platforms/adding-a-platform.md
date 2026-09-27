@@ -46,20 +46,23 @@ A plain package: no Django models, no imports from a sibling platform. Mirror
 
 | File | Holds |
 | --- | --- |
-| `api.py` | `send` and `call` over `platforms.http` (retry, timeout, classification), plus the platform's error envelope |
+| `api.py` | `LABEL`, `failure_of(response)` for the platform's error envelope, and `send` / `call` over `http.send` (retry, timeout, classification) |
 | `oauth.py` | the `PlatformProvider`: `name`, `scopes`, `uses_pkce`, `redirect_uri` (use `oauth.callback_url`), `code_challenge`, `authorize_url`, `exchange_code`, `refresh`, `fetch_identity`, `revoke(access_token, refresh_token)` |
-| `upload.py` | the upload loop and its `ResumeState` (`as_dict`, `of`) |
-| `status.py` | the status query for an asynchronous publish, and the refusal reasons mapped to failure types |
+| `upload.py` | `ResumeState(ResumableState)` (fields only; `as_dict` and `of` are inherited), `start` / resume checks, a `Session` (`done`, `uploaded`, `send_next`, `finish`), and `upload(...)` that hands the session to `platforms.upload.drive` |
+| `status.py` | `fetch_status` for an asynchronous publish, `failure_of` mapping refusal reasons to failure types, `post_url` |
 | `video_options.py` | `VideoOptions`, `video_options_of(raw)` (lenient: unknown values fall back), `as_json()` in camelCase |
 | `capabilities.py` | `capabilities()` and `validate(...) -> ValidationResult` with error codes the frontend also knows |
-| `errors.py` | `Cancelled(state)` and `NeedsFreshToken(state, message)` |
 
 Rules that held:
 
 - Every request goes through `platforms.http`. Report the class of a network
   exception, never its text.
-- A 401 raises `NeedsFreshToken` carrying the resume state. The pipeline
+- A 401 raises `platforms.upload.NeedsFreshToken` carrying the resume state:
+  wrap the call in `fresh_token_on_rejection(action, state)`. The pipeline
   refreshes once and resumes.
+- `drive` owns the loop: the cancel check, `UploadCancelled` with the state,
+  and progress reports with `state.as_dict()`. Read each piece with
+  `read_piece`, which refuses a file shorter than claimed.
 - Never retry what the platform decided about. Only network errors, 5xx and 429
   are retried, and that happens in `with_retry`.
 - Check the error envelope even on 200. TikTok puts
@@ -68,16 +71,17 @@ Rules that held:
 
 ### `backend/publishing/publishers/<p>.py` — the platform as the pipeline sees it
 
-A module with:
+A `Publisher` subclass with `platform = <p>`. The base class gives
+`capabilities()`, `caption(target)` (through the platform's `caption_of`) and
+`file_of(target)`. Implement:
 
-- `capabilities` — the platform's function;
 - `validate(target) -> ValidationResult` — local checks, before any call;
 - `upload(target, access_token, resume, on_progress, should_cancel) -> media_id`
-  — translates the platform's `Cancelled` and `NeedsFreshToken` into
-  `publishers.outcome`, and reports progress with `state.as_dict()`;
-- `publish(target, media_id, access_token) -> Published` — `completed` or
-  `scheduled` when the platform answers at once. Return `processing`, with a
-  `resume_state` holding `confirming_since` and `polls`, when it answers later;
+  — builds the platform's arguments and calls its `upload`; interruptions and
+  progress already come in the pipeline's shape;
+- `publish(target, media_id, access_token) -> Published` — the default is
+  `awaiting_confirmation()` (`processing`, with `confirming_since` and `polls`).
+  Override it with `completed` or `scheduled` when the platform answers at once;
 - `confirm(target, access_token) -> Published | None` — only for an
   asynchronous publish: `None` means ask again later, and a refusal raises.
 
@@ -88,7 +92,8 @@ deadline are shared and need no change.
 ### Registrations
 
 - `social/providers.py` — the provider.
-- `publishing/views/platforms.py` — the capabilities.
+- `publishing/publishers/__init__.py` — the publisher; the capabilities
+  endpoint and the deferred sweep read this registry.
 - `config/settings/base.py` and `test.py` — `<P>_CLIENT_*`; `.env.example` —
   the block with the redirect URI and the required app type.
 

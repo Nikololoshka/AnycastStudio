@@ -136,11 +136,21 @@ reports progress. Publishing, scheduling and tokens are the server's.
   import models, so a task can use it directly. Each platform folder is
   self-contained: no imports between `platforms/youtube` and its future
   siblings.
-- Every platform implements `PlatformProvider` for OAuth and the upload/publish
-  functions its own module exposes; `platforms/oauth/` and
-  `platforms/capabilities/` hold the shapes.
-- Every platform HTTP call goes through `platforms/http/`, which owns the
-  timeout, the error classification and the retry policy.
+- Every platform package has the same shape: `api.py` (`LABEL`, `send`,
+  its `failure_of`), `capabilities.py`, `upload.py`, `status.py`,
+  `video_options.py`, `oauth.py`, and exports the same core names
+  (`capabilities`, `validate`, `upload`, `ResumeState`, `fetch_status`,
+  `failure_of`, `post_url`). `platforms/oauth/` and `platforms/capabilities/`
+  hold the shapes.
+- An upload is a `Session` driven by `platforms/upload::drive`; its
+  `ResumeState` extends `ResumableState`. Cancellation and token refresh use
+  the shared `UploadCancelled`, `NeedsFreshToken` and
+  `fresh_token_on_rejection` from `platforms/upload/`.
+- Each platform has a `Publisher` subclass in `publishing/publishers/` that
+  maps a `PublicationTarget` onto the platform package; the pipeline only
+  talks to `Publisher`.
+- Every platform HTTP call goes through `platforms/http/` (`http.send`), which
+  owns the timeout, the error classification and the retry policy.
 - Server state in the browser belongs to an RTK Query endpoint in `src/api/`.
   Only genuinely client-owned state goes in a slice: the composer draft, the
   in-flight browser upload, the theme and the language.
@@ -226,7 +236,7 @@ backend/
 ├─ social/        SocialAccount, OAuthSession, provider registry, connect/callback
 ├─ media/         MediaAsset, UploadSession, chunked upload, storage, sweeps
 ├─ publishing/    Publication, PublicationTarget, pipeline, tasks, API
-└─ platforms/     plain package: oauth/, capabilities/, http/, youtube/
+└─ platforms/     plain package: oauth/, capabilities/, http/, upload/, one folder per platform
 
 frontend/src/
 ├─ api/           RTK Query: baseApi + one module per area
@@ -243,8 +253,7 @@ frontend/src/
 - Anything touching a platform API, a token or a stored file is backend code.
 - A new platform goes in `backend/platforms/<platform>/` and
   `publishing/publishers/<platform>.py`, plus one line each in
-  `social/providers.py`, `publishing/views/platforms.py` and
-  `publishing/publishers/__init__.py`.
+  `social/providers.py` and `publishing/publishers/__init__.py`.
 - New screens go in `frontend/src/features/<feature>/`.
 - Cross-feature reusable UI goes in `frontend/src/components/`.
 - A new endpoint goes in `<app>/views/<name>.py`, one file per endpoint group.

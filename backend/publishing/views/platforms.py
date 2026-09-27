@@ -1,13 +1,7 @@
 from common.access import require_auth, require_get
 from common.responses import api_response
-from platforms import instagram, tiktok, x, youtube
 
-CAPABILITIES = {
-    "youtube": youtube.capabilities,
-    "tiktok": tiktok.capabilities,
-    "instagram": instagram.capabilities,
-    "x": x.capabilities,
-}
+from ..publishers import PUBLISHERS
 
 
 @require_get
@@ -15,5 +9,5 @@ CAPABILITIES = {
 def publishing_platforms(request):
     return api_response(
         "ok",
-        platforms={name: build().as_json() for name, build in CAPABILITIES.items()},
+        platforms={name: publisher.capabilities().as_json() for name, publisher in PUBLISHERS.items()},
     )
