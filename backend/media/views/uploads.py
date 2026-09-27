@@ -10,7 +10,7 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from common.access import require_auth, require_delete, require_get, require_post
+from common.access import require_auth, require_delete, require_get, require_patch, require_post
 from common.rate_limit import rate_limit
 from common.request_body import validate
 from common.responses import api_response
@@ -74,12 +74,10 @@ def status(request, upload_id):
     return api_response("ok", **session_json(session))
 
 
+@require_patch
 @require_auth
 def chunk(request, upload_id):
     """PATCH one piece at the offset the client believes the server is at."""
-    if request.method != "PATCH":
-        return api_response("method_not_allowed", headers={"Allow": "PATCH"})
-
     session = _session_of(request, upload_id)
     if session is None:
         return api_response("not_found")

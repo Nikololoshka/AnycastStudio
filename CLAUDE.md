@@ -210,8 +210,8 @@ outcome is a new row there, not a new body shape.
 def create(request, data): ...
 ```
 
-`guard()` builds both sync and async wrappers from one check, which is why this
-project does not need a framework layer here.
+`common/core/decorators.py::precondition` builds both sync and async wrappers
+from one check, which is why this project does not need a framework layer here.
 
 ---
 
@@ -386,7 +386,7 @@ Treat this section as mandatory.
 
 ### Sensitive Areas
 
-- Authentication: `backend/accounts/`, `backend/common/access/`, `backend/common/guard.py`
+- Authentication: `backend/accounts/`, `backend/common/access/`, `backend/common/core/`
 - Platform authorisation: `backend/social/`, `backend/platforms/*/oauth.py`
 - Encryption: `backend/common/encryption/`
 - Configuration: `backend/.env`

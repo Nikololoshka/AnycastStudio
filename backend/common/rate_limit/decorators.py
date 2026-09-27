@@ -1,12 +1,9 @@
-from ..guard import guard
+from ..core.decorators import precondition_with_params
 from ..responses import api_response
 from .counter import is_rate_limited
 
 
-def rate_limit(scope: str):
-    @guard
-    def decorator(request, *args, **kwargs):
-        if is_rate_limited(request, scope):
-            return api_response("rate_limited")
-
-    return decorator
+@precondition_with_params
+def rate_limit(request, scope):
+    if is_rate_limited(request, scope):
+        return api_response("rate_limited")
