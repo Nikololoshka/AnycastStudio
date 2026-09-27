@@ -15,10 +15,6 @@
       "Read(./agents)"
     ]
   },
-  "skillOverrides": {
-    "caveman-review": "user-invocable-only",
-    "caveman-stats": "user-invocable-only"
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -34,15 +30,15 @@
   },
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,
-    "rust-analyzer-lsp@claude-plugins-official": true
+    "context7@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
   },
   "outputStyle": "concise",
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true
   },
-  "plansDirectory": "./agents/plans",
-    "spinnerVerbs": {
+  "spinnerVerbs": {
     "mode": "replace",
     "verbs": [
       "Analyzing…",
@@ -65,5 +61,6 @@
       "Ignoring the linter…",
       "Compiling excuses…"
     ]
-  }
+  },
+  "plansDirectory": "./agents/plans"
 }
