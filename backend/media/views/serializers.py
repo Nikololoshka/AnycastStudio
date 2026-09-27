@@ -1,4 +1,7 @@
-def session_json(session) -> dict:
+from ..models import UploadSession, MediaAsset
+
+
+def session_json(session: UploadSession) -> dict:
     return {
         "uploadId": str(session.upload_id),
         "offset": session.received_bytes,
@@ -8,7 +11,7 @@ def session_json(session) -> dict:
     }
 
 
-def asset_json(asset) -> dict:
+def asset_json(asset: MediaAsset) -> dict:
     return {
         "id": asset.pk,
         "filename": asset.filename,

@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('duration_seconds', models.FloatField(blank=True, null=True)),
                 ('width', models.PositiveIntegerField(blank=True, null=True)),
                 ('height', models.PositiveIntegerField(blank=True, null=True)),
-                ('status', models.CharField(choices=[('uploading', 'Uploading'), ('ready', 'Ready'), ('failed', 'Failed'), ('deleted', 'Deleted')], default='ready', max_length=16)),
+                ('status', models.CharField(choices=[('ready', 'Ready'), ('deleted', 'Deleted')], default='ready', max_length=16)),
                 ('created_at', models.DateTimeField(db_index=True, default=django.utils.timezone.now)),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='media_assets', to=settings.AUTH_USER_MODEL)),
             ],

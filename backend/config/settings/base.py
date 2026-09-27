@@ -155,7 +155,7 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 3 * 60 * 60}
 
 CELERY_BEAT_SCHEDULE = {
     "sweep-upload-sessions": {"task": "media.sweep_upload_sessions", "schedule": 900.0},
-    "sweep-orphan-assets": {"task": "media.sweep_orphan_assets", "schedule": 3600.0},
+    "sweep-unused-assets": {"task": "media.sweep_unused_assets", "schedule": 3600.0},
     "refresh-expiring-tokens": {"task": "social.refresh_expiring_tokens", "schedule": 1800.0},
 }
 

@@ -1,10 +1,3 @@
-"""Uploaded video, and the chunked transfer that produced it.
-
-The browser sends a large file in pieces, so two things must be tracked: the
-transfer, which is temporary and resumable, and the file it results in, which
-is kept only as long as something still needs it.
-"""
-
 import uuid
 from datetime import timedelta
 
@@ -15,9 +8,7 @@ from django.utils import timezone
 
 class MediaAsset(models.Model):
     class Status(models.TextChoices):
-        UPLOADING = "uploading"
         READY = "ready"
-        FAILED = "failed"
         DELETED = "deleted"
 
     user = models.ForeignKey(
@@ -41,18 +32,8 @@ class MediaAsset(models.Model):
     def __str__(self) -> str:
         return f"{self.filename} ({self.size_bytes} bytes)"
 
-    @property
-    def is_stored(self) -> bool:
-        return self.status in (self.Status.UPLOADING, self.Status.READY)
-
 
 class UploadSession(models.Model):
-    """One transfer in progress.
-
-    `received_bytes` is the resume point: the browser asks for it after a
-    dropped connection and continues from there rather than starting again.
-    """
-
     class Status(models.TextChoices):
         OPEN = "open"
         COMPLETED = "completed"

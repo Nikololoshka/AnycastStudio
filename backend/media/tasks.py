@@ -1,23 +1,14 @@
-"""Periodic clean-up.
-
-These are plain functions so they can be called from a test, a management
-command or a scheduler. Celery wraps them when it arrives; nothing here knows
-about it.
-"""
-
 import logging
 
-from django.conf import settings
-from django.utils import timezone
+from celery import shared_task
 
 from . import services
-from .models import MediaAsset, UploadSession
+from .models import UploadSession
 
 logger = logging.getLogger(__name__)
 
 
 def sweep_upload_sessions() -> int:
-    """Abort transfers nobody has touched, and free the disk they were holding."""
     stale = UploadSession.objects.filter(
         status=UploadSession.Status.OPEN, last_activity_at__lt=UploadSession.stale_cutoff()
     )
@@ -31,30 +22,15 @@ def sweep_upload_sessions() -> int:
     return count
 
 
-def sweep_orphan_assets() -> int:
-    """Delete files that were uploaded but never used.
-
-    Publishing does not exist yet, so every ready asset older than the orphan
-    window qualifies. Once publications exist this also has to spare anything a
-    publication still refers to.
-    """
-    cutoff = timezone.now() - timezone.timedelta(hours=settings.ORPHAN_ASSET_TTL_HOURS)
-    orphans = MediaAsset.objects.filter(status=MediaAsset.Status.READY, created_at__lt=cutoff)
-
+def sweep_unused_assets() -> int:
     count = 0
-    for asset in orphans:
+    for asset in services.unused_assets():
         services.delete_asset(asset)
         count += 1
 
     if count:
-        logger.info("Swept %d orphan media assets", count)
+        logger.info("Swept %d unused media assets", count)
     return count
-
-# --- Celery entry points ---
-# The functions above stay callable from a test or a management command; these
-# only wrap them so the beat schedule has something to name.
-
-from celery import shared_task  # noqa: E402
 
 
 @shared_task(name="media.sweep_upload_sessions")
@@ -62,6 +38,6 @@ def sweep_upload_sessions_task() -> int:
     return sweep_upload_sessions()
 
 
-@shared_task(name="media.sweep_orphan_assets")
-def sweep_orphan_assets_task() -> int:
-    return sweep_orphan_assets()
+@shared_task(name="media.sweep_unused_assets")
+def sweep_unused_assets_task() -> int:
+    return sweep_unused_assets()

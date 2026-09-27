@@ -1,19 +1,19 @@
-"""Listing and removing uploaded files."""
-
 from common.access import require_auth, require_delete, require_get
 from common.responses import api_response
 
 from .. import services
 from ..models import MediaAsset
-from ..serializers import asset_json
+from .serializers import asset_json
+
+
+def _ready_assets_of(user):
+    return MediaAsset.objects.filter(user=user, status=MediaAsset.Status.READY)
 
 
 @require_get
 @require_auth
-def assets(request):
-    rows = MediaAsset.objects.filter(user=request.user, status=MediaAsset.Status.READY).order_by(
-        "-created_at"
-    )
+def media_assets(request):
+    rows = _ready_assets_of(request.user).order_by("-created_at")
     return api_response(
         "ok",
         assets=[asset_json(asset) for asset in rows],
@@ -24,10 +24,12 @@ def assets(request):
 
 @require_delete
 @require_auth
-def asset(request, pk: int):
-    row = MediaAsset.objects.filter(user=request.user, pk=pk, status=MediaAsset.Status.READY).first()
+def media_asset(request, pk: int):
+    row = _ready_assets_of(request.user).filter(pk=pk).first()
     if row is None:
         return api_response("not_found")
+    if services.is_in_use(row):
+        return api_response("conflict", message="asset_in_use")
 
     services.delete_asset(row)
     return api_response("ok")

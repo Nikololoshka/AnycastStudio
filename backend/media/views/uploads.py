@@ -1,15 +1,3 @@
-"""The chunked upload protocol.
-
-Mirrors the resumable protocol the platforms themselves use: the client asks
-where to continue from, sends one piece at a time, and the server is the only
-authority on how far it got. A dropped connection costs one chunk, not the
-whole file.
-"""
-
-import logging
-
-from pydantic import BaseModel, Field
-
 from common.access import require_auth, require_delete, require_get, require_patch, require_post
 from common.rate_limit import rate_limit
 from common.request_body import validate
@@ -17,38 +5,28 @@ from common.responses import api_response
 
 from .. import services
 from ..models import UploadSession
-from ..serializers import asset_json, session_json
-
-logger = logging.getLogger(__name__)
-
-
-class StartUploadSchema(BaseModel):
-    filename: str = Field(min_length=1, max_length=260)
-    sizeBytes: int = Field(gt=0)
-    mimeType: str = Field(max_length=100)
-    sha256: str = Field(default="", max_length=64)
-
-
-class CompleteUploadSchema(BaseModel):
-    durationSeconds: float | None = Field(default=None, ge=0)
-    width: int | None = Field(default=None, ge=0)
-    height: int | None = Field(default=None, ge=0)
+from .schemas import CompleteUploadSchema, StartUploadSchema
+from .serializers import asset_json, session_json
 
 
 def _session_of(request, upload_id) -> UploadSession | None:
-    # Filtered by user, so somebody else's upload is not found rather than forbidden.
     return UploadSession.objects.filter(user=request.user, upload_id=upload_id).first()
+
+
+def _upload_offset(request) -> int | None:
+    try:
+        return int(request.headers.get("Upload-Offset", ""))
+    except ValueError:
+        return None
 
 
 @require_post
 @require_auth
 @rate_limit("uploads")
 @validate(StartUploadSchema)
-def start(request, data):
+def media_upload_start(request, data: StartUploadSchema):
     try:
-        session = services.start(
-            request.user, data.filename, data.mimeType, data.sizeBytes, data.sha256
-        )
+        session = services.start(request.user, data.filename, data.mimeType, data.sizeBytes, data.sha256)
     except services.TooLarge as error:
         return api_response("payload_too_large", limit=error.limit)
     except services.TooManyUploads as error:
@@ -61,7 +39,7 @@ def start(request, data):
 
 @require_get
 @require_auth
-def status(request, upload_id):
+def media_upload_status(request, upload_id):
     session = _session_of(request, upload_id)
     if session is None:
         return api_response("not_found")
@@ -76,28 +54,22 @@ def status(request, upload_id):
 
 @require_patch
 @require_auth
-def chunk(request, upload_id):
-    """PATCH one piece at the offset the client believes the server is at."""
+def media_upload_chunk(request, upload_id):
     session = _session_of(request, upload_id)
     if session is None:
         return api_response("not_found")
     if session.status != UploadSession.Status.OPEN or session.is_stale:
         return api_response("expired")
 
-    try:
-        offset = int(request.headers.get("Upload-Offset", ""))
-    except ValueError:
+    offset = _upload_offset(request)
+    if offset is None:
         return api_response("invalid", errors=[{"field": "Upload-Offset", "message": "required"}])
 
-    # The client and the server disagree about how much arrived, which happens
-    # whenever a connection drops mid-chunk. Tell it where we actually are.
-    if offset != session.received_bytes:
-        return api_response("conflict", offset=session.received_bytes)
-
-    new_offset = services.receive_chunk(session, request)
-
-    if new_offset > session.declared_size:
-        services.abort(session)
+    try:
+        new_offset = services.receive_chunk(session, offset, request)
+    except services.OffsetConflict as conflict:
+        return api_response("conflict", offset=conflict.offset)
+    except services.MoreBytesThanDeclared:
         return api_response("invalid", errors=[{"field": "body", "message": "more bytes than declared"}])
 
     return api_response("ok", offset=new_offset)
@@ -106,7 +78,7 @@ def chunk(request, upload_id):
 @require_post
 @require_auth
 @validate(CompleteUploadSchema)
-def complete(request, data, upload_id):
+def media_upload_complete(request, data: CompleteUploadSchema, upload_id):
     session = _session_of(request, upload_id)
     if session is None:
         return api_response("not_found")
@@ -114,22 +86,21 @@ def complete(request, data, upload_id):
         return api_response("expired")
 
     if session.received_bytes != session.declared_size:
-        return api_response(
-            "conflict", offset=session.received_bytes, expected=session.declared_size
-        )
+        return api_response("conflict", offset=session.received_bytes, expected=session.declared_size)
 
     try:
         asset = services.complete(session, data.durationSeconds, data.width, data.height)
-    except ValueError as error:
-        services.abort(session)
-        return api_response("invalid", errors=[{"field": "sha256", "message": str(error)}])
+    except services.AlreadyFinished:
+        return api_response("expired")
+    except services.ChecksumMismatch:
+        return api_response("invalid", errors=[{"field": "sha256", "message": "checksum_mismatch"}])
 
     return api_response("ok", asset=asset_json(asset))
 
 
 @require_delete
 @require_auth
-def abort(request, upload_id):
+def media_upload_abort(request, upload_id):
     session = _session_of(request, upload_id)
     if session is None:
         return api_response("not_found")
