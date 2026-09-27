@@ -185,7 +185,7 @@ documentation before relying on it.
   is created, or in `confirm`.
 - Desktop limits: 512 MiB. No native scheduling.
 
-**Instagram**
+**Instagram** — ported; what was decided is in `docs/platforms/instagram.md`.
 
 - Facebook Login with a Page linked to an Instagram professional account. The
   desktop reads `me/accounts` and `debug_token` granular scopes to find the IG

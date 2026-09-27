@@ -98,7 +98,10 @@
       "captionTooLong": "Title, description and hashtags together are too long for {{platform}}.",
       "privacyRequired": "Choose who can watch the video in the {{platform}} tab.",
       "commercialContentUnspecified": "Say whose brand the {{platform}} post promotes.",
-      "brandedContentCannotBePrivate": "Branded content on {{platform}} cannot be private."
+      "brandedContentCannotBePrivate": "Branded content on {{platform}} cannot be private.",
+      "tooManyHashtags": "{{platform}} allows at most 30 hashtags in the caption.",
+      "videoTooShort": "The video is too short for {{platform}}.",
+      "videoTooLong": "The video is too long for {{platform}}."
     }
   },
   "progress": {

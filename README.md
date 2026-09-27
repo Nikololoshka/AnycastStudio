@@ -3,9 +3,9 @@
 Publish one video to your platforms from a single composer. Upload it, write
 the title once, press Publish — and close the tab. The server finishes the job.
 
-> **Status.** The web release covers **YouTube** and **TikTok** and runs
-> locally. X and Instagram were written for the earlier desktop client and come
-> back one at a time; they are preserved under the `v0-desktop` tag. Accounts
+> **Status.** The web release covers **YouTube**, **TikTok** and **Instagram**
+> and runs locally. X was written for the earlier desktop client and comes
+> back later; it is preserved under the `v0-desktop` tag. Accounts
 > are created by an administrator — there is no sign-up.
 
 ---
@@ -20,7 +20,8 @@ Browser (Vite dev server, :5173)
 Django / uvicorn (:8000) ──► SQLite (WAL)
   │                       └─► Redis (cache, sessions, Celery broker)
   ▼
-Celery worker ──► backend/media_files ──► YouTube Data API, TikTok Content Posting API
+Celery worker ──► backend/media_files ──► YouTube Data API, TikTok Content Posting API,
+                                          Instagram Graph API
 ```
 
 The browser hands the video to the server in resumable chunks, then asks the
@@ -29,7 +30,7 @@ a worker uploads the file, and if it dies partway it continues from the offset
 the platform confirmed rather than starting the file again.
 
 YouTube schedules by itself: a video due later goes up private with a
-`publishAt`, and YouTube publishes it. TikTok cannot schedule, so the worker
+`publishAt`, and YouTube publishes it. TikTok and Instagram cannot schedule, so the worker
 starts the upload at the chosen time, and the Celery beat process has to be
 running for that.
 
@@ -84,6 +85,8 @@ variable — the frontend bundle is public.
 | `PUBLIC_ORIGIN` | yes | `http://localhost:5173`. OAuth redirect URIs are built from it. |
 | `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` | for YouTube | From Google Cloud, see below |
 | `TIKTOK_CLIENT_KEY` / `TIKTOK_CLIENT_SECRET` | for TikTok | From TikTok for Developers, see below |
+| `INSTAGRAM_CLIENT_ID` / `INSTAGRAM_CLIENT_SECRET` | for Instagram | The Meta app's id and secret, see below |
+| `PUBLIC_REDIRECT_ORIGIN` | for Instagram | An HTTPS tunnel to Django (`ngrok http 8000`); Facebook refuses an http redirect |
 | `REDIS_URL` | no | Defaults to `redis://127.0.0.1:6379/0` |
 | `SQLITE_PATH` | no | Defaults to `backend/db.sqlite3` |
 | `MEDIA_ROOT` | no | Defaults to `backend/media_files` |
@@ -130,6 +133,25 @@ automatically.
 
 Until TikTok audits the app, it can post only as **Only me** and only to a
 private account. Details in `docs/platforms/tiktok.md`.
+
+---
+
+## Connecting Instagram
+
+1. In Meta for Developers, use an app of type **Business** with Facebook Login
+   for Business and the Instagram Graph API, and add the people who publish as
+   testers.
+2. The Instagram account must be a professional account linked to a Facebook
+   Page.
+3. Start a tunnel (`ngrok http 8000`), set `PUBLIC_REDIRECT_ORIGIN` to its
+   HTTPS address, and add `<PUBLIC_REDIRECT_ORIGIN>/api/social/instagram/callback`
+   to **Valid OAuth Redirect URIs**.
+4. Put the app id and secret in `backend/.env` as `INSTAGRAM_CLIENT_ID` and
+   `INSTAGRAM_CLIENT_SECRET`.
+5. Sign in to the app and connect the account from **Accounts**, choosing the
+   Page and the Instagram account when Facebook asks.
+
+Details in `docs/platforms/instagram.md`.
 
 ---
 

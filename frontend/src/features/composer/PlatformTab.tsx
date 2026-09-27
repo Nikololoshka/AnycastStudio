@@ -5,6 +5,7 @@ import { SettingSwitch } from '../../components/SettingSwitch';
 import type { AppDispatch, RootState } from '../../app/store';
 import type { AvailablePlatform } from '../../domain/platform/order';
 import { getShortcutFor } from '../../domain/platform/order';
+import { InstagramSettingsPanel } from '../../platforms/instagram';
 import { getLabelFor } from '../../platforms/registry';
 import { TikTokSettingsPanel } from '../../platforms/tiktok';
 import { YouTubeSettingsPanel } from '../../platforms/youtube';
@@ -13,6 +14,7 @@ import { togglePlatform } from './composerSlice';
 const PLATFORM_PANELS: Record<AvailablePlatform, () => React.ReactElement> = {
   youtube: YouTubeSettingsPanel,
   tiktok: TikTokSettingsPanel,
+  instagram: InstagramSettingsPanel,
 };
 
 export function PlatformTab({ platform }: { platform: AvailablePlatform }) {

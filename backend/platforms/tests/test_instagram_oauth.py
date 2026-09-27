@@ -16,9 +16,10 @@ PAGE_WITHOUT_INSTAGRAM = {"id": "999", "access_token": "EAAG.other-page"}
 
 
 class FacebookDouble:
-    def __init__(self, pages=None, granted_pages=None, page_by_id=None):
+    def __init__(self, pages=None, granted_pages=None, granted_instagram=None, page_by_id=None):
         self.pages = pages if pages is not None else [PAGE]
         self.granted_pages = granted_pages or []
+        self.granted_instagram = granted_instagram or []
         self.page_by_id = page_by_id or {}
         self.calls: list[tuple[str, str, dict]] = []
 
@@ -30,10 +31,17 @@ class FacebookDouble:
         if url == f"{GRAPH_ROOT}/me/accounts":
             return FakeResponse(200, {"data": self.pages})
         if url == f"{GRAPH_ROOT}/debug_token":
-            scopes = [{"scope": "pages_show_list", "target_ids": self.granted_pages}]
+            scopes = [
+                {"scope": "instagram_basic", "target_ids": self.granted_instagram},
+                {"scope": "pages_show_list", "target_ids": self.granted_pages},
+            ]
             return FakeResponse(200, {"data": {"user_id": "555", "granular_scopes": scopes}})
         if url.startswith(f"{GRAPH_ROOT}/") and url.rsplit("/", 1)[1] in self.page_by_id:
             return FakeResponse(200, self.page_by_id[url.rsplit("/", 1)[1]])
+        if url.rsplit("/", 1)[1] in self.granted_instagram:
+            return FakeResponse(
+                400, {"error": {"message": "(#100) Tried accessing nonexisting field (access_token)", "code": 100}}
+            )
         if url == f"{GRAPH_ROOT}/555/permissions":
             return FakeResponse(200, {"success": True})
         raise AssertionError(f"unexpected call to {method} {url}")
@@ -86,6 +94,20 @@ class InstagramOAuthScenarios(PlatformTestCase):
         self.assertEqual(bundle.access_token, PAGE_TOKEN)
         debug = next(call for call in double.calls if call[1].endswith("/debug_token"))
         self.assertEqual(debug[2]["headers"], {"Authorization": "OAuth test-app-id|test-instagram-secret-DO-NOT-LEAK"})
+
+    def test_granted_assets_that_are_not_pages_are_skipped(self):
+        # Given: the grant lists the Instagram account before the Page, and an
+        # Instagram account has no access_token field
+        double = FacebookDouble(
+            pages=[], granted_instagram=["17841400000000001"], granted_pages=["1000"], page_by_id={"1000": PAGE}
+        )
+        self.http.side_effect = double
+
+        # When: the code is exchanged
+        bundle = self.provider.exchange_code("the-code", None)
+
+        # Then: the Instagram account is passed over and the Page is used
+        self.assertEqual(bundle.access_token, PAGE_TOKEN)
 
     def test_no_linked_instagram_account_is_a_clear_refusal(self):
         self.http.side_effect = FacebookDouble(pages=[PAGE_WITHOUT_INSTAGRAM])

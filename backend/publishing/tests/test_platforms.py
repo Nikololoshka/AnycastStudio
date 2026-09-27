@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-from platforms import tiktok, youtube
+from platforms import instagram, tiktok, youtube
 
 from .base import PublishingTestCase
 
@@ -47,3 +47,7 @@ class ContractScenarios(PublishingTestCase):
     def test_the_tiktok_defaults_match_the_browsers(self):
         frontend = frontend_defaults("tiktok", "TIKTOK_DEFAULT_SETTINGS", "TikTokSettings")
         self.assert_defaults_agree(frontend, backend_defaults(tiktok.video_options_of({})))
+
+    def test_the_instagram_defaults_match_the_browsers(self):
+        frontend = frontend_defaults("instagram", "INSTAGRAM_DEFAULT_SETTINGS", "InstagramSettings")
+        self.assert_defaults_agree(frontend, backend_defaults(instagram.video_options_of({})))

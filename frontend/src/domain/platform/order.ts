@@ -7,7 +7,7 @@ export const PLATFORMS: Platform[] = ['youtube', 'x', 'tiktok', 'instagram'];
  * Platforms this release can publish to. The others are ported one by one;
  * until then nothing may offer them.
  */
-export const AVAILABLE_PLATFORMS = ['youtube', 'tiktok'] as const;
+export const AVAILABLE_PLATFORMS = ['youtube', 'tiktok', 'instagram'] as const;
 
 export type AvailablePlatform = (typeof AVAILABLE_PLATFORMS)[number];
 

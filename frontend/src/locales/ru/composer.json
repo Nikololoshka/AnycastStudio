@@ -100,7 +100,10 @@
       "captionTooLong": "Заголовок, описание и хэштеги вместе слишком длинные для {{platform}}.",
       "privacyRequired": "Выберите, кто может смотреть видео, на вкладке {{platform}}.",
       "commercialContentUnspecified": "Укажите, чей бренд продвигает пост в {{platform}}.",
-      "brandedContentCannotBePrivate": "Брендированный контент в {{platform}} не может быть приватным."
+      "brandedContentCannotBePrivate": "Брендированный контент в {{platform}} не может быть приватным.",
+      "tooManyHashtags": "{{platform}} допускает не больше 30 хештегов в подписи.",
+      "videoTooShort": "Видео слишком короткое для {{platform}}.",
+      "videoTooLong": "Видео слишком длинное для {{platform}}."
     }
   },
   "progress": {

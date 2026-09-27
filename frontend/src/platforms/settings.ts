@@ -1,11 +1,13 @@
 import type { PlatformSettings } from '../domain/platform/types';
 import type { AvailablePlatform } from '../domain/platform/order';
+import { instagramSettingsOf } from './instagram/settings';
 import { tiktokSettingsOf, tiktokStoredSettingsOf } from './tiktok/settings';
 import { youtubeSettingsOf } from './youtube/settings';
 
 const normalizers: Record<AvailablePlatform, (raw: PlatformSettings) => PlatformSettings> = {
   youtube: youtubeSettingsOf,
   tiktok: tiktokSettingsOf,
+  instagram: instagramSettingsOf,
 };
 
 function isPlatformSettings(value: unknown): value is PlatformSettings {
@@ -23,6 +25,7 @@ export function defaultPlatformSettings(): Record<AvailablePlatform, PlatformSet
   return {
     youtube: normalizePlatformSettings('youtube', undefined),
     tiktok: normalizePlatformSettings('tiktok', undefined),
+    instagram: normalizePlatformSettings('instagram', undefined),
   };
 }
 
@@ -33,5 +36,6 @@ export function normalizeAllPlatformSettings(
   return {
     youtube: normalizePlatformSettings('youtube', stored.youtube),
     tiktok: tiktokStoredSettingsOf(isPlatformSettings(stored.tiktok) ? stored.tiktok : {}),
+    instagram: normalizePlatformSettings('instagram', stored.instagram),
   };
 }

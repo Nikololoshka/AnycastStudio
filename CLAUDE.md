@@ -24,9 +24,9 @@ when to stop and ask a person.
 
 ### What is in scope today
 
-**YouTube and TikTok.** The X and Instagram integrations were written for the
-desktop client and removed from the working tree during the web migration. They
-are recoverable from the `v0-desktop` tag and come back one platform at a time.
+**YouTube, TikTok and Instagram.** The X integration was written for the
+desktop client and removed from the working tree during the web migration. It
+is recoverable from the `v0-desktop` tag.
 
 There is **no self-service registration and no email**. Accounts are created
 through the Django admin, which is never published — it is reached over an SSH

@@ -1,3 +1,4 @@
+import logging
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -12,9 +13,10 @@ DEBUG_TOKEN_ENDPOINT = f"{GRAPH_ROOT}/debug_token"
 
 PAGE_FIELDS = "id,access_token,instagram_business_account"
 IDENTITY_FIELDS = "id,instagram_business_account{id,username,name,profile_picture_url}"
-PAGE_SCOPES = ("pages_show_list", "instagram_basic", "instagram_content_publish")
 
 OAUTH_ATTEMPTS = 3
+
+logger = logging.getLogger(__name__)
 
 
 def _send(method: str, url: str, attempts: int = OAUTH_ATTEMPTS, **kwargs) -> dict:
@@ -86,28 +88,35 @@ class InstagramProvider:
             raise ProviderError("Facebook did not issue a token")
         return str(body["access_token"])
 
-    def _granted_page_ids(self, user_token: str) -> list[str]:
+    def _granted_asset_ids(self, user_token: str) -> list[str]:
         body = _send(
             "GET", DEBUG_TOKEN_ENDPOINT, params={"input_token": user_token}, headers=self._app_authorization()
         )
-        page_ids: list[str] = []
+        asset_ids: list[str] = []
         for grant in _data_of(body).get("granular_scopes") or []:
-            if not isinstance(grant, dict) or grant.get("scope") not in PAGE_SCOPES:
+            if not isinstance(grant, dict):
                 continue
             for target in grant.get("target_ids") or []:
-                if str(target) not in page_ids:
-                    page_ids.append(str(target))
-        return page_ids
+                if str(target) not in asset_ids:
+                    asset_ids.append(str(target))
+        return asset_ids
+
+    def _page_by_id(self, asset_id: str, user: dict) -> dict | None:
+        try:
+            return _send("GET", f"{GRAPH_ROOT}/{asset_id}", params={"fields": PAGE_FIELDS}, headers=user)
+        except ProviderError as error:
+            if error.transient:
+                raise
+            logger.info("Facebook asset %s granted to the app is not a Page: %s", asset_id, error.message)
+            return None
 
     def _pages(self, user_token: str) -> list[dict]:
         user = authorization(user_token)
         pages = _pages_of(_send("GET", f"{GRAPH_ROOT}/me/accounts", params={"fields": PAGE_FIELDS}, headers=user))
         if pages:
             return pages
-        return [
-            _send("GET", f"{GRAPH_ROOT}/{page_id}", params={"fields": PAGE_FIELDS}, headers=user)
-            for page_id in self._granted_page_ids(user_token)
-        ]
+        granted = (self._page_by_id(asset_id, user) for asset_id in self._granted_asset_ids(user_token))
+        return [page for page in granted if page is not None]
 
     def exchange_code(self, code: str, code_verifier: str | None) -> TokenBundle:
         short_lived = self._user_token({"redirect_uri": self.redirect_uri, "code": code})

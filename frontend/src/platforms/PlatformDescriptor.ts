@@ -9,7 +9,10 @@ export type DraftError =
   | 'captionTooLong'
   | 'privacyRequired'
   | 'commercialContentUnspecified'
-  | 'brandedContentCannotBePrivate';
+  | 'brandedContentCannotBePrivate'
+  | 'tooManyHashtags'
+  | 'videoTooShort'
+  | 'videoTooLong';
 
 export interface ValidationResult {
   valid: boolean;
