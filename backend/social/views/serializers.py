@@ -1,9 +1,7 @@
-def account_json(account) -> dict:
-    """What the SPA is allowed to know about a connected account.
+from ..models import SocialAccount
 
-    No token field appears here, and none ever should: the browser has no use
-    for one, and anything in an API response ends up in somebody's log.
-    """
+
+def account_json(account: SocialAccount) -> dict:
     return {
         "id": account.pk,
         "platform": account.platform,

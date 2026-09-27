@@ -1,5 +1,5 @@
-from .accounts import account, accounts
-from .callback import callback
-from .connect import connect
+from .accounts import social_account, social_accounts
+from .callback import social_callback
+from .connect import social_connect
 
-__all__ = ["account", "accounts", "callback", "connect"]
+__all__ = ["social_account", "social_accounts", "social_callback", "social_connect"]

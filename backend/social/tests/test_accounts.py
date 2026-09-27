@@ -1,12 +1,13 @@
-"""Listing, disconnecting and keeping tokens usable, as Given / When / Then."""
-
 from unittest import mock
 
+from django.db import connection
 from django.utils import timezone
 
 from accounts.models import User
+from media.models import MediaAsset
 from platforms.oauth import ProviderError
-from social import services
+from publishing.models import Publication, PublicationTarget
+from social import services, tasks
 from social.models import SocialAccount
 from social.tests.base import (
     ACCESS_TOKEN,
@@ -73,14 +74,70 @@ class DisconnectScenarios(SocialTestCase):
         self.callback(state=self.given_started_connection(), code=CODE)
         return self.only_account()
 
-    def test_disconnecting_removes_the_account_and_its_tokens(self):
+    def assert_disconnected(self, account: SocialAccount):
+        account.refresh_from_db()
+        self.assertEqual(account.status, SocialAccount.Status.REVOKED)
+        self.assertEqual(account.access_token, "")
+        self.assertEqual(account.refresh_token, "")
+
+    def test_disconnecting_forgets_the_tokens(self):
         account = self.connect()
         self.http.side_effect = [FakeResponse(200, {})]
 
         response = self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(SocialAccount.objects.exists())
+        self.assert_disconnected(account)
+
+    def test_a_disconnected_account_is_no_longer_listed(self):
+        account = self.connect()
+        self.http.side_effect = [FakeResponse(200, {})]
+        self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
+
+        body = self.body(self.client.get(ACCOUNTS_URL))
+
+        self.assertEqual(body["accounts"], [])
+        self.assertEqual(self.client.delete(f"{ACCOUNTS_URL}/{account.pk}").status_code, 404)
+
+    def test_an_account_that_has_published_can_be_disconnected(self):
+        # Given: an account with a publication, which keeps the row in the history
+        account = self.connect()
+        asset = MediaAsset.objects.create(
+            user=self.user, filename="clip.mp4", mime_type="video/mp4", size_bytes=1, storage_path="clip.mp4"
+        )
+        publication = Publication.objects.create(user=self.user, asset=asset, title="A clip")
+        PublicationTarget.objects.create(publication=publication, platform="youtube", social_account=account)
+        self.http.side_effect = [FakeResponse(200, {})]
+
+        # When: the person disconnects it
+        response = self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
+
+        # Then: it answers, and the tokens are gone while the history stays
+        self.assertEqual(response.status_code, 200)
+        self.assert_disconnected(account)
+        self.assertTrue(PublicationTarget.objects.filter(social_account=account).exists())
+
+    def test_reconnecting_a_disconnected_channel_brings_it_back(self):
+        account = self.connect()
+        self.http.side_effect = [FakeResponse(200, {})]
+        self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
+
+        self.given_platform_responds()
+        self.callback(state=self.given_started_connection(), code=CODE)
+
+        account.refresh_from_db()
+        self.assertEqual(account.status, SocialAccount.Status.ACTIVE)
+        self.assertEqual(account.access_token, ACCESS_TOKEN)
+
+    def test_revoking_is_tried_once(self):
+        account = self.connect()
+        self.http.reset_mock()
+        self.http.side_effect = [FakeResponse(503, {})] * 3
+
+        self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
+
+        self.assertEqual(self.http.call_count, 1)
+        self.assert_disconnected(account)
 
     def test_disconnecting_asks_the_platform_to_revoke(self):
         account = self.connect()
@@ -99,7 +156,7 @@ class DisconnectScenarios(SocialTestCase):
         response = self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(SocialAccount.objects.exists())
+        self.assert_disconnected(account)
 
     def test_another_persons_account_is_not_found(self):
         # Given: somebody else's connected account
@@ -226,6 +283,51 @@ class TokenRefreshScenarios(SocialTestCase):
         # platform that rotates refresh tokens, a second call would burn one.
         self.assertEqual(token, NEW_ACCESS_TOKEN)
         self.http.assert_not_called()
+
+
+    def test_the_refresh_does_not_hold_a_transaction_open(self):
+        # Given: an expiring token, and a way to see the transaction depth during the call
+        account = self.given_connected_account(token_expires_at=timezone.now())
+        depth_outside = len(connection.atomic_blocks)
+        depth_during_call = []
+
+        def google(*args, **kwargs):
+            depth_during_call.append(len(connection.atomic_blocks))
+            return FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
+
+        self.http.side_effect = google
+
+        # When: the token is refreshed
+        services.get_valid_access_token(account)
+
+        # Then: Google was called outside any transaction of ours
+        self.assertEqual(depth_during_call, [depth_outside])
+
+    def test_a_google_outage_does_not_ask_for_reconnection(self):
+        # Given: Google keeps answering 503
+        account = self.given_connected_account(token_expires_at=timezone.now())
+        self.http.side_effect = [FakeResponse(503, {})] * 3
+
+        # When: the refresh gives up
+        with self.assertRaises(ProviderError):
+            services.get_valid_access_token(account)
+
+        # Then: the account stays active, because nothing was refused
+        account.refresh_from_db()
+        self.assertEqual(account.status, SocialAccount.Status.ACTIVE)
+
+    def test_the_periodic_task_refreshes_what_expires_within_the_hour(self):
+        # Given: a token that is still valid for forty minutes
+        account = self.given_connected_account(token_expires_at=timezone.now() + timezone.timedelta(minutes=40))
+        self.http.side_effect = [FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})]
+
+        # When: the periodic task runs
+        refreshed = tasks.refresh_expiring_tokens()
+
+        # Then: it refreshed it ahead of time, and says so
+        self.assertEqual(refreshed, 1)
+        account.refresh_from_db()
+        self.assertEqual(account.access_token, NEW_ACCESS_TOKEN)
 
 
 class EncryptionScenarios(SocialTestCase):

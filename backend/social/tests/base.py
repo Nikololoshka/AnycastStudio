@@ -1,5 +1,3 @@
-"""Shared setup for the connection scenarios. The platform is always mocked."""
-
 import json
 from unittest import mock
 
@@ -57,7 +55,7 @@ class FakeResponse:
 
 class SocialTestCase(TestCase):
     def setUp(self):
-        cache.clear()  # reset rate-limit counters
+        cache.clear()
         self.user = User.objects.create_user(EMAIL, PASSWORD)
         patcher = mock.patch("platforms.http.transport.requests.request")
         self.http = patcher.start()
@@ -68,7 +66,6 @@ class SocialTestCase(TestCase):
         self.given_platform_responds()
 
     def given_platform_responds(self, token=None, channel=None):
-        """Answer the token endpoint first, then the channel endpoint."""
         self.http.side_effect = [
             FakeResponse(payload=token if token is not None else TOKEN_RESPONSE),
             FakeResponse(payload=channel if channel is not None else CHANNEL_RESPONSE),
@@ -81,7 +78,6 @@ class SocialTestCase(TestCase):
         return json.loads(response.content)
 
     def given_started_connection(self) -> str:
-        """Return the `state` the connect endpoint handed to the browser."""
         response = self.client.post(CONNECT_URL)
         auth_url = self.body(response)["authUrl"]
         return auth_url.split("state=")[1].split("&")[0]

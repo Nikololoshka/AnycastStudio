@@ -1,9 +1,3 @@
-"""Coming back from the platform, written as Given / When / Then.
-
-The callback is the only endpoint a stranger can aim a browser at, so most of
-these scenarios are about what it refuses.
-"""
-
 import logging
 
 import requests

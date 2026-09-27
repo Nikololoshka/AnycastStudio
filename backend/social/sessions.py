@@ -1,10 +1,3 @@
-"""The OAuth session lifecycle: pending -> processing -> done | error.
-
-All database work for connecting an account happens here. `claim` is a
-conditional UPDATE rather than a lock, because SQLite has no
-SELECT ... FOR UPDATE SKIP LOCKED and the pattern ports unchanged to Postgres.
-"""
-
 import logging
 import secrets
 
@@ -17,11 +10,14 @@ logger = logging.getLogger(__name__)
 Status = OAuthSession.Status
 
 
-def create(user, platform: str, uses_pkce: bool) -> tuple[OAuthSession, str | None]:
-    """Start a session and return it with the code challenge to send the browser."""
+def _sweep_expired() -> None:
     deleted, _ = OAuthSession.objects.filter(created_at__lt=OAuthSession.expiry_cutoff()).delete()
     if deleted:
         logger.info("Removed %d expired OAuth sessions", deleted)
+
+
+def create(user, platform: str, uses_pkce: bool) -> tuple[OAuthSession, str | None]:
+    _sweep_expired()
 
     verifier = pkce.generate_verifier() if uses_pkce else ""
     session = OAuthSession.objects.create(
@@ -35,11 +31,6 @@ def create(user, platform: str, uses_pkce: bool) -> tuple[OAuthSession, str | No
 
 
 def claim(platform: str, state: str) -> OAuthSession | None:
-    """Take a pending session for the callback, or None if it is unknown, expired or used.
-
-    The status change is a conditional UPDATE, so two callbacks carrying the
-    same state cannot both proceed.
-    """
     if not state:
         return None
 

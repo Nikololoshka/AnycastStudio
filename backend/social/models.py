@@ -1,5 +1,3 @@
-"""Connected platform accounts, and the short-lived state of connecting one."""
-
 from datetime import timedelta
 
 from django.conf import settings
@@ -8,18 +6,10 @@ from django.utils import timezone
 
 from common.encryption import EncryptedTextField
 
-# A token is refreshed this long before it expires, so a request that starts now
-# does not finish with a token that expired mid-upload.
 REFRESH_MARGIN = timedelta(minutes=5)
 
 
 class SocialAccount(models.Model):
-    """One platform account, owned by one person.
-
-    The tokens are the only thing of value here, so they are encrypted at rest
-    and never leave the server: no API response and no log line contains them.
-    """
-
     class Status(models.TextChoices):
         ACTIVE = "active"
         NEEDS_REAUTH = "needs_reauth"
@@ -55,23 +45,15 @@ class SocialAccount(models.Model):
         ]
 
     def __str__(self) -> str:
-        # Never interpolate a token field here: this string reaches logs and the admin.
         return f"{self.platform}:{self.display_name or self.external_id}"
 
-    @property
-    def needs_refresh(self) -> bool:
+    def expires_within(self, margin: timedelta) -> bool:
         if not self.token_expires_at:
             return False
-        return timezone.now() >= self.token_expires_at - REFRESH_MARGIN
+        return timezone.now() >= self.token_expires_at - margin
 
 
 class OAuthSession(models.Model):
-    """One in-flight authorisation, from the redirect out to the redirect back.
-
-    `state` ties the callback to the person who started it. Without that check a
-    stranger could graft their own platform account onto someone else's tenant.
-    """
-
     class Status(models.TextChoices):
         PENDING = "pending"
         PROCESSING = "processing"

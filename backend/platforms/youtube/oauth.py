@@ -15,15 +15,15 @@ LABEL = "Google"
 OAUTH_ATTEMPTS = 3
 
 
-def _send(method: str, url: str, **kwargs):
+def _send(method: str, url: str, attempts: int = OAUTH_ATTEMPTS, **kwargs):
     try:
         return with_retry(
             lambda: request(method, url, label=LABEL, **kwargs),
             label=LABEL,
-            attempts=OAUTH_ATTEMPTS,
+            attempts=attempts,
         )
     except PlatformFailure as failure:
-        raise ProviderError(failure.message) from None
+        raise ProviderError(failure.message, transient=failure.retryable) from None
 
 
 class YouTubeProvider:
@@ -126,4 +126,4 @@ class YouTubeProvider:
         )
 
     def revoke(self, token: str) -> None:
-        _send("POST", REVOKE_ENDPOINT, data={"token": token})
+        _send("POST", REVOKE_ENDPOINT, attempts=1, data={"token": token})

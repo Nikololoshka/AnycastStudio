@@ -1,5 +1,3 @@
-"""Starting a connection, written as Given / When / Then."""
-
 from urllib.parse import parse_qs, urlparse
 
 from django.db import connection
