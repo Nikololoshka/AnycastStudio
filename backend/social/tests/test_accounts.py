@@ -285,6 +285,19 @@ class TokenRefreshScenarios(SocialTestCase):
         self.http.assert_not_called()
 
 
+    def test_a_forced_refresh_asks_google_even_when_the_token_looks_good(self):
+        # Given: a token our clock thinks is valid for another hour, which Google has refused
+        account = self.given_connected_account(token_expires_at=timezone.now() + timezone.timedelta(hours=1))
+        self.http.reset_mock()
+        self.http.side_effect = [FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})]
+
+        # When: the upload asks for a fresh one
+        token = services.refresh_access_token(account)
+
+        # Then: Google was asked, and the new token is stored
+        self.assertEqual(token, NEW_ACCESS_TOKEN)
+        self.assertEqual(self.http.call_count, 1)
+
     def test_the_refresh_does_not_hold_a_transaction_open(self):
         # Given: an expiring token, and a way to see the transaction depth during the call
         account = self.given_connected_account(token_expires_at=timezone.now())

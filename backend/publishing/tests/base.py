@@ -1,9 +1,3 @@
-"""Shared setup for the publishing scenarios.
-
-Google is mocked at the HTTP layer, so the real chunking, the real offsets and
-the real retry policy all run.
-"""
-
 import json
 import shutil
 import tempfile
@@ -25,7 +19,7 @@ LIST_URL = "/api/publications"
 EMAIL = "person@example.com"
 PASSWORD = "correct-horse-battery"
 
-CONTENT = b"0123456789" * 512  # 5120 bytes
+CONTENT = b"0123456789" * 512
 CHUNK = 1024
 VIDEO_ID = "vid_abc123"
 SESSION_URI = "https://upload.googleapis.com/session/abc"
@@ -44,7 +38,6 @@ class FakeResponse:
 
 
 class GoogleDouble:
-    """Answers the upload protocol the way Google does, and records what it saw."""
 
     def __init__(self, size: int, fail_at: int | None = None, failure=None):
         self.size = size
@@ -77,7 +70,7 @@ class GoogleDouble:
             self.ranges.append(kwargs["headers"]["Content-Range"])
 
             if self.fail_at is not None and self.received == self.fail_at:
-                self.fail_at = None  # fail once, then behave
+                self.fail_at = None
                 return self.failure
 
             self.chunks.append(body)
@@ -124,7 +117,6 @@ class PublishingTestCase(TestCase):
         patcher = mock.patch("platforms.http.transport.requests.request")
         self.http = patcher.start()
         self.addCleanup(patcher.stop)
-        # Nothing here sleeps for real; the backoff is the policy, not the wait.
         sleeper = mock.patch("platforms.http.retry.time.sleep")
         sleeper.start()
         self.addCleanup(sleeper.stop)
@@ -179,7 +171,6 @@ class PublishingTestCase(TestCase):
             ],
         }
         payload.update(overrides)
-        # Dispatch happens on commit, which a TestCase never reaches on its own.
         with self.captureOnCommitCallbacks(execute=True):
             return self.client.post(
                 CREATE_URL, data=json.dumps(payload), content_type="application/json"

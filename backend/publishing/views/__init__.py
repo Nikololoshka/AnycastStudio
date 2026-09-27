@@ -1,11 +1,17 @@
-from .platforms import platforms
-from .publications import cancel_target, create, publication, publications, retry_target
+from .platforms import publishing_platforms
+from .publications import (
+    publishing_cancel_target,
+    publishing_create,
+    publishing_publication,
+    publishing_publications,
+    publishing_retry_target,
+)
 
 __all__ = [
-    "cancel_target",
-    "create",
-    "platforms",
-    "publication",
-    "publications",
-    "retry_target",
+    "publishing_cancel_target",
+    "publishing_create",
+    "publishing_platforms",
+    "publishing_publication",
+    "publishing_publications",
+    "publishing_retry_target",
 ]

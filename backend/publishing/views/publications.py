@@ -1,55 +1,27 @@
-"""Creating publications and watching what happens to them."""
-
-import logging
-
-from django.utils.dateparse import parse_datetime
-from pydantic import BaseModel, Field
+from django.utils import timezone
 
 from common.access import require_auth, require_get, require_post
 from common.rate_limit import rate_limit
 from common.request_body import validate
 from common.responses import api_response
 from media.models import MediaAsset
-from platforms.oauth import ProviderError
 from social.models import SocialAccount
 
 from .. import services
 from ..models import Publication, PublicationTarget
-from ..serializers import publication_json
-
-logger = logging.getLogger(__name__)
-
-
-class TargetSchema(BaseModel):
-    platform: str = Field(max_length=32)
-    socialAccountId: int
-    settings: dict = Field(default_factory=dict)
+from .schemas import CreatePublicationSchema
+from .serializers import publication_json
 
 
-class CreatePublicationSchema(BaseModel):
-    mediaAssetId: int
-    title: str = Field(min_length=1, max_length=300)
-    description: str = Field(default="", max_length=10_000)
-    hashtags: list[str] = Field(default_factory=list, max_length=60)
-    publishAt: str | None = None
-    targets: list[TargetSchema] = Field(min_length=1, max_length=4)
+def _publications_of(user):
+    return Publication.objects.filter(user=user).prefetch_related("targets").select_related("asset")
 
 
-@require_post
-@require_auth
-@rate_limit("publications")
-@validate(CreatePublicationSchema)
-def create(request, data):
-    asset = MediaAsset.objects.filter(
-        user=request.user, pk=data.mediaAssetId, status=MediaAsset.Status.READY
-    ).first()
-    if asset is None:
-        return api_response("not_found", message="media_asset")
+def _target_of(request, pk: int) -> PublicationTarget | None:
+    return PublicationTarget.objects.filter(publication__user=request.user, pk=pk).first()
 
-    publish_at = parse_datetime(data.publishAt) if data.publishAt else None
-    if data.publishAt and publish_at is None:
-        return api_response("invalid", errors=[{"field": "publishAt", "message": "not a datetime"}])
 
+def _account_refusal(request, data: CreatePublicationSchema):
     accounts = {account.pk: account for account in SocialAccount.objects.filter(user=request.user)}
     for target in data.targets:
         account = accounts.get(target.socialAccountId)
@@ -57,6 +29,26 @@ def create(request, data):
             return api_response("not_found", message="social_account")
         if account.status != SocialAccount.Status.ACTIVE:
             return api_response("conflict", message="account_needs_reauth", platform=account.platform)
+    return None
+
+
+@require_post
+@require_auth
+@rate_limit("publications")
+@validate(CreatePublicationSchema)
+def publishing_create(request, data: CreatePublicationSchema):
+    asset = MediaAsset.objects.filter(
+        user=request.user, pk=data.mediaAssetId, status=MediaAsset.Status.READY
+    ).first()
+    if asset is None:
+        return api_response("not_found", message="media_asset")
+
+    if data.publishAt and data.publishAt <= timezone.now():
+        return api_response("invalid", errors=[{"field": "publishAt", "message": "must be in the future"}])
+
+    refusal = _account_refusal(request, data)
+    if refusal:
+        return refusal
 
     try:
         publication = services.create_publication(
@@ -65,47 +57,35 @@ def create(request, data):
             title=data.title,
             description=data.description,
             hashtags=list(data.hashtags),
-            publish_at=publish_at,
+            publish_at=data.publishAt,
             targets=[target.model_dump() for target in data.targets],
         )
     except services.DailyLimitReached as error:
         return api_response("quota_exceeded", message="daily_limit", limit=error.limit)
-    except ProviderError as error:
-        return api_response("conflict", message=error.message)
 
     services.dispatch(publication)
     return api_response("ok", publication=publication_json(publication))
 
 
-def _publications_of(user):
-    return Publication.objects.filter(user=user).prefetch_related("targets").select_related("asset")
-
-
 @require_get
 @require_auth
-def publications(request):
+def publishing_publications(request):
     rows = _publications_of(request.user).order_by("-created_at")[:100]
     return api_response("ok", publications=[publication_json(row) for row in rows])
 
 
 @require_get
 @require_auth
-def publication(request, pk: int):
+def publishing_publication(request, pk: int):
     row = _publications_of(request.user).filter(pk=pk).first()
     if row is None:
         return api_response("not_found")
     return api_response("ok", publication=publication_json(row))
 
 
-def _target_of(request, pk: int) -> PublicationTarget | None:
-    # Reached only through its owner's publication, so another tenant's target
-    # is not found rather than forbidden.
-    return PublicationTarget.objects.filter(publication__user=request.user, pk=pk).first()
-
-
 @require_post
 @require_auth
-def cancel_target(request, pk: int):
+def publishing_cancel_target(request, pk: int):
     target = _target_of(request, pk)
     if target is None:
         return api_response("not_found")
@@ -118,7 +98,7 @@ def cancel_target(request, pk: int):
 
 @require_post
 @require_auth
-def retry_target(request, pk: int):
+def publishing_retry_target(request, pk: int):
     target = _target_of(request, pk)
     if target is None:
         return api_response("not_found")

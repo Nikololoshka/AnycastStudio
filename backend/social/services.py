@@ -76,17 +76,21 @@ def _store_unless_already_refreshed(account: SocialAccount, bundle: TokenBundle)
     )
 
 
-def get_valid_access_token(account: SocialAccount, margin: timedelta = REFRESH_MARGIN) -> str:
+def refresh_access_token(account: SocialAccount) -> str:
     account.refresh_from_db()
-    if not account.expires_within(margin):
-        return account.access_token
-
     bundle = _refreshed_bundle(account)
     if _store_unless_already_refreshed(account, bundle):
         logger.info("Refreshed the token of %s account %s", account.platform, account.pk)
 
     account.refresh_from_db()
     return account.access_token
+
+
+def get_valid_access_token(account: SocialAccount, margin: timedelta = REFRESH_MARGIN) -> str:
+    account.refresh_from_db()
+    if not account.expires_within(margin):
+        return account.access_token
+    return refresh_access_token(account)
 
 
 def _mark_needs_reauth(account: SocialAccount, reason: str) -> None:

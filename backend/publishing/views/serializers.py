@@ -29,6 +29,5 @@ def publication_json(publication) -> dict:
         "mediaAssetId": publication.asset_id,
         "filename": publication.asset.filename,
         "targets": [target_json(target) for target in targets],
-        # One flag so the browser knows whether to keep polling.
         "isActive": any(target.is_active for target in targets),
     }

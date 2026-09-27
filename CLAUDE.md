@@ -208,7 +208,7 @@ outcome is a new row there, not a new body shape.
 @require_auth
 @rate_limit("publications")
 @validate(CreatePublicationSchema)
-def create(request, data): ...
+def publishing_create(request, data: CreatePublicationSchema): ...
 ```
 
 `common/core/decorators.py::precondition` builds both sync and async wrappers

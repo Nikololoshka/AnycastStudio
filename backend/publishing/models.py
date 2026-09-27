@@ -1,10 +1,3 @@
-"""A publication and what it is doing on each platform.
-
-The status vocabulary is the one the desktop client used and the browser still
-speaks; see frontend/src/domain/publication/types.ts. It is the wire contract,
-so the strings do not change.
-"""
-
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -22,7 +15,6 @@ class Publication(models.Model):
     description = models.TextField(blank=True)
     hashtags = models.JSONField(default=list, blank=True)
 
-    # When the platform should make it visible. Absent means as soon as possible.
     publish_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
@@ -44,8 +36,8 @@ class PublicationTarget(models.Model):
         FAILED = "failed"
         CANCELLED = "cancelled"
 
-    ACTIVE = (Status.QUEUED, Status.VALIDATING, Status.UPLOADING, Status.PROCESSING, Status.PUBLISHING)
-    TERMINAL = (Status.SCHEDULED, Status.COMPLETED, Status.FAILED, Status.CANCELLED)
+    RUNNING = (Status.VALIDATING, Status.UPLOADING, Status.PROCESSING, Status.PUBLISHING)
+    ACTIVE = (Status.QUEUED, *RUNNING)
 
     publication = models.ForeignKey(
         Publication, on_delete=models.CASCADE, related_name="targets"
@@ -62,9 +54,7 @@ class PublicationTarget(models.Model):
     uploaded_bytes = models.BigIntegerField(default=0)
     total_bytes = models.BigIntegerField(default=0)
 
-    # The platform's own id for the media, once it has one.
     uploaded_media_id = models.CharField(max_length=128, blank=True)
-    # Where to carry on from if the worker dies mid-upload.
     resume_state = models.JSONField(null=True, blank=True)
 
     published_url = models.URLField(blank=True, max_length=500)
@@ -74,6 +64,7 @@ class PublicationTarget(models.Model):
     cancel_requested = models.BooleanField(default=False)
 
     started_at = models.DateTimeField(null=True, blank=True)
+    last_activity_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
