@@ -1,10 +1,6 @@
 import logging
-from urllib.parse import urlencode
-
-from django.conf import settings
-
-from ..http import PlatformFailure, json_dict
-from ..oauth import Identity, ProviderError, TokenBundle, callback_url
+from ..http import json_dict
+from ..oauth import Identity, OAuth2Provider, ProviderError, TokenBundle
 from .api import GRAPH_ROOT, GRAPH_VERSION, authorization, send
 
 AUTH_ENDPOINT = f"https://www.facebook.com/{GRAPH_VERSION}/dialog/oauth"
@@ -14,16 +10,7 @@ DEBUG_TOKEN_ENDPOINT = f"{GRAPH_ROOT}/debug_token"
 PAGE_FIELDS = "id,access_token,instagram_business_account"
 IDENTITY_FIELDS = "id,instagram_business_account{id,username,name,profile_picture_url}"
 
-OAUTH_ATTEMPTS = 3
-
 logger = logging.getLogger(__name__)
-
-
-def _send(method: str, url: str, attempts: int = OAUTH_ATTEMPTS, **kwargs) -> dict:
-    try:
-        return json_dict(send(method, url, attempts=attempts, **kwargs))
-    except PlatformFailure as failure:
-        raise ProviderError(failure.message, transient=failure.retryable) from None
 
 
 def _data_of(body: dict) -> dict:
@@ -43,53 +30,38 @@ def _linked_page(pages: list[dict]) -> dict | None:
     return None
 
 
-class InstagramProvider:
+class InstagramProvider(OAuth2Provider):
     name = "instagram"
     label = "Instagram"
     uses_pkce = False
     scopes = ("instagram_basic", "instagram_content_publish", "pages_show_list", "pages_read_engagement")
+    authorize_endpoint = AUTH_ENDPOINT
+    token_endpoint = TOKEN_ENDPOINT
+    client_id_setting = "INSTAGRAM_CLIENT_ID"
+    client_secret_setting = "INSTAGRAM_CLIENT_SECRET"
+    scope_separator = ","
 
-    @property
-    def redirect_uri(self) -> str:
-        return callback_url(self.name)
+    def transport(self, method: str, url: str, **kwargs):
+        return send(method, url, **kwargs)
 
-    @staticmethod
-    def _client_id() -> str:
-        if not settings.INSTAGRAM_CLIENT_ID:
-            raise ProviderError("INSTAGRAM_CLIENT_ID is not configured")
-        return settings.INSTAGRAM_CLIENT_ID
-
-    @staticmethod
-    def _client_secret() -> str:
-        if not settings.INSTAGRAM_CLIENT_SECRET:
-            raise ProviderError("INSTAGRAM_CLIENT_SECRET is not configured")
-        return settings.INSTAGRAM_CLIENT_SECRET
+    def _json(self, method: str, url: str, **kwargs) -> dict:
+        return json_dict(self._send(method, url, **kwargs))
 
     def _app_authorization(self) -> dict:
-        return authorization(f"{self._client_id()}|{self._client_secret()}")
+        return authorization(f"{self.client_id()}|{self.client_secret()}")
 
     def code_challenge(self, verifier: str) -> str:
         raise ProviderError("Facebook Login is used without PKCE")
 
-    def authorize_url(self, state: str, code_challenge: str | None) -> str:
-        params = {
-            "client_id": self._client_id(),
-            "redirect_uri": self.redirect_uri,
-            "response_type": "code",
-            "scope": ",".join(self.scopes),
-            "state": state,
-        }
-        return f"{AUTH_ENDPOINT}?{urlencode(params)}"
-
     def _user_token(self, grant: dict) -> str:
-        credentials = {"client_id": self._client_id(), "client_secret": self._client_secret()}
-        body = _send("GET", TOKEN_ENDPOINT, params={**credentials, **grant})
+        credentials = {"client_id": self.client_id(), "client_secret": self.client_secret()}
+        body = self._json("GET", TOKEN_ENDPOINT, params={**credentials, **grant})
         if not body.get("access_token"):
             raise ProviderError("Facebook did not issue a token")
         return str(body["access_token"])
 
     def _granted_asset_ids(self, user_token: str) -> list[str]:
-        body = _send(
+        body = self._json(
             "GET", DEBUG_TOKEN_ENDPOINT, params={"input_token": user_token}, headers=self._app_authorization()
         )
         asset_ids: list[str] = []
@@ -103,7 +75,7 @@ class InstagramProvider:
 
     def _page_by_id(self, asset_id: str, user: dict) -> dict | None:
         try:
-            return _send("GET", f"{GRAPH_ROOT}/{asset_id}", params={"fields": PAGE_FIELDS}, headers=user)
+            return self._json("GET", f"{GRAPH_ROOT}/{asset_id}", params={"fields": PAGE_FIELDS}, headers=user)
         except ProviderError as error:
             if error.transient:
                 raise
@@ -112,7 +84,7 @@ class InstagramProvider:
 
     def _pages(self, user_token: str) -> list[dict]:
         user = authorization(user_token)
-        pages = _pages_of(_send("GET", f"{GRAPH_ROOT}/me/accounts", params={"fields": PAGE_FIELDS}, headers=user))
+        pages = _pages_of(self._json("GET", f"{GRAPH_ROOT}/me/accounts", params={"fields": PAGE_FIELDS}, headers=user))
         if pages:
             return pages
         granted = (self._page_by_id(asset_id, user) for asset_id in self._granted_asset_ids(user_token))
@@ -132,7 +104,9 @@ class InstagramProvider:
         raise ProviderError("An Instagram connection cannot be refreshed; reconnect the account")
 
     def fetch_identity(self, access_token: str) -> Identity:
-        page = _send("GET", f"{GRAPH_ROOT}/me", params={"fields": IDENTITY_FIELDS}, headers=authorization(access_token))
+        page = self._json(
+            "GET", f"{GRAPH_ROOT}/me", params={"fields": IDENTITY_FIELDS}, headers=authorization(access_token)
+        )
         account = page.get("instagram_business_account")
         if not isinstance(account, dict) or not account.get("id"):
             raise ProviderError("The Facebook Page has no Instagram professional account")
@@ -146,8 +120,8 @@ class InstagramProvider:
 
     def revoke(self, access_token: str, refresh_token: str) -> None:
         app = self._app_authorization()
-        body = _send("GET", DEBUG_TOKEN_ENDPOINT, attempts=1, params={"input_token": access_token}, headers=app)
+        body = self._json("GET", DEBUG_TOKEN_ENDPOINT, attempts=1, params={"input_token": access_token}, headers=app)
         user_id = _data_of(body).get("user_id")
         if not user_id:
             raise ProviderError("Facebook did not say whose token this is")
-        _send("DELETE", f"{GRAPH_ROOT}/{user_id}/permissions", attempts=1, headers=app)
+        self._json("DELETE", f"{GRAPH_ROOT}/{user_id}/permissions", attempts=1, headers=app)

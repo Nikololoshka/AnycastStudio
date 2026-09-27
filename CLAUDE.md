@@ -138,7 +138,7 @@ reports progress. Publishing, scheduling and tokens are the server's.
   siblings.
 - Every platform package has the same shape: `api.py` (`LABEL`, `send`,
   its `failure_of`), `capabilities.py`, `upload.py`, `status.py`,
-  `video_options.py`, `oauth.py`, and exports the same core names
+  `video_options.py`, `oauth.py` (an `OAuth2Provider` subclass), and exports the same core names
   (`capabilities`, `validate`, `upload`, `ResumeState`, `fetch_status`,
   `failure_of`, `post_url`). `platforms/oauth/` and `platforms/capabilities/`
   hold the shapes.

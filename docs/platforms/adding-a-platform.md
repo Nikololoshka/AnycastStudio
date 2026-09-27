@@ -47,7 +47,7 @@ A plain package: no Django models, no imports from a sibling platform. Mirror
 | File | Holds |
 | --- | --- |
 | `api.py` | `LABEL`, `failure_of(response)` for the platform's error envelope, and `send` / `call` over `http.send` (retry, timeout, classification) |
-| `oauth.py` | the `PlatformProvider`: `name`, `scopes`, `uses_pkce`, `redirect_uri` (use `oauth.callback_url`), `code_challenge`, `authorize_url`, `exchange_code`, `refresh`, `fetch_identity`, `revoke(access_token, refresh_token)` |
+| `oauth.py` | an `OAuth2Provider` subclass: `name`, `label`, `scopes`, endpoints, the `<P>_CLIENT_*` setting names, and `transport` (the platform's `send`); override `client_id_param`, `scope_separator`, `uses_pkce`, `code_challenge`, `authorize_params` or `token_request` only where the platform differs; implement `fetch_identity` and `revoke(access_token, refresh_token)` |
 | `upload.py` | `ResumeState(ResumableState)` (fields only; `as_dict` and `of` are inherited), `start` / resume checks, a `Session` (`done`, `uploaded`, `send_next`, `finish`), and `upload(...)` that hands the session to `platforms.upload.drive` |
 | `status.py` | `fetch_status` for an asynchronous publish, `failure_of` mapping refusal reasons to failure types, `post_url` |
 | `video_options.py` | `VideoOptions`, `video_options_of(raw)` (lenient: unknown values fall back), `as_json()` in camelCase |
