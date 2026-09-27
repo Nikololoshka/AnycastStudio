@@ -3,6 +3,8 @@ from datetime import timedelta
 from django.db.models import Q
 from django.utils import timezone
 
+from platforms.capabilities import Scheduling
+
 from .models import PublicationTarget
 from .publishers import PUBLISHERS
 
@@ -14,7 +16,7 @@ CONFIRMATION_STALLED_AFTER = timedelta(minutes=5)
 
 def deferred_platforms() -> list[str]:
     return [
-        name for name, publisher in PUBLISHERS.items() if publisher.capabilities().scheduling == "deferredUpload"
+        name for name, publisher in PUBLISHERS.items() if publisher.capabilities().scheduling == Scheduling.DEFERRED_UPLOAD
     ]
 
 

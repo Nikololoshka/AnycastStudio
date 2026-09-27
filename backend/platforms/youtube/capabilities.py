@@ -1,4 +1,4 @@
-from ..capabilities import Capabilities, ValidationResult
+from ..capabilities import Capabilities, Scheduling, ValidationResult
 from .video_options import MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH
 
 LABEL = "YouTube"
@@ -20,7 +20,7 @@ SUPPORTED_MIME_TYPES = (
 def capabilities() -> Capabilities:
     return Capabilities(
         label=LABEL,
-        scheduling="native",
+        scheduling=Scheduling.NATIVE,
         title=True,
         description=True,
         hashtags=True,

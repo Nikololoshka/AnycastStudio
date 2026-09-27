@@ -1,4 +1,4 @@
-from ..capabilities import Capabilities, ValidationResult
+from ..capabilities import Capabilities, Scheduling, ValidationResult
 from .video_options import MAX_CAPTION_LENGTH, PRIVATE, VideoOptions, utf16_length
 
 LABEL = "TikTok"
@@ -11,7 +11,7 @@ SUPPORTED_MIME_TYPES = ("video/mp4", "video/quicktime", "video/webm")
 def capabilities() -> Capabilities:
     return Capabilities(
         label=LABEL,
-        scheduling="deferredUpload",
+        scheduling=Scheduling.DEFERRED_UPLOAD,
         title=True,
         description=True,
         hashtags=True,

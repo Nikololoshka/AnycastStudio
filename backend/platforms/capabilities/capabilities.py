@@ -1,7 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Literal
+from enum import StrEnum
 
-Scheduling = Literal["native", "stagedPublish", "deferredUpload", "unsupported"]
+
+class Scheduling(StrEnum):
+    NATIVE = "native"
+    STAGED_PUBLISH = "stagedPublish"
+    DEFERRED_UPLOAD = "deferredUpload"
+    UNSUPPORTED = "unsupported"
 
 
 @dataclass(frozen=True)
@@ -18,7 +23,7 @@ class Capabilities:
     def as_json(self) -> dict:
         return {
             "label": self.label,
-            "scheduling": self.scheduling,
+            "scheduling": self.scheduling.value,
             "title": self.title,
             "description": self.description,
             "hashtags": self.hashtags,

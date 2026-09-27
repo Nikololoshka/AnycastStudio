@@ -1,4 +1,4 @@
-from ..capabilities import Capabilities, ValidationResult
+from ..capabilities import Capabilities, Scheduling, ValidationResult
 from .api import LABEL
 from .video_options import MAX_CAPTION_LENGTH, MAX_HASHTAGS, hashtag_count
 
@@ -12,7 +12,7 @@ SUPPORTED_MIME_TYPES = ("video/mp4", "video/quicktime")
 def capabilities() -> Capabilities:
     return Capabilities(
         label=LABEL,
-        scheduling="deferredUpload",
+        scheduling=Scheduling.DEFERRED_UPLOAD,
         title=True,
         description=True,
         hashtags=True,
