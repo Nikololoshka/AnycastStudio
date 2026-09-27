@@ -4,11 +4,12 @@
       "Bash(npm -v)",
       "Bash(cargo --version)",
       "Bash(rustc --version)",
-      "Bash(rtk *)"
+      "Bash(rtk *)",
+      "Write(**/.env.example)"
     ],
     "deny": [
-      "Read(./.env)",
-      "Read(./.env.*)"
+      "Read(**/.env)",
+      "Read(**/.env.local)"
     ],
     "ask": [
       "Read(./agents)"
@@ -40,5 +41,29 @@
     "enabled": true,
     "autoAllowBashIfSandboxed": true
   },
-  "plansDirectory": "./agents/plans"
+  "plansDirectory": "./agents/plans",
+    "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "Analyzing…",
+      "Thinking…",
+      "Hacking…",
+      "Spellcasting…",
+      "Overthinking…",
+      "Caffeinating…",
+      "Rubber ducking…",
+      "Hallucinating responsibly…",
+      "Reading the docs…",
+      "Pretending to know…",
+      "Indexing…",
+      "Refactoring…",
+      "Debugging…",
+      "Git blaming…",
+      "Stack overflowing…",
+      "Consulting the oracle…",
+      "Writing tests nobody will read…",
+      "Ignoring the linter…",
+      "Compiling excuses…"
+    ]
+  }
 }
