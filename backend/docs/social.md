@@ -31,10 +31,15 @@ reason is not visible in the code.
 - A refresh never holds a transaction open across the call to the platform
   (SQLite rule 1): read the row, call the platform, then write with a
   conditional UPDATE on `token_expires_at`. If another caller refreshed first,
-  the UPDATE touches nothing and the row is re-read. Two simultaneous refreshes
-  are harmless on Google, which does not rotate refresh tokens. A platform that
-  does rotate them (X, TikTok) will need a lease claimed with a conditional
-  UPDATE before calling it, or the loser's call burns the winner's token.
+  the UPDATE touches nothing and the row is re-read.
+- Only one caller refreshes an account at a time. It first claims
+  `refresh_lease_until` with a conditional UPDATE; X and TikTok rotate refresh
+  tokens, so a second simultaneous call would burn the winner's token. A caller
+  that loses the claim polls the row until the token changes or the lease is
+  released, then uses the new token. If the other refresh never finishes, it
+  gets a transient error and the account stays `active`. A lease lasts
+  `REFRESH_LEASE` (2 minutes), so a worker killed mid-refresh does not block
+  the account for longer than that.
 - Only a refusal (`invalid_grant`, a missing refresh token) marks the account
   `needs_reauth`. A transient failure (network, 5xx after the retries) is
   raised as it is and leaves the account `active`.

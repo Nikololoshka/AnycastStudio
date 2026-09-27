@@ -7,6 +7,7 @@ from django.utils import timezone
 from common.encryption import EncryptedTextField
 
 REFRESH_MARGIN = timedelta(minutes=5)
+REFRESH_LEASE = timedelta(minutes=2)
 
 
 class SocialAccount(models.Model):
@@ -34,6 +35,7 @@ class SocialAccount(models.Model):
 
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
     last_refresh_at = models.DateTimeField(null=True, blank=True)
+    refresh_lease_until = models.DateTimeField(null=True, blank=True)
     last_error = models.CharField(max_length=500, blank=True)
     connected_at = models.DateTimeField(default=timezone.now)
 

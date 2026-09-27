@@ -1,15 +1,19 @@
 import logging
+import time
 from datetime import timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 
 from common.encryption import current_key_version
 from platforms.oauth import Identity, ProviderError, TokenBundle
 
-from .models import REFRESH_MARGIN, SocialAccount
+from .models import REFRESH_LEASE, REFRESH_MARGIN, SocialAccount
 from .providers import PROVIDERS
 
 logger = logging.getLogger(__name__)
+
+LEASE_POLL_SECONDS = 0.5
 
 
 def _expires_at(bundle: TokenBundle):
@@ -76,11 +80,47 @@ def _store_unless_already_refreshed(account: SocialAccount, bundle: TokenBundle)
     )
 
 
+def _claim_refresh_lease(account: SocialAccount):
+    now = timezone.now()
+    lease_until = now + REFRESH_LEASE
+    free = Q(refresh_lease_until__isnull=True) | Q(refresh_lease_until__lt=now)
+    if SocialAccount.objects.filter(free, pk=account.pk).update(refresh_lease_until=lease_until):
+        return lease_until
+    return None
+
+
+def _release_refresh_lease(account: SocialAccount, lease_until) -> None:
+    SocialAccount.objects.filter(pk=account.pk, refresh_lease_until=lease_until).update(refresh_lease_until=None)
+
+
+def _await_other_refresh(account: SocialAccount) -> str:
+    expired_at = account.token_expires_at
+    for _ in range(int(REFRESH_LEASE.total_seconds() / LEASE_POLL_SECONDS)):
+        time.sleep(LEASE_POLL_SECONDS)
+        account.refresh_from_db()
+        if account.token_expires_at != expired_at or account.refresh_lease_until is None:
+            break
+
+    if account.status != SocialAccount.Status.ACTIVE:
+        raise ProviderError("This account must be reconnected")
+    if account.token_expires_at == expired_at:
+        raise ProviderError("Another refresh of this account did not finish", transient=True)
+    return account.access_token
+
+
 def refresh_access_token(account: SocialAccount) -> str:
     account.refresh_from_db()
-    bundle = _refreshed_bundle(account)
-    if _store_unless_already_refreshed(account, bundle):
-        logger.info("Refreshed the token of %s account %s", account.platform, account.pk)
+    lease_until = _claim_refresh_lease(account)
+    if lease_until is None:
+        logger.info("Waiting for another refresh of %s account %s", account.platform, account.pk)
+        return _await_other_refresh(account)
+
+    try:
+        bundle = _refreshed_bundle(account)
+        if _store_unless_already_refreshed(account, bundle):
+            logger.info("Refreshed the token of %s account %s", account.platform, account.pk)
+    finally:
+        _release_refresh_lease(account, lease_until)
 
     account.refresh_from_db()
     return account.access_token
