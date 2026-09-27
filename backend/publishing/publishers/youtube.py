@@ -54,7 +54,7 @@ def upload(target: PublicationTarget, access_token: str, resume: dict | None, on
         metadata=_metadata(target, options),
         access_token=access_token,
         resume=youtube.ResumeState.of(resume),
-        on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
+        on_progress=on_progress,
         should_cancel=should_cancel,
     )
 

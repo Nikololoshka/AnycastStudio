@@ -53,7 +53,7 @@ def upload(target: PublicationTarget, access_token: str, resume: dict | None, on
         reel=_reel_info(target),
         access_token=access_token,
         resume=instagram.ResumeState.of(resume),
-        on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
+        on_progress=on_progress,
         should_cancel=should_cancel,
     )
 

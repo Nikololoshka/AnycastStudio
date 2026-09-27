@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import FILE, PLATFORM, PlatformFailure, json_dict
-from ..upload import UploadCancelled, fresh_token_on_rejection
+from ..http import PLATFORM, PlatformFailure, json_dict
+from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
 from .api import bearer, send
 
 UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/youtube/v3/videos"
@@ -16,18 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ResumeState:
+class ResumeState(ResumableState):
     session_uri: str
     offset: int = 0
-
-    def as_dict(self) -> dict:
-        return {"session_uri": self.session_uri, "offset": self.offset}
-
-    @classmethod
-    def of(cls, raw) -> "ResumeState | None":
-        if not isinstance(raw, dict) or not raw.get("session_uri"):
-            return None
-        return cls(session_uri=raw["session_uri"], offset=int(raw.get("offset", 0)))
 
 
 @dataclass
@@ -114,6 +105,55 @@ def _video_id(response, size: int) -> str:
     return str(video_id)
 
 
+@dataclass
+class Session:
+    state: ResumeState
+    size: int
+    mime_type: str
+    video_id: str | None = None
+    chunks_without_progress: int = 0
+
+    @property
+    def done(self) -> bool:
+        return self.video_id is not None
+
+    @property
+    def uploaded(self) -> int:
+        return self.state.offset
+
+    def send_next(self, handle) -> None:
+        length = min(settings.PLATFORM_CHUNK_BYTES, self.size - self.state.offset)
+        piece = read_piece(handle, self.state.offset, length)
+        response = _send_piece(self.state, piece, self.size, self.mime_type)
+        if _is_complete(response):
+            self.state.offset = self.size
+            self.video_id = _video_id(response, self.size)
+            return
+
+        previous = self.state.offset
+        self.state.offset = persisted_offset(response)
+        self.chunks_without_progress = self.chunks_without_progress + 1 if self.state.offset <= previous else 0
+        if self.chunks_without_progress >= settings.UPLOAD_RETRY_ATTEMPTS:
+            raise PlatformFailure(PLATFORM, "YouTube stopped accepting the upload")
+
+    def finish(self) -> str:
+        return self.video_id or ""
+
+
+def _session(
+    access_token: str, metadata: VideoMetadata, size: int, mime_type: str, resume: ResumeState | None
+) -> Session:
+    if resume is None:
+        state = ResumeState(session_uri=start_session(access_token, metadata, size, mime_type))
+        return Session(state, size, mime_type)
+
+    progress = _ask_progress(resume, size)
+    if _is_complete(progress):
+        return Session(resume, size, mime_type, video_id=_video_id(progress, size))
+    resume.offset = persisted_offset(progress)
+    return Session(resume, size, mime_type)
+
+
 def upload(
     *,
     path,
@@ -125,40 +165,5 @@ def upload(
     on_progress=None,
     should_cancel=None,
 ) -> str:
-    if resume is None:
-        state = ResumeState(session_uri=start_session(access_token, metadata, size, mime_type))
-    else:
-        state = resume
-        progress = _ask_progress(state, size)
-        if _is_complete(progress):
-            return _video_id(progress, size)
-        state.offset = persisted_offset(progress)
-
-    chunk_size = settings.PLATFORM_CHUNK_BYTES
-    chunks_without_progress = 0
-
-    with open(path, "rb") as handle:
-        while True:
-            if should_cancel and should_cancel():
-                raise UploadCancelled(state.as_dict())
-
-            handle.seek(state.offset)
-            piece = handle.read(chunk_size)
-            if not piece:
-                raise PlatformFailure(FILE, "The video is shorter than it claimed to be")
-
-            response = _send_piece(state, piece, size, mime_type)
-            if _is_complete(response):
-                state.offset = size
-                if on_progress:
-                    on_progress(size, size, state)
-                return _video_id(response, size)
-
-            previous = state.offset
-            state.offset = persisted_offset(response)
-            chunks_without_progress = chunks_without_progress + 1 if state.offset <= previous else 0
-            if chunks_without_progress >= settings.UPLOAD_RETRY_ATTEMPTS:
-                raise PlatformFailure(PLATFORM, "YouTube stopped accepting the upload")
-
-            if on_progress:
-                on_progress(state.offset, size, state)
+    session = _session(access_token, metadata, size, mime_type, resume)
+    return drive(session, path=path, size=size, on_progress=on_progress, should_cancel=should_cancel)

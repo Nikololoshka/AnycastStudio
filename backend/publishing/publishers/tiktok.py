@@ -75,7 +75,7 @@ def upload(target: PublicationTarget, access_token: str, resume: dict | None, on
         post_info=_post_info(target, options, creator),
         access_token=access_token,
         resume=tiktok.ResumeState.of(resume),
-        on_progress=lambda uploaded, total, state: on_progress(uploaded, total, state.as_dict()),
+        on_progress=on_progress,
         should_cancel=should_cancel,
     )
 

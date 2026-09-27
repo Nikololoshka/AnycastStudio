@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import FILE, PLATFORM, PlatformFailure
-from ..upload import UploadCancelled, fresh_token_on_rejection
+from ..http import PLATFORM, PlatformFailure
+from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
 from .api import API_ROOT, call, send
 
 INIT_ENDPOINT = f"{API_ROOT}/post/publish/video/init/"
@@ -44,36 +44,13 @@ class PostInfo:
 
 
 @dataclass
-class ResumeState:
+class ResumeState(ResumableState):
     publish_id: str
     upload_url: str
     chunk_size: int
     total_chunks: int
     next_chunk: int = 0
     expires_at: float = 0
-
-    def as_dict(self) -> dict:
-        return {
-            "publish_id": self.publish_id,
-            "upload_url": self.upload_url,
-            "chunk_size": self.chunk_size,
-            "total_chunks": self.total_chunks,
-            "next_chunk": self.next_chunk,
-            "expires_at": self.expires_at,
-        }
-
-    @classmethod
-    def of(cls, raw) -> "ResumeState | None":
-        if not isinstance(raw, dict) or not raw.get("publish_id") or not raw.get("upload_url"):
-            return None
-        return cls(
-            publish_id=str(raw["publish_id"]),
-            upload_url=str(raw["upload_url"]),
-            chunk_size=int(raw["chunk_size"]),
-            total_chunks=int(raw["total_chunks"]),
-            next_chunk=int(raw.get("next_chunk", 0)),
-            expires_at=float(raw.get("expires_at", 0)),
-        )
 
     @property
     def expired(self) -> bool:
@@ -118,15 +95,34 @@ def start(access_token: str, post_info: PostInfo, size: int) -> ResumeState:
     )
 
 
-def _send_chunk(state: ResumeState, handle, size: int, mime_type: str):
-    first, last = state.bounds_of(state.next_chunk, size)
-    handle.seek(first)
-    piece = handle.read(last - first + 1)
-    if len(piece) != last - first + 1:
-        raise PlatformFailure(FILE, "The video is shorter than it claimed to be")
+@dataclass
+class Session:
+    state: ResumeState
+    size: int
+    mime_type: str
 
-    headers = {"Content-Type": mime_type, "Content-Range": f"bytes {first}-{last}/{size}"}
-    return send("PUT", state.upload_url, headers=headers, data=piece)
+    @property
+    def done(self) -> bool:
+        return self.state.next_chunk >= self.state.total_chunks
+
+    @property
+    def uploaded(self) -> int:
+        return self.state.uploaded_bytes(self.size)
+
+    def send_next(self, handle) -> None:
+        first, last = self.state.bounds_of(self.state.next_chunk, self.size)
+        piece = read_piece(handle, first, last - first + 1)
+        headers = {"Content-Type": self.mime_type, "Content-Range": f"bytes {first}-{last}/{self.size}"}
+        response = send("PUT", self.state.upload_url, headers=headers, data=piece)
+
+        is_last = self.state.next_chunk == self.state.total_chunks - 1
+        if is_last and response.status_code != 201:
+            raise PlatformFailure(PLATFORM, f"TikTok answered HTTP {response.status_code} to the last chunk")
+        self.state.next_chunk += 1
+
+    def finish(self) -> str:
+        logger.info("Uploaded %d bytes to TikTok as %s", self.size, self.state.publish_id)
+        return self.state.publish_id
 
 
 def upload(
@@ -147,19 +143,5 @@ def upload(
             logger.info("TikTok upload %s outlived its upload URL, starting again", resume.publish_id)
         state = start(access_token, post_info, size)
 
-    with open(path, "rb") as handle:
-        while state.next_chunk < state.total_chunks:
-            if should_cancel and should_cancel():
-                raise UploadCancelled(state.as_dict())
-
-            response = _send_chunk(state, handle, size, mime_type)
-            is_last = state.next_chunk == state.total_chunks - 1
-            if is_last and response.status_code != 201:
-                raise PlatformFailure(PLATFORM, f"TikTok answered HTTP {response.status_code} to the last chunk")
-
-            state.next_chunk += 1
-            if on_progress:
-                on_progress(state.uploaded_bytes(size), size, state)
-
-    logger.info("Uploaded %d bytes to TikTok as %s", size, state.publish_id)
-    return state.publish_id
+    session = Session(state, size, mime_type)
+    return drive(session, path=path, size=size, on_progress=on_progress, should_cancel=should_cancel)

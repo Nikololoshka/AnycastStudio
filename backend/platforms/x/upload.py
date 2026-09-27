@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import FILE, PLATFORM, VALIDATION, PlatformFailure
-from ..upload import UploadCancelled, fresh_token_on_rejection
+from ..http import PLATFORM, VALIDATION, PlatformFailure
+from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
 from .api import call, data_of
 
 MAX_SEGMENT_BYTES = 4 * 1024**2
@@ -16,30 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ResumeState:
+class ResumeState(ResumableState):
     media_id: str
     segment_bytes: int
     next_segment: int = 0
     created_at: float = 0
-
-    def as_dict(self) -> dict:
-        return {
-            "media_id": self.media_id,
-            "segment_bytes": self.segment_bytes,
-            "next_segment": self.next_segment,
-            "created_at": self.created_at,
-        }
-
-    @classmethod
-    def of(cls, raw) -> "ResumeState | None":
-        if not isinstance(raw, dict) or not raw.get("media_id") or not raw.get("segment_bytes"):
-            return None
-        return cls(
-            media_id=str(raw["media_id"]),
-            segment_bytes=int(raw["segment_bytes"]),
-            next_segment=int(raw.get("next_segment", 0)),
-            created_at=float(raw.get("created_at", 0)),
-        )
 
     @property
     def expired(self) -> bool:
@@ -82,30 +63,45 @@ def _resumed(resume: ResumeState | None, size: int) -> ResumeState | None:
     return resume
 
 
-def _send_segment(access_token: str, state: ResumeState, handle, size: int) -> None:
-    offset = state.next_segment * state.segment_bytes
-    length = min(state.segment_bytes, size - offset)
-    handle.seek(offset)
-    piece = handle.read(length)
-    if len(piece) != length:
-        raise PlatformFailure(FILE, "The video is shorter than it claimed to be")
-
-    fresh_token_on_rejection(
-        lambda: call(
-            "POST",
-            f"media/upload/{state.media_id}/append",
-            access_token,
-            data={"segment_index": str(state.next_segment)},
-            files={"media": ("segment", piece, "application/octet-stream")},
-        ),
-        state,
-    )
-
-
-def finish(access_token: str, state: ResumeState) -> None:
+def finalize(access_token: str, state: ResumeState) -> None:
     fresh_token_on_rejection(
         lambda: call("POST", f"media/upload/{state.media_id}/finalize", access_token, attempts=1), state
     )
+
+
+@dataclass
+class Session:
+    state: ResumeState
+    size: int
+    access_token: str
+
+    @property
+    def done(self) -> bool:
+        return self.state.next_segment >= self.state.segment_count(self.size)
+
+    @property
+    def uploaded(self) -> int:
+        return self.state.uploaded_bytes(self.size)
+
+    def send_next(self, handle) -> None:
+        offset = self.state.next_segment * self.state.segment_bytes
+        piece = read_piece(handle, offset, min(self.state.segment_bytes, self.size - offset))
+        fresh_token_on_rejection(
+            lambda: call(
+                "POST",
+                f"media/upload/{self.state.media_id}/append",
+                self.access_token,
+                data={"segment_index": str(self.state.next_segment)},
+                files={"media": ("segment", piece, "application/octet-stream")},
+            ),
+            self.state,
+        )
+        self.state.next_segment += 1
+
+    def finish(self) -> str:
+        finalize(self.access_token, self.state)
+        logger.info("Uploaded %d bytes to X as media %s", self.size, self.state.media_id)
+        return self.state.media_id
 
 
 def upload(
@@ -122,18 +118,5 @@ def upload(
         raise PlatformFailure(VALIDATION, "The video is empty")
 
     state = _resumed(resume, size) or start(access_token, size, mime_type)
-    total = state.segment_count(size)
-
-    with open(path, "rb") as handle:
-        while state.next_segment < total:
-            if should_cancel and should_cancel():
-                raise UploadCancelled(state.as_dict())
-
-            _send_segment(access_token, state, handle, size)
-            state.next_segment += 1
-            if on_progress:
-                on_progress(state.uploaded_bytes(size), size, state)
-
-    finish(access_token, state)
-    logger.info("Uploaded %d bytes to X as media %s", size, state.media_id)
-    return state.media_id
+    session = Session(state, size, access_token)
+    return drive(session, path=path, size=size, on_progress=on_progress, should_cancel=should_cancel)

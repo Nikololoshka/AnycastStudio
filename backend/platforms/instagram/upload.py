@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import FILE, PLATFORM, VALIDATION, PlatformFailure, json_dict
-from ..upload import UploadCancelled, fresh_token_on_rejection
+from ..http import PLATFORM, VALIDATION, PlatformFailure, json_dict
+from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
 from .api import RUPLOAD_ROOT, authorization, call, send
 from .status import fetch as container_status
 
@@ -31,23 +31,10 @@ class ReelInfo:
 
 
 @dataclass
-class ResumeState:
+class ResumeState(ResumableState):
     container_id: str
     offset: int = 0
     created_at: float = 0
-
-    def as_dict(self) -> dict:
-        return {"container_id": self.container_id, "offset": self.offset, "created_at": self.created_at}
-
-    @classmethod
-    def of(cls, raw) -> "ResumeState | None":
-        if not isinstance(raw, dict) or not raw.get("container_id"):
-            return None
-        return cls(
-            container_id=str(raw["container_id"]),
-            offset=int(raw.get("offset", 0)),
-            created_at=float(raw.get("created_at", 0)),
-        )
 
     @property
     def expired(self) -> bool:
@@ -79,20 +66,34 @@ def _resumed(access_token: str, resume: ResumeState | None, size: int) -> Resume
     return resume
 
 
-def _send_chunk(access_token: str, state: ResumeState, handle, size: int) -> int:
-    length = min(settings.PLATFORM_CHUNK_BYTES, size - state.offset)
-    handle.seek(state.offset)
-    piece = handle.read(length)
-    if len(piece) != length:
-        raise PlatformFailure(FILE, "The video is shorter than it claimed to be")
+@dataclass
+class Session:
+    state: ResumeState
+    size: int
+    access_token: str
 
-    headers = {**authorization(access_token), "offset": str(state.offset), "file_size": str(size)}
-    response = fresh_token_on_rejection(
-        lambda: send("POST", f"{RUPLOAD_ROOT}/{state.container_id}", headers=headers, data=piece), state
-    )
-    if json_dict(response).get("success") is not True:
-        raise PlatformFailure(PLATFORM, "Instagram did not accept a piece of the video")
-    return length
+    @property
+    def done(self) -> bool:
+        return self.state.offset >= self.size
+
+    @property
+    def uploaded(self) -> int:
+        return self.state.offset
+
+    def send_next(self, handle) -> None:
+        length = min(settings.PLATFORM_CHUNK_BYTES, self.size - self.state.offset)
+        piece = read_piece(handle, self.state.offset, length)
+        headers = {**authorization(self.access_token), "offset": str(self.state.offset), "file_size": str(self.size)}
+        response = fresh_token_on_rejection(
+            lambda: send("POST", f"{RUPLOAD_ROOT}/{self.state.container_id}", headers=headers, data=piece), self.state
+        )
+        if json_dict(response).get("success") is not True:
+            raise PlatformFailure(PLATFORM, "Instagram did not accept a piece of the video")
+        self.state.offset += length
+
+    def finish(self) -> str:
+        logger.info("Uploaded %d bytes to Instagram as container %s", self.size, self.state.container_id)
+        return self.state.container_id
 
 
 def upload(
@@ -110,15 +111,5 @@ def upload(
         raise PlatformFailure(VALIDATION, "The video is empty")
 
     state = _resumed(access_token, resume, size) or start(access_token, ig_user_id, reel)
-
-    with open(path, "rb") as handle:
-        while state.offset < size:
-            if should_cancel and should_cancel():
-                raise UploadCancelled(state.as_dict())
-
-            state.offset += _send_chunk(access_token, state, handle, size)
-            if on_progress:
-                on_progress(state.offset, size, state)
-
-    logger.info("Uploaded %d bytes to Instagram as container %s", size, state.container_id)
-    return state.container_id
+    session = Session(state, size, access_token)
+    return drive(session, path=path, size=size, on_progress=on_progress, should_cancel=should_cancel)
