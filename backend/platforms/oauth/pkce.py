@@ -1,10 +1,3 @@
-"""PKCE, generated on the server.
-
-The desktop app kept the verifier in a JavaScript closure. Here the browser
-never sees it: it is stored encrypted against the OAuth session and used once,
-when the code comes back.
-"""
-
 import base64
 import hashlib
 import secrets

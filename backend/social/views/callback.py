@@ -11,7 +11,7 @@ import logging
 from django.http import HttpResponseRedirect
 from django.views.decorators.http import require_GET
 
-from platforms.base import ProviderError
+from platforms.oauth import ProviderError
 
 from .. import services, sessions
 from ..providers import get_provider

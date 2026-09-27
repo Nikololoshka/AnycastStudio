@@ -55,12 +55,23 @@ class GoogleDouble:
         self.fail_at = fail_at
         self.failure = failure or FakeResponse(500, {"error": {"message": "boom"}})
         self.session_calls = 0
+        self.progress_queries = 0
+
+    def progress(self) -> "FakeResponse":
+        if self.received >= self.size:
+            return FakeResponse(200, {"id": VIDEO_ID})
+        if self.received == 0:
+            return FakeResponse(308, {})
+        return FakeResponse(308, {}, {"Range": f"bytes=0-{self.received - 1}"})
 
     def __call__(self, method, url, **kwargs):
         if "upload/youtube" in url:
             self.session_calls += 1
             return FakeResponse(200, {}, {"Location": SESSION_URI})
 
+        if url == SESSION_URI and kwargs["headers"]["Content-Range"].startswith("bytes */"):
+            self.progress_queries += 1
+            return self.progress()
         if url == SESSION_URI:
             body = kwargs.get("data") or b""
             self.ranges.append(kwargs["headers"]["Content-Range"])
@@ -110,11 +121,11 @@ class PublishingTestCase(TestCase):
         self.account = self.given_connected_account()
         self.asset = self.given_uploaded_asset()
 
-        patcher = mock.patch("platforms.http.requests.request")
+        patcher = mock.patch("platforms.http.transport.requests.request")
         self.http = patcher.start()
         self.addCleanup(patcher.stop)
         # Nothing here sleeps for real; the backoff is the policy, not the wait.
-        sleeper = mock.patch("platforms.http.time.sleep")
+        sleeper = mock.patch("platforms.http.retry.time.sleep")
         sleeper.start()
         self.addCleanup(sleeper.stop)
 

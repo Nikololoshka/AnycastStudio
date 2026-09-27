@@ -16,8 +16,8 @@ from django.utils import timezone
 
 from media import storage
 from platforms import youtube
-from platforms.base import ProviderError
 from platforms.http import PlatformFailure
+from platforms.oauth import ProviderError
 from social import services as social_services
 
 from .models import PublicationTarget
@@ -114,23 +114,23 @@ def _validate(target: PublicationTarget) -> None:
         raise FileNotFoundError(asset.storage_path)
 
 
-def _metadata(target: PublicationTarget, settings_) -> youtube.VideoMetadata:
+def _metadata(target: PublicationTarget, options: youtube.VideoOptions) -> youtube.VideoMetadata:
     publication = target.publication
     return youtube.VideoMetadata(
         title=publication.title,
         description=youtube.description_with_hashtags(
-            publication.description, list(publication.hashtags), settings_
+            publication.description, list(publication.hashtags), options
         ),
         tags=list(publication.hashtags),
         # Scheduled videos must go up private, or YouTube ignores publishAt.
-        privacy_status="private" if publication.publish_at else settings_.privacy_status,
-        category_id=settings_.category_id,
-        license=settings_.license,
-        embeddable=settings_.embeddable,
-        public_stats_viewable=settings_.public_stats_viewable,
-        made_for_kids=settings_.made_for_kids,
-        contains_synthetic_media=settings_.contains_synthetic_media,
-        notify_subscribers=settings_.notify_subscribers,
+        privacy_status="private" if publication.publish_at else options.privacy_status,
+        category_id=options.category_id,
+        license=options.license,
+        embeddable=options.embeddable,
+        public_stats_viewable=options.public_stats_viewable,
+        made_for_kids=options.made_for_kids,
+        contains_synthetic_media=options.contains_synthetic_media,
+        notify_subscribers=options.notify_subscribers,
     )
 
 
@@ -139,7 +139,7 @@ def _upload(target: PublicationTarget) -> str:
         return target.uploaded_media_id  # a retry after the bytes already landed
 
     asset = target.publication.asset
-    settings_ = youtube.settings_of(target.settings)
+    options = youtube.video_options_of(target.settings)
 
     _set(target, status=Status.UPLOADING, total_bytes=asset.size_bytes)
 
@@ -170,7 +170,7 @@ def _upload(target: PublicationTarget) -> str:
             path=storage.absolute(asset.storage_path),
             size=asset.size_bytes,
             mime_type=asset.mime_type,
-            metadata=_metadata(target, settings_),
+            metadata=_metadata(target, options),
             access_token=token,
             resume=resume,
             on_progress=on_progress,
@@ -191,7 +191,7 @@ def _upload(target: PublicationTarget) -> str:
             path=storage.absolute(asset.storage_path),
             size=asset.size_bytes,
             mime_type=asset.mime_type,
-            metadata=_metadata(target, settings_),
+            metadata=_metadata(target, options),
             access_token=fresh,
             resume=stale.state,
             on_progress=on_progress,
@@ -206,12 +206,12 @@ def _publish(target: PublicationTarget, video_id: str) -> str:
     _check_cancelled(target)
     _set(target, status=Status.PUBLISHING)
 
-    settings_ = youtube.settings_of(target.settings)
+    options = youtube.video_options_of(target.settings)
     token = social_services.get_valid_access_token(target.social_account)
     publish_at = target.publication.publish_at
 
     if publish_at:
-        url = youtube.schedule(video_id, token, settings_, publish_at.isoformat())
+        url = youtube.schedule(video_id, token, options, publish_at.isoformat())
         _set(
             target,
             status=Status.SCHEDULED,
@@ -222,7 +222,7 @@ def _publish(target: PublicationTarget, video_id: str) -> str:
         logger.info("Target %s scheduled for %s", target.pk, publish_at.isoformat())
         return Status.SCHEDULED
 
-    url = youtube.publish(video_id, token, settings_)
+    url = youtube.publish(video_id, token, options)
     _set(
         target,
         status=Status.COMPLETED,

@@ -4,7 +4,7 @@ Adding a platform is one import and one entry: everything else — the session
 lifecycle, the views, the URLs — is shared.
 """
 
-from platforms.base import PlatformProvider, ProviderError
+from platforms.oauth import PlatformProvider, ProviderError
 from platforms.youtube import YouTubeProvider
 
 PROVIDERS: dict[str, PlatformProvider] = {

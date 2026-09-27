@@ -89,7 +89,7 @@ Unless asked otherwise:
 | Queue | celery[redis] 5.6 | Background uploads | `acks_late`; no task-level retry, the pipeline decides |
 | Encryption | cryptography | Platform tokens at rest | `MultiFernet`, rotatable; see `common/encryption/` |
 | Passwords | argon2-cffi | Hashing | First in `PASSWORD_HASHERS` |
-| HTTP (server) | requests | Platform calls | Only through `platforms/http.py` |
+| HTTP (server) | requests | Platform calls | Only through `platforms/http/` |
 | Config | python-dotenv | Reads `backend/.env` | Real env vars win |
 | UI | HeroUI 3 | Component library | Compound components; built on React Aria |
 | Styling | Tailwind CSS 4.3 | Utilities and theme tokens | Tokens defined in `src/styles.css` |
@@ -137,8 +137,9 @@ reports progress. Publishing, scheduling and tokens are the server's.
   self-contained: no imports between `platforms/youtube` and its future
   siblings.
 - Every platform implements `PlatformProvider` for OAuth and the upload/publish
-  functions its own module exposes; `platforms/base.py` holds the shapes.
-- Every platform HTTP call goes through `platforms/http.py`, which owns the
+  functions its own module exposes; `platforms/oauth/` and
+  `platforms/capabilities/` hold the shapes.
+- Every platform HTTP call goes through `platforms/http/`, which owns the
   timeout, the error classification and the retry policy.
 - Server state in the browser belongs to an RTK Query endpoint in `src/api/`.
   Only genuinely client-owned state goes in a slice: the composer draft, the
@@ -221,11 +222,11 @@ from one check, which is why this project does not need a framework layer here.
 backend/
 ├─ config/        settings/{base,dev,test}.py, urls, asgi, celery
 ├─ common/        one package per task: responses, access, rate_limit, request_body, encryption
-├─ accounts/      User, Quota, sign-in
+├─ accounts/      User with its limits, sign-in
 ├─ social/        SocialAccount, OAuthSession, provider registry, connect/callback
 ├─ media/         MediaAsset, UploadSession, chunked upload, storage, sweeps
 ├─ publishing/    Publication, PublicationTarget, pipeline, tasks, API
-└─ platforms/     plain package: base, http, pkce, youtube/
+└─ platforms/     plain package: oauth/, capabilities/, http/, youtube/
 
 frontend/src/
 ├─ api/           RTK Query: baseApi + one module per area
@@ -312,7 +313,7 @@ npm run dev                                        # http://localhost:5173
 
 - **Backend tests are mandatory** for new behaviour. They are Django
   `TestCase`, written as Given / When / Then, with the platform mocked at
-  `platforms.http.requests.request` so the real chunking and retry run.
+  `platforms.http.transport.requests.request` so the real chunking and retry run.
 - What must have a test: anything about who can see what, anything about
   tokens, the upload offsets, and every way a platform can refuse.
 - **Frontend tests cover pure functions only** — hashtag normalisation, the

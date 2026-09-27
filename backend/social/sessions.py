@@ -8,7 +8,7 @@ SELECT ... FOR UPDATE SKIP LOCKED and the pattern ports unchanged to Postgres.
 import logging
 import secrets
 
-from platforms import pkce
+from platforms.oauth import pkce
 
 from .models import OAuthSession
 

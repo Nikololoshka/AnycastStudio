@@ -1,23 +1,24 @@
-from .capabilities import capabilities, validate
+from .capabilities import LABEL, capabilities, validate
 from .oauth import YouTubeProvider
 from .publish import publish, schedule, watch_url
-from .settings import YouTubeSettings, description_with_hashtags, settings_of
 from .upload import Cancelled as UploadCancelled
 from .upload import NeedsFreshToken, ResumeState, VideoMetadata, upload
+from .video_options import VideoOptions, description_with_hashtags, video_options_of
 
 __all__ = [
+    "LABEL",
     "NeedsFreshToken",
     "ResumeState",
     "UploadCancelled",
     "VideoMetadata",
+    "VideoOptions",
     "YouTubeProvider",
-    "YouTubeSettings",
     "capabilities",
     "description_with_hashtags",
     "publish",
     "schedule",
-    "settings_of",
     "upload",
     "validate",
+    "video_options_of",
     "watch_url",
 ]

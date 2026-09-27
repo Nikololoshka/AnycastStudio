@@ -263,7 +263,7 @@ class ContractScenarios(PublishingTestCase):
         from pathlib import Path
         import re
 
-        from platforms.youtube import settings_of
+        from platforms.youtube import video_options_of
 
         source = Path(__file__).resolve().parents[3] / "frontend/src/platforms/youtube/settings.ts"
         block = re.search(
@@ -273,7 +273,7 @@ class ContractScenarios(PublishingTestCase):
         frontend = dict(
             re.findall(r"(\w+):\s*'?([\w]+)'?,", block)
         )
-        backend = {key: str(value) for key, value in settings_of({}).as_json().items()}
+        backend = {key: str(value) for key, value in video_options_of({}).as_json().items()}
 
         for key, value in frontend.items():
             self.assertEqual(

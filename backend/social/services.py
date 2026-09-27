@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from common.encryption import current_key_version
-from platforms.base import Identity, ProviderError, TokenBundle
+from platforms.oauth import Identity, ProviderError, TokenBundle
 
 from .models import SocialAccount
 from .providers import PROVIDERS

@@ -1,26 +1,29 @@
-"""Connecting a YouTube channel.
-
-Google is a standard OAuth 2.0 provider with PKCE. Two details decide whether
-the connection survives:
-
-- access_type=offline together with prompt=consent is what makes Google issue a
-  refresh token at all, and re-issue one if the person reconnects;
-- Google does not return the refresh token when refreshing, so the stored one
-  must be carried forward. TokenBundle.merged_with does that.
-"""
-
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.urls import reverse
 
-from ..base import Identity, ProviderError, TokenBundle
-from ..http import json_dict, request
+from ..oauth import Identity, ProviderError, TokenBundle
+from ..http import PlatformFailure, json_dict, request, with_retry
 
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"
 CHANNELS_ENDPOINT = "https://www.googleapis.com/youtube/v3/channels"
+
+LABEL = "Google"
+OAUTH_ATTEMPTS = 3
+
+
+def _send(method: str, url: str, **kwargs):
+    try:
+        return with_retry(
+            lambda: request(method, url, label=LABEL, **kwargs),
+            label=LABEL,
+            attempts=OAUTH_ATTEMPTS,
+        )
+    except PlatformFailure as failure:
+        raise ProviderError(failure.message) from None
 
 
 class YouTubeProvider:
@@ -36,12 +39,14 @@ class YouTubeProvider:
     def redirect_uri(self) -> str:
         return f"{settings.PUBLIC_ORIGIN}{reverse('social-callback', args=[self.name])}"
 
-    def _client_id(self) -> str:
+    @staticmethod
+    def _client_id() -> str:
         if not settings.YOUTUBE_CLIENT_ID:
             raise ProviderError("YOUTUBE_CLIENT_ID is not configured")
         return settings.YOUTUBE_CLIENT_ID
 
-    def _client_secret(self) -> str:
+    @staticmethod
+    def _client_secret() -> str:
         if not settings.YOUTUBE_CLIENT_SECRET:
             raise ProviderError("YOUTUBE_CLIENT_SECRET is not configured")
         return settings.YOUTUBE_CLIENT_SECRET
@@ -62,14 +67,11 @@ class YouTubeProvider:
         return f"{AUTH_ENDPOINT}?{urlencode(params)}"
 
     def _post_token(self, data: dict) -> TokenBundle:
-        response = request("POST", TOKEN_ENDPOINT, label="Google", data=data)
+        response = _send("POST", TOKEN_ENDPOINT, data=data)
         body = json_dict(response)
 
-        if response.status_code != 200 or not body.get("access_token"):
-            message = body.get("error_description") or body.get("error")
-            raise ProviderError(
-                str(message or f"Unexpected response from Google (HTTP {response.status_code})")[:500]
-            )
+        if not body.get("access_token"):
+            raise ProviderError(f"Unexpected response from Google (HTTP {response.status_code})")
 
         return TokenBundle(
             access_token=body["access_token"],
@@ -101,20 +103,14 @@ class YouTubeProvider:
         )
 
     def fetch_identity(self, access_token: str) -> Identity:
-        response = request(
+        response = _send(
             "GET",
             CHANNELS_ENDPOINT,
-            label="Google",
             params={"part": "snippet", "mine": "true"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
-        body = json_dict(response)
 
-        if response.status_code != 200:
-            message = (body.get("error") or {}).get("message")
-            raise ProviderError(str(message or "Could not read the YouTube channel")[:500])
-
-        items = body.get("items") or []
+        items = json_dict(response).get("items") or []
         if not items:
             raise ProviderError("This Google account has no YouTube channel")
 
@@ -130,5 +126,4 @@ class YouTubeProvider:
         )
 
     def revoke(self, token: str) -> None:
-        # Best effort: the account is disconnected here regardless of what Google says.
-        request("POST", REVOKE_ENDPOINT, label="Google", data={"token": token})
+        _send("POST", REVOKE_ENDPOINT, data={"token": token})

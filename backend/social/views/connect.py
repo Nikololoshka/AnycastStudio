@@ -9,7 +9,7 @@ import logging
 from common.access import require_auth, require_post
 from common.rate_limit import rate_limit
 from common.responses import api_response
-from platforms.base import ProviderError
+from platforms.oauth import ProviderError
 
 from .. import sessions
 from ..providers import get_provider

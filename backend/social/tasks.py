@@ -5,7 +5,7 @@ import logging
 from celery import shared_task
 from django.utils import timezone
 
-from platforms.base import ProviderError
+from platforms.oauth import ProviderError
 
 from . import services
 from .models import SocialAccount

@@ -146,7 +146,8 @@ is `database is locked` in the worker log.
 ## Adding a platform
 
 1. `backend/platforms/<platform>/` — `oauth.py`, `upload.py`, `publish.py`,
-   `settings.py`, `capabilities.py`. No imports from another platform folder.
+   `video_options.py`, `capabilities.py`, and `tests/` in `backend/platforms/`.
+   No imports from another platform folder.
 2. Register the provider in `social/providers.py` and the capabilities in
    `publishing/views/platforms.py`.
 3. Teach `publishing/pipeline.py` to dispatch on the target's platform.

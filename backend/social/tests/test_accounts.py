@@ -5,7 +5,7 @@ from unittest import mock
 from django.utils import timezone
 
 from accounts.models import User
-from platforms.base import ProviderError
+from platforms.oauth import ProviderError
 from social import services
 from social.models import SocialAccount
 from social.tests.base import (

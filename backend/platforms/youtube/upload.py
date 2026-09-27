@@ -1,26 +1,13 @@
-"""Uploading a video to YouTube, resumably.
-
-A port of the Rust command the desktop client used, with one addition that only
-matters on a server: the session URI and the confirmed offset are handed back
-after every chunk, so a worker that dies mid-upload resumes instead of sending
-gigabytes again.
-
-Google's protocol: open a session and keep the Location header, then PUT
-pieces with a Content-Range. A 308 means "still going" and the Range header of
-that reply — not the client's arithmetic — says how much actually landed.
-"""
-
 import logging
 import re
 from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..base import ProviderError
-from ..http import AUTHENTICATION, PlatformFailure, json_dict, request, with_retry
+from ..http import AUTHENTICATION, FILE, PLATFORM, PlatformFailure, json_dict, request, with_retry
+from .capabilities import LABEL
 
 UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/youtube/v3/videos"
-LABEL = "YouTube"
 
 RANGE_PATTERN = re.compile(r"bytes=0-(\d+)")
 
@@ -75,8 +62,19 @@ class VideoMetadata:
         }
 
 
+class Cancelled(Exception):
+    def __init__(self, state: ResumeState):
+        super().__init__("cancelled")
+        self.state = state
+
+
+class NeedsFreshToken(Exception):
+    def __init__(self, state: ResumeState, message: str):
+        super().__init__(message)
+        self.state = state
+
+
 def start_session(access_token: str, metadata: VideoMetadata, size: int, mime_type: str) -> str:
-    """Open a resumable session and return the URI to send the bytes to."""
     params = {
         "uploadType": "resumable",
         "part": "snippet,status",
@@ -91,27 +89,54 @@ def start_session(access_token: str, metadata: VideoMetadata, size: int, mime_ty
 
     response = with_retry(
         lambda: request(
-            "POST",
-            UPLOAD_ENDPOINT,
-            label=LABEL,
-            params=params,
-            headers=headers,
-            json=metadata.as_body(),
+            "POST", UPLOAD_ENDPOINT, label=LABEL, params=params, headers=headers, json=metadata.as_body()
         ),
         label=LABEL,
     )
 
     location = response.headers.get("Location")
     if not location:
-        raise PlatformFailure("platform", "YouTube did not open an upload session")
+        raise PlatformFailure(PLATFORM, "YouTube did not open an upload session")
     return location
 
 
-def confirmed_offset(response, fallback: int) -> int:
-    """How far Google says it got. Its answer wins over ours."""
-    header = response.headers.get("Range", "")
-    match = RANGE_PATTERN.search(header)
-    return int(match.group(1)) + 1 if match else fallback
+def persisted_offset(response) -> int:
+    match = RANGE_PATTERN.search(response.headers.get("Range", ""))
+    return int(match.group(1)) + 1 if match else 0
+
+
+def _is_complete(response) -> bool:
+    return response.status_code in (200, 201)
+
+
+def _put(state: ResumeState, headers: dict, body: bytes = b""):
+    try:
+        return with_retry(
+            lambda: request("PUT", state.session_uri, label=LABEL, headers=headers, data=body),
+            label=LABEL,
+        )
+    except PlatformFailure as failure:
+        if failure.type == AUTHENTICATION:
+            raise NeedsFreshToken(state, failure.message) from None
+        raise
+
+
+def _ask_progress(state: ResumeState, size: int):
+    return _put(state, {"Content-Range": f"bytes */{size}"})
+
+
+def _send_piece(state: ResumeState, piece: bytes, size: int, mime_type: str):
+    last = state.offset + len(piece) - 1
+    headers = {"Content-Range": f"bytes {state.offset}-{last}/{size}", "Content-Type": mime_type}
+    return _put(state, headers, piece)
+
+
+def _video_id(response, size: int) -> str:
+    video_id = json_dict(response).get("id")
+    if not video_id:
+        raise PlatformFailure(PLATFORM, "YouTube accepted the file but returned no video id")
+    logger.info("Uploaded %d bytes to YouTube as %s", size, video_id)
+    return str(video_id)
 
 
 def upload(
@@ -125,85 +150,40 @@ def upload(
     on_progress=None,
     should_cancel=None,
 ) -> str:
-    """Send the file and return the video id.
-
-    `on_progress(uploaded, total, state)` is called after every chunk with the
-    resume point, so the caller can persist it. `should_cancel()` is checked
-    between chunks, which is where the desktop client checked its flag too.
-    """
-    state = resume or ResumeState(
-        session_uri=start_session(access_token, metadata, size, mime_type)
-    )
+    if resume is None:
+        state = ResumeState(session_uri=start_session(access_token, metadata, size, mime_type))
+    else:
+        state = resume
+        progress = _ask_progress(state, size)
+        if _is_complete(progress):
+            return _video_id(progress, size)
+        state.offset = persisted_offset(progress)
 
     chunk_size = settings.PLATFORM_CHUNK_BYTES
+    chunks_without_progress = 0
 
     with open(path, "rb") as handle:
-        while state.offset < size:
+        while True:
             if should_cancel and should_cancel():
                 raise Cancelled(state)
 
             handle.seek(state.offset)
             piece = handle.read(chunk_size)
             if not piece:
-                raise PlatformFailure("file", "The video is shorter than it claimed to be")
+                raise PlatformFailure(FILE, "The video is shorter than it claimed to be")
 
-            last = state.offset + len(piece) - 1
-            headers = {
-                "Content-Range": f"bytes {state.offset}-{last}/{size}",
-                "Content-Type": mime_type,
-            }
+            response = _send_piece(state, piece, size, mime_type)
+            if _is_complete(response):
+                state.offset = size
+                if on_progress:
+                    on_progress(size, size, state)
+                return _video_id(response, size)
 
-            try:
-                response = with_retry(
-                    lambda body=piece, sent=headers: request(
-                        "PUT", state.session_uri, label=LABEL, headers=sent, data=body
-                    ),
-                    label=LABEL,
-                )
-            except PlatformFailure as failure:
-                # The token died mid-upload. Hand the resume point out so the
-                # caller can refresh and carry on from here.
-                if failure.type == AUTHENTICATION:
-                    raise NeedsFreshToken(state, failure.message) from None
-                raise
+            previous = state.offset
+            state.offset = persisted_offset(response)
+            chunks_without_progress = chunks_without_progress + 1 if state.offset <= previous else 0
+            if chunks_without_progress >= settings.UPLOAD_RETRY_ATTEMPTS:
+                raise PlatformFailure(PLATFORM, "YouTube stopped accepting the upload")
 
-            state.offset = confirmed_offset(response, state.offset + len(piece))
             if on_progress:
                 on_progress(state.offset, size, state)
-
-            if response.status_code in (200, 201):
-                break
-
-    body = json_dict(response)
-    video_id = body.get("id")
-    if not video_id:
-        raise PlatformFailure("platform", "YouTube accepted the file but returned no video id")
-
-    logger.info("Uploaded %d bytes to YouTube as %s", size, video_id)
-    return str(video_id)
-
-
-class Cancelled(Exception):
-    def __init__(self, state: ResumeState):
-        super().__init__("cancelled")
-        self.state = state
-
-
-class NeedsFreshToken(Exception):
-    """The access token expired mid-upload; everything sent so far is still there."""
-
-    def __init__(self, state: ResumeState, message: str):
-        super().__init__(message)
-        self.state = state
-
-
-__all__ = [
-    "Cancelled",
-    "NeedsFreshToken",
-    "ProviderError",
-    "ResumeState",
-    "VideoMetadata",
-    "confirmed_offset",
-    "start_session",
-    "upload",
-]

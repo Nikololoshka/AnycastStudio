@@ -1,10 +1,3 @@
-"""Per-publication YouTube settings, and what the server will accept.
-
-This mirrors frontend/src/platforms/youtube/settings.ts. The frontend's copy
-exists so the composer can show the right controls; this one decides. A
-contract test keeps the defaults in step.
-"""
-
 from dataclasses import asdict, dataclass
 
 PRIVACY_VALUES = ("private", "unlisted", "public")
@@ -17,9 +10,19 @@ MAX_TITLE_LENGTH = 100
 MAX_DESCRIPTION_LENGTH = 5000
 MAX_DESCRIPTION_HASHTAGS = 15
 
+JSON_KEYS = {
+    "privacy_status": "privacyStatus",
+    "category_id": "categoryId",
+    "made_for_kids": "madeForKids",
+    "notify_subscribers": "notifySubscribers",
+    "contains_synthetic_media": "containsSyntheticMedia",
+    "public_stats_viewable": "publicStatsViewable",
+    "hashtags_in_description": "hashtagsInDescription",
+}
+
 
 @dataclass(frozen=True)
-class YouTubeSettings:
+class VideoOptions:
     privacy_status: str = "private"
     category_id: str = "22"
     license: str = "youtube"
@@ -31,17 +34,7 @@ class YouTubeSettings:
     hashtags_in_description: bool = True
 
     def as_json(self) -> dict:
-        """The camelCase shape the browser and the database use."""
-        mapping = {
-            "privacy_status": "privacyStatus",
-            "category_id": "categoryId",
-            "made_for_kids": "madeForKids",
-            "notify_subscribers": "notifySubscribers",
-            "contains_synthetic_media": "containsSyntheticMedia",
-            "public_stats_viewable": "publicStatsViewable",
-            "hashtags_in_description": "hashtagsInDescription",
-        }
-        return {mapping.get(key, key): value for key, value in asdict(self).items()}
+        return {JSON_KEYS.get(key, key): value for key, value in asdict(self).items()}
 
 
 def _one_of(value, allowed, fallback):
@@ -53,30 +46,25 @@ def _flag(raw: dict, key: str, fallback: bool) -> bool:
     return fallback if value is None else bool(value)
 
 
-def settings_of(raw) -> YouTubeSettings:
-    """Read whatever the client sent, keeping only what YouTube understands."""
+def video_options_of(raw) -> VideoOptions:
     raw = raw if isinstance(raw, dict) else {}
-    default = YouTubeSettings()
+    default = VideoOptions()
 
-    return YouTubeSettings(
+    return VideoOptions(
         privacy_status=_one_of(raw.get("privacyStatus"), PRIVACY_VALUES, default.privacy_status),
         category_id=_one_of(raw.get("categoryId"), CATEGORY_IDS, default.category_id),
         license=_one_of(raw.get("license"), LICENSE_VALUES, default.license),
         made_for_kids=_flag(raw, "madeForKids", default.made_for_kids),
         notify_subscribers=_flag(raw, "notifySubscribers", default.notify_subscribers),
-        contains_synthetic_media=_flag(
-            raw, "containsSyntheticMedia", default.contains_synthetic_media
-        ),
+        contains_synthetic_media=_flag(raw, "containsSyntheticMedia", default.contains_synthetic_media),
         embeddable=_flag(raw, "embeddable", default.embeddable),
         public_stats_viewable=_flag(raw, "publicStatsViewable", default.public_stats_viewable),
-        hashtags_in_description=_flag(
-            raw, "hashtagsInDescription", default.hashtags_in_description
-        ),
+        hashtags_in_description=_flag(raw, "hashtagsInDescription", default.hashtags_in_description),
     )
 
 
-def description_with_hashtags(description: str, hashtags: list[str], settings_: YouTubeSettings) -> str:
-    if not settings_.hashtags_in_description or not hashtags:
+def description_with_hashtags(description: str, hashtags: list[str], options: VideoOptions) -> str:
+    if not options.hashtags_in_description or not hashtags:
         return description
 
     tags = " ".join(f"#{tag}" for tag in hashtags[:MAX_DESCRIPTION_HASHTAGS])

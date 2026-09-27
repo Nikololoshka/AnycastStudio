@@ -1,11 +1,7 @@
-"""What YouTube supports and what it will refuse.
+from ..capabilities import Capabilities, ValidationResult
+from .video_options import MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH
 
-Served to the browser so the composer adapts to the platform instead of
-hardcoding assumptions about it, and used by the pipeline as the authority.
-"""
-
-from ..base import Capabilities, ValidationResult
-from .settings import MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH
+LABEL = "YouTube"
 
 MAX_FILE_BYTES = 128 * 1024**3
 
@@ -23,7 +19,7 @@ SUPPORTED_MIME_TYPES = (
 
 def capabilities() -> Capabilities:
     return Capabilities(
-        label="YouTube",
+        label=LABEL,
         scheduling="native",
         title=True,
         description=True,

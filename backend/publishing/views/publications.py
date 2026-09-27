@@ -10,7 +10,7 @@ from common.rate_limit import rate_limit
 from common.request_body import validate
 from common.responses import api_response
 from media.models import MediaAsset
-from platforms.base import ProviderError
+from platforms.oauth import ProviderError
 from social.models import SocialAccount
 
 from .. import services
