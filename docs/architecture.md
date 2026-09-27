@@ -158,6 +158,9 @@ is `database is locked` in the worker log.
    the `AVAILABLE_PLATFORMS` entry, then register it in `platforms/registry.ts`,
    `platforms/settings.ts` and `features/composer/PlatformTab.tsx`.
 
+The full walkthrough, with what the TikTok port taught, is in
+`docs/platforms/adding-a-platform.md`.
+
 X and Instagram are in the `v0-desktop` tag, along with the Rust upload loops
 that document each one's protocol. Two defects in that code must be fixed while
 porting rather than carried over: X does not poll `STATUS` after `FINALIZE`,
