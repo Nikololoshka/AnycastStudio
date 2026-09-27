@@ -3,12 +3,14 @@ import type { AvailablePlatform } from '../domain/platform/order';
 import type { PlatformDescriptor } from './PlatformDescriptor';
 import { InstagramDescriptor } from './instagram/InstagramDescriptor';
 import { TikTokDescriptor } from './tiktok/TikTokDescriptor';
+import { XDescriptor } from './x/XDescriptor';
 import { YouTubeDescriptor } from './youtube/YouTubeDescriptor';
 
 const descriptors: Record<AvailablePlatform, PlatformDescriptor> = {
   youtube: new YouTubeDescriptor(),
   tiktok: new TikTokDescriptor(),
   instagram: new InstagramDescriptor(),
+  x: new XDescriptor(),
 };
 
 export function getDescriptorFor(platform: AvailablePlatform): PlatformDescriptor {

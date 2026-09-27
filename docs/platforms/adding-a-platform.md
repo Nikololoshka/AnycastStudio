@@ -169,21 +169,14 @@ Already done; X and Instagram use it as it is.
 
 ---
 
-## Notes for the next two
+## Notes on the ported platforms
 
 Read from the desktop code; check each one against the platform's current
 documentation before relying on it.
 
-**X**
-
-- OAuth 2 with standard S256 PKCE (`s256_challenge`), scopes
-  `tweet.read tweet.write users.read media.write offline.access`. The refresh
-  token rotates, and the lease covers that.
-- Upload: `POST https://api.x.com/2/media/upload` with `INIT`, `APPEND`
-  (`segment_index`, 5 MiB), `FINALIZE`. The desktop did not poll `STATUS`
-  after `FINALIZE` — fix it by polling processing in `upload` before the post
-  is created, or in `confirm`.
-- Desktop limits: 512 MiB. No native scheduling.
+**X** — ported; what was decided is in `docs/platforms/x.md`. The desktop's
+`command=INIT/APPEND/FINALIZE` upload is retired by X; the port uses
+`/2/media/upload/initialize`, `/{id}/append` and `/{id}/finalize`.
 
 **Instagram** — ported; what was decided is in `docs/platforms/instagram.md`.
 
