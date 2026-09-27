@@ -7,6 +7,8 @@ from .outcome import NeedsFreshToken, Published, UploadCancelled
 
 Status = PublicationTarget.Status
 
+capabilities = youtube.capabilities
+
 
 def validate(target: PublicationTarget) -> ValidationResult:
     publication = target.publication

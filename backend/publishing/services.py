@@ -7,6 +7,7 @@ from django.utils import timezone
 from media.models import MediaAsset
 from social.models import SocialAccount
 
+from . import schedule
 from .models import Publication, PublicationTarget
 from .tasks import run_target
 
@@ -63,9 +64,16 @@ def create_publication(
     return publication
 
 
+def _hand_to_worker(target: PublicationTarget) -> None:
+    if schedule.waits_for_publish_at(target):
+        logger.info("Target %s waits for its publish time", target.pk)
+        return
+    transaction.on_commit(lambda: run_target.delay(target.pk))
+
+
 def dispatch(publication: Publication) -> None:
-    for target in publication.targets.filter(status=Status.QUEUED):
-        transaction.on_commit(lambda pk=target.pk: run_target.delay(pk))
+    for target in publication.targets.filter(status=Status.QUEUED).select_related("publication"):
+        _hand_to_worker(target)
 
 
 def request_cancel(target: PublicationTarget) -> bool:
@@ -88,6 +96,7 @@ def retry(target: PublicationTarget) -> bool:
         cancel_requested=False,
         error=None,
         finished_at=None,
+        last_activity_at=None,
     )
-    transaction.on_commit(lambda: run_target.delay(target.pk))
+    _hand_to_worker(target)
     return True
