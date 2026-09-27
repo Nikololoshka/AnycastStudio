@@ -1,4 +1,4 @@
-from .body import json_dict, message_of
+from .body import message_of
 from .failures import (
     AUTHENTICATION,
     AUTHORIZATION,
@@ -29,7 +29,6 @@ __all__ = [
     "Present",
     "backoff_ms",
     "classify",
-    "json_dict",
     "message_of",
     "parse",
     "parse_body",

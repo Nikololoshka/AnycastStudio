@@ -1,6 +1,4 @@
-# todo later: change to decode json to native struct, now dict
-
-def json_dict(response) -> dict:
+def _json_dict(response) -> dict:
     try:
         data = response.json()
     except ValueError:
@@ -9,7 +7,7 @@ def json_dict(response) -> dict:
 
 
 def message_of(response, label: str) -> str:
-    body = json_dict(response)
+    body = _json_dict(response)
     error = body.get("error")
     if isinstance(error, dict):
         return str(error.get("message") or error.get("status") or "")[:500]
