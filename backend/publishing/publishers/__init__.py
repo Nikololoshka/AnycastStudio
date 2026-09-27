@@ -1,0 +1,13 @@
+from types import ModuleType
+
+from . import youtube
+from .outcome import Interrupted, NeedsFreshToken, Published, UploadCancelled
+
+PUBLISHERS: dict[str, ModuleType] = {"youtube": youtube}
+
+
+def publisher_for(platform: str) -> ModuleType:
+    return PUBLISHERS[platform]
+
+
+__all__ = ["Interrupted", "NeedsFreshToken", "PUBLISHERS", "Published", "UploadCancelled", "publisher_for"]

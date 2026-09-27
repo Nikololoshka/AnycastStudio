@@ -6,12 +6,12 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from media import storage
-from platforms import youtube
 from platforms.http import AUTHENTICATION, FILE, NETWORK, UNKNOWN, VALIDATION, PlatformFailure
 from platforms.oauth import ProviderError
 from social import services as social_services
 
 from .models import PublicationTarget
+from .publishers import NeedsFreshToken, UploadCancelled, publisher_for
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def _error_of(exception: Exception) -> dict:
         return {"type": exception.type, "message": exception.message, "details": exception.details}
     if isinstance(exception, ProviderError):
         return {"type": NETWORK if exception.transient else AUTHENTICATION, "message": exception.message}
-    if isinstance(exception, youtube.NeedsFreshToken):
+    if isinstance(exception, NeedsFreshToken):
         return {"type": AUTHENTICATION, "message": str(exception)}
     if isinstance(exception, FileNotFoundError):
         return {"type": FILE, "message": "The uploaded video is no longer on the server"}
@@ -68,8 +68,12 @@ def claim(target_id: int) -> PublicationTarget | None:
     ).get(pk=target_id)
 
 
+def _cancel_requested(target: PublicationTarget) -> bool:
+    return PublicationTarget.objects.filter(pk=target.pk, cancel_requested=True).exists()
+
+
 def _check_cancelled(target: PublicationTarget) -> None:
-    if PublicationTarget.objects.filter(pk=target.pk, cancel_requested=True).exists():
+    if _cancel_requested(target):
         raise Cancelled()
 
 
@@ -96,43 +100,13 @@ def run_target(target_id: int) -> str:
 
 
 def _validate(target: PublicationTarget) -> None:
-    publication = target.publication
-    asset = publication.asset
-
-    result = youtube.validate(
-        title=publication.title,
-        description=publication.description,
-        size_bytes=asset.size_bytes,
-        mime_type=asset.mime_type,
-    )
+    result = publisher_for(target.platform).validate(target)
     if not result.valid:
         raise PlatformFailure(VALIDATION, "; ".join(result.errors), details=",".join(result.errors))
 
+    asset = target.publication.asset
     if not storage.absolute(asset.storage_path).exists():
         raise FileNotFoundError(asset.storage_path)
-
-
-def _privacy_at_upload(target: PublicationTarget, options: youtube.VideoOptions) -> str:
-    return "private" if target.publication.publish_at else options.privacy_status
-
-
-def _metadata(target: PublicationTarget, options: youtube.VideoOptions) -> youtube.VideoMetadata:
-    publication = target.publication
-    return youtube.VideoMetadata(
-        title=publication.title,
-        description=youtube.description_with_hashtags(
-            publication.description, list(publication.hashtags), options
-        ),
-        tags=list(publication.hashtags),
-        privacy_status=_privacy_at_upload(target, options),
-        category_id=options.category_id,
-        license=options.license,
-        embeddable=options.embeddable,
-        public_stats_viewable=options.public_stats_viewable,
-        made_for_kids=options.made_for_kids,
-        contains_synthetic_media=options.contains_synthetic_media,
-        notify_subscribers=options.notify_subscribers,
-    )
 
 
 def _progress_recorder(target: PublicationTarget):
@@ -143,7 +117,7 @@ def _progress_recorder(target: PublicationTarget):
         if percent == last_written[0]:
             return
         last_written[0] = percent
-        _set(target, progress=percent, uploaded_bytes=uploaded, resume_state=state.as_dict())
+        _set(target, progress=percent, uploaded_bytes=uploaded, resume_state=state)
 
     return on_progress
 
@@ -153,53 +127,48 @@ def _upload(target: PublicationTarget) -> str:
         return target.uploaded_media_id
 
     asset = target.publication.asset
-    options = youtube.video_options_of(target.settings)
+    publisher = publisher_for(target.platform)
 
     _set(target, status=Status.UPLOADING, total_bytes=asset.size_bytes)
 
-    def send(access_token: str, resume):
-        return youtube.upload(
-            path=storage.absolute(asset.storage_path),
-            size=asset.size_bytes,
-            mime_type=asset.mime_type,
-            metadata=_metadata(target, options),
-            access_token=access_token,
-            resume=resume,
+    def send(access_token: str, resume: dict | None) -> str:
+        return publisher.upload(
+            target,
+            access_token,
+            resume,
             on_progress=_progress_recorder(target),
-            should_cancel=lambda: PublicationTarget.objects.filter(pk=target.pk, cancel_requested=True).exists(),
+            should_cancel=lambda: _cancel_requested(target),
         )
 
     try:
         token = social_services.get_valid_access_token(target.social_account)
-        video_id = send(token, youtube.ResumeState.of(target.resume_state))
-    except youtube.UploadCancelled as cancelled:
-        _set(target, resume_state=cancelled.state.as_dict())
+        media_id = send(token, target.resume_state)
+    except UploadCancelled as cancelled:
+        _set(target, resume_state=cancelled.state)
         raise Cancelled() from None
-    except youtube.NeedsFreshToken as stale:
+    except NeedsFreshToken as stale:
         logger.info("Target %s: refreshing the token and resuming", target.pk)
-        _set(target, resume_state=stale.state.as_dict())
+        _set(target, resume_state=stale.state)
         fresh = social_services.refresh_access_token(target.social_account)
-        video_id = send(fresh, stale.state)
+        media_id = send(fresh, stale.state)
 
-    _set(target, uploaded_media_id=video_id, progress=100, uploaded_bytes=asset.size_bytes)
-    return video_id
+    _set(target, uploaded_media_id=media_id, progress=100, uploaded_bytes=asset.size_bytes)
+    return media_id
 
 
-def _publish(target: PublicationTarget, video_id: str) -> str:
+def _publish(target: PublicationTarget, media_id: str) -> str:
     _check_cancelled(target)
     _set(target, status=Status.PUBLISHING)
 
-    options = youtube.video_options_of(target.settings)
     token = social_services.get_valid_access_token(target.social_account)
-    publish_at = target.publication.publish_at
+    published = publisher_for(target.platform).publish(target, media_id, token)
 
-    if publish_at:
-        url = youtube.schedule(video_id, token, options, publish_at.isoformat())
-        _set(target, status=Status.SCHEDULED, published_url=url, resume_state=None, finished_at=timezone.now())
-        logger.info("Target %s scheduled for %s", target.pk, publish_at.isoformat())
-        return Status.SCHEDULED
-
-    url = youtube.publish(video_id, token, options)
-    _set(target, status=Status.COMPLETED, published_url=url, resume_state=None, finished_at=timezone.now())
-    logger.info("Target %s published at %s", target.pk, url)
-    return Status.COMPLETED
+    _set(
+        target,
+        status=published.status,
+        published_url=published.url,
+        resume_state=None,
+        finished_at=timezone.now(),
+    )
+    logger.info("Target %s ended as %s", target.pk, published.status)
+    return published.status
