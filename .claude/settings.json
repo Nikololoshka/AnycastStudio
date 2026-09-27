@@ -5,7 +5,7 @@
       "Bash(cargo --version)",
       "Bash(rustc --version)",
       "Bash(rtk *)",
-      "Write(**/.env.example)"
+      "Edit(**/.env.example)"
     ],
     "deny": [
       "Read(**/.env)",
