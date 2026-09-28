@@ -3,10 +3,12 @@ from unittest import mock
 
 from django.utils import timezone
 
+from config import wiring
 from media.models import MediaAsset
 from platforms.core.errors import FailureType
+from platforms.core.publishing.confirmation import ConfirmationPoller
+from platforms.core.publishing.pipeline import PublicationPipeline
 from platforms.instagram.client import GRAPH_ROOT, RUPLOAD_ROOT
-from publishing import pipeline
 from publishing.models import PublicationTarget
 from social.models import SocialAccount
 
@@ -80,7 +82,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
     def given_uploaded(self, **double) -> PublicationTarget:
         self.given_instagram(**double)
         target = self.given_target()
-        pipeline.run_target(target.pk)
+        wiring.container().pipeline.run(target.pk)
         target.refresh_from_db()
         return target
 
@@ -90,7 +92,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_target(shareToFeed=False, coverFrameSeconds=2)
 
         # When: the worker runs it
-        result = pipeline.run_target(target.pk)
+        result = wiring.container().pipeline.run(target.pk)
 
         # Then: the file went up, and nothing is published until Instagram has processed it
         target.refresh_from_db()
@@ -110,7 +112,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_target()
 
         # When: the worker runs it
-        pipeline.run_target(target.pk)
+        wiring.container().pipeline.run(target.pk)
 
         # Then: it fails locally, and Instagram was never asked
         target.refresh_from_db()
@@ -124,7 +126,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(statuses=["FINISHED"])
 
         # When: the confirmation runs
-        delay = pipeline.confirm_target(target.pk)
+        delay = wiring.container().confirmations.confirm(target.pk)
 
         # Then: it was published once, with the post's address
         target.refresh_from_db()
@@ -138,18 +140,18 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(statuses=["IN_PROGRESS"])
 
         # When: the confirmation runs
-        delay = pipeline.confirm_target(target.pk)
+        delay = wiring.container().confirmations.confirm(target.pk)
 
         # Then: it asks again later and publishes nothing
         target.refresh_from_db()
-        self.assertEqual(delay, pipeline.POLL_DELAYS_SECONDS[1])
+        self.assertEqual(delay, ConfirmationPoller.POLL_DELAYS_SECONDS[1])
         self.assertEqual(target.status, Status.PROCESSING)
         self.assertEqual(self.http.side_effect.publishes, 0)
 
     def test_a_reel_instagram_could_not_process_fails_with_its_reason(self):
         target = self.given_uploaded(statuses=["ERROR"])
 
-        pipeline.confirm_target(target.pk)
+        wiring.container().confirmations.confirm(target.pk)
 
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
@@ -159,7 +161,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
     def test_an_expired_container_fails(self):
         target = self.given_uploaded(statuses=["EXPIRED"])
 
-        pipeline.confirm_target(target.pk)
+        wiring.container().confirmations.confirm(target.pk)
 
         target.refresh_from_db()
         self.assertEqual((target.status, target.error["details"]), (Status.FAILED, "EXPIRED"))
@@ -169,13 +171,13 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(statuses=["FINISHED", "PUBLISHED"], publish_answer=FakeResponse(503, {}))
 
         # When: two confirmations run
-        first = pipeline.confirm_target(target.pk)
+        first = wiring.container().confirmations.confirm(target.pk)
         PublicationTarget.objects.filter(pk=target.pk).update(last_activity_at=timezone.now())
-        second = pipeline.confirm_target(target.pk)
+        second = wiring.container().confirmations.confirm(target.pk)
 
         # Then: the second sees it published, and publish was sent only once
         target.refresh_from_db()
-        self.assertEqual(first, pipeline.POLL_DELAYS_SECONDS[1])
+        self.assertEqual(first, ConfirmationPoller.POLL_DELAYS_SECONDS[1])
         self.assertIsNone(second)
         self.assertEqual(target.status, Status.COMPLETED)
         self.assertEqual(self.http.side_effect.publishes, 1)
@@ -186,7 +188,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(publish_answer=refused)
 
         # When: the confirmation runs
-        delay = pipeline.confirm_target(target.pk)
+        delay = wiring.container().confirmations.confirm(target.pk)
 
         # Then: it fails with Instagram's code
         target.refresh_from_db()
@@ -197,10 +199,10 @@ class InstagramPublishingScenarios(PublishingTestCase):
 
     def test_a_reel_never_processed_fails_after_the_deadline(self):
         target = self.given_uploaded(statuses=["IN_PROGRESS"])
-        started = time.time() - pipeline.CONFIRM_WITHIN_SECONDS - 1
+        started = time.time() - ConfirmationPoller.CONFIRM_WITHIN_SECONDS - 1
         PublicationTarget.objects.filter(pk=target.pk).update(resume_state={"confirming_since": started, "polls": 9})
 
-        delay = pipeline.confirm_target(target.pk)
+        delay = wiring.container().confirmations.confirm(target.pk)
 
         target.refresh_from_db()
         self.assertIsNone(delay)
@@ -212,7 +214,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
         self.http.side_effect = [FakeResponse(400, {"error": {"message": "Session invalidated", "code": 190}})]
 
         # When: the confirmation runs
-        pipeline.confirm_target(target.pk)
+        wiring.container().confirmations.confirm(target.pk)
 
         # Then: the target fails for authentication, and the account asks to be reconnected
         target.refresh_from_db()
@@ -222,10 +224,10 @@ class InstagramPublishingScenarios(PublishingTestCase):
 
     def test_a_confirmation_delivered_again_after_completion_does_nothing(self):
         target = self.given_uploaded()
-        pipeline.confirm_target(target.pk)
+        wiring.container().confirmations.confirm(target.pk)
         calls = self.http.call_count
 
-        delay = pipeline.confirm_target(target.pk)
+        delay = wiring.container().confirmations.confirm(target.pk)
 
         target.refresh_from_db()
         self.assertIsNone(delay)
@@ -235,10 +237,10 @@ class InstagramPublishingScenarios(PublishingTestCase):
     def test_the_claim_for_abandoned_work_leaves_a_target_being_confirmed_alone(self):
         target = self.given_uploaded()
         PublicationTarget.objects.filter(pk=target.pk).update(
-            last_activity_at=timezone.now() - pipeline.ABANDONED_AFTER * 2
+            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2
         )
 
-        self.assertIsNone(pipeline.claim(target.pk))
+        self.assertIsNone(wiring.container().pipeline.claim(target.pk))
 
     def test_a_worker_killed_mid_upload_resumes_in_the_same_container(self):
         # Given: a target whose upload stopped after the first kilobyte
@@ -246,12 +248,12 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_target()
         PublicationTarget.objects.filter(pk=target.pk).update(
             status=Status.UPLOADING,
-            last_activity_at=timezone.now() - pipeline.ABANDONED_AFTER * 2,
+            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2,
             resume_state={"container_id": CONTAINER_ID, "offset": 1024, "created_at": time.time() - 60},
         )
 
         # When: the worker picks it up again
-        pipeline.run_target(target.pk)
+        wiring.container().pipeline.run(target.pk)
 
         # Then: no new container, only the rest of the file
         target.refresh_from_db()

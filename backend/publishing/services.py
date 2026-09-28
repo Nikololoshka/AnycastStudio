@@ -4,12 +4,11 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 
+from config.wiring import container
 from media.models import MediaAsset
 from social.models import SocialAccount
 
-from . import schedule
 from .models import Publication, PublicationTarget
-from .tasks import run_target
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +63,18 @@ def create_publication(
     return publication
 
 
+def _waits_for_publish_at(target: PublicationTarget) -> bool:
+    publish_at = target.publication.publish_at
+    deferred = container().catalog.deferring_upload()
+    return publish_at is not None and publish_at > timezone.now() and target.platform in deferred
+
+
 def _hand_to_worker(target: PublicationTarget) -> None:
-    if schedule.waits_for_publish_at(target):
+    if _waits_for_publish_at(target):
         logger.info("Target %s waits for its publish time", target.pk)
         return
-    transaction.on_commit(lambda: run_target.delay(target.pk))
+    queue = container().queue
+    transaction.on_commit(lambda: queue.run_target(target.pk))
 
 
 def dispatch(publication: Publication) -> None:

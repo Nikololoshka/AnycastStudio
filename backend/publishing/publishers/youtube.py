@@ -1,6 +1,6 @@
 from platforms import youtube
 from platforms.core.capabilities import ValidationResult
-from platforms.core.publishing import Published, PublishJob, TargetStatus
+from platforms.core.publishing import PublicationDraft, PublishJob, Published, TargetStatus
 
 from .publisher import AppPublisher
 
@@ -29,8 +29,7 @@ def _metadata(job: PublishJob, options: youtube.VideoOptions) -> youtube.VideoMe
 class YouTubePublisher(AppPublisher):
     platform = youtube
 
-    def validate(self, job: PublishJob) -> ValidationResult:
-        draft = job.draft
+    def validate(self, draft: PublicationDraft) -> ValidationResult:
         return youtube.validate(
             title=draft.title,
             description=draft.description,

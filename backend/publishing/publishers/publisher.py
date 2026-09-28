@@ -1,10 +1,10 @@
 from types import ModuleType
 
-from platforms.core.capabilities import Capabilities, ValidationResult
-from platforms.core.publishing import Publisher, PublishJob
+from platforms.core.capabilities import Capabilities, Validator
+from platforms.core.publishing import Publisher
 
 
-class AppPublisher(Publisher):
+class AppPublisher(Publisher, Validator):
     platform: ModuleType
 
     @property
@@ -13,6 +13,3 @@ class AppPublisher(Publisher):
 
     def capabilities(self) -> Capabilities:
         return self.platform.capabilities()
-
-    def validate(self, job: PublishJob) -> ValidationResult:
-        raise NotImplementedError

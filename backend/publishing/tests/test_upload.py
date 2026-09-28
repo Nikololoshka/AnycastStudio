@@ -2,11 +2,13 @@ from unittest import mock
 
 from django.utils import timezone
 
+from config.wiring import container
 from media import storage
-from publishing import pipeline
-from publishing.models import PublicationTarget
-
 from platforms.core.errors import ProviderError
+from platforms.core.publishing.pipeline import PublicationPipeline
+from publishing.models import PublicationTarget
+from publishing.repositories import DjangoTargetRepository
+
 from .base import CHUNK, CONTENT, SESSION_URI, VIDEO_ID, FakeResponse, PublishingTestCase
 
 Status = PublicationTarget.Status
@@ -23,7 +25,7 @@ class UploadScenarios(PublishingTestCase):
         google = self.given_google()
 
         # When: the worker runs it
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         # Then: the whole file arrived, in pieces, and the video is live
         self.assertEqual(result, Status.COMPLETED)
@@ -37,7 +39,7 @@ class UploadScenarios(PublishingTestCase):
         target = self.given_target()
         google = self.given_google()
 
-        pipeline.run_target(target.pk)
+        container().pipeline.run(target.pk)
 
         self.assertEqual(google.ranges[0], f"bytes 0-{CHUNK - 1}/{len(CONTENT)}")
         self.assertEqual(
@@ -49,15 +51,15 @@ class UploadScenarios(PublishingTestCase):
         target = self.given_target()
         self.given_google()
         seen: list[dict] = []
-        original = pipeline._set
+        original = DjangoTargetRepository.update
 
-        def spy(row, **fields):
-            if "resume_state" in fields and fields["resume_state"]:
+        def spy(repository, target_id, **fields):
+            if fields.get("resume_state"):
                 seen.append(fields["resume_state"])
-            original(row, **fields)
+            original(repository, target_id, **fields)
 
-        with mock.patch.object(pipeline, "_set", spy):
-            pipeline.run_target(target.pk)
+        with mock.patch.object(DjangoTargetRepository, "update", spy):
+            container().pipeline.run(target.pk)
 
         # Then: every chunk left a point a restarted worker could continue from
         self.assertTrue(seen)
@@ -75,7 +77,7 @@ class UploadScenarios(PublishingTestCase):
         google = self.given_google()
         google.received = half
 
-        pipeline.run_target(target.pk)
+        container().pipeline.run(target.pk)
 
         # Then: only the remainder went, and no new session was opened
         self.assertEqual(b"".join(google.chunks), CONTENT[half:])
@@ -97,7 +99,7 @@ class UploadScenarios(PublishingTestCase):
 
         self.http.side_effect = short_confirm
 
-        pipeline.run_target(target.pk)
+        container().pipeline.run(target.pk)
 
         target.refresh_from_db()
         self.assertEqual(target.status, Status.COMPLETED)
@@ -107,7 +109,7 @@ class UploadScenarios(PublishingTestCase):
         target = self.given_target()
         google = self.given_google(fail_at=CHUNK * 2)
 
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         self.assertEqual(result, Status.COMPLETED)
         self.assertEqual(b"".join(google.chunks), CONTENT)
@@ -119,7 +121,7 @@ class UploadScenarios(PublishingTestCase):
             fail_at=0, failure=FakeResponse(400, {"error": {"message": "bad file"}})
         )
 
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         # Then: it fails as a validation error. Repeating it would burn quota
         # for a file the platform has already decided about.
@@ -137,13 +139,13 @@ class UploadScenarios(PublishingTestCase):
         # When: the upload runs with a token our clock still thinks is good
         with (
             mock.patch(
-                "publishing.pipeline.social_services.get_valid_access_token", return_value="stale-token"
+                "social.tokens.DjangoAccessTokens.valid", return_value="stale-token"
             ),
             mock.patch(
-                "publishing.pipeline.social_services.refresh_access_token", return_value="fresh-token"
+                "social.tokens.DjangoAccessTokens.refresh", return_value="fresh-token"
             ) as refresh,
         ):
-            result = pipeline.run_target(target.pk)
+            result = container().pipeline.run(target.pk)
 
         # Then: the token was refreshed for real, not re-read, and the rest of the file went up
         self.assertEqual(result, Status.COMPLETED)
@@ -155,7 +157,7 @@ class UploadScenarios(PublishingTestCase):
         storage.absolute(self.asset.storage_path).unlink()
         self.given_google()
 
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         self.assertEqual(result, Status.FAILED)
         target.refresh_from_db()
@@ -167,7 +169,7 @@ class UploadScenarios(PublishingTestCase):
         target.publication.save()
         self.given_google()
 
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         self.assertEqual(result, Status.FAILED)
         target.refresh_from_db()
@@ -181,9 +183,9 @@ class UploadScenarios(PublishingTestCase):
             status=Status.UPLOADING, last_activity_at=timezone.now()
         )
 
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
-        self.assertEqual(result, "")
+        self.assertIsNone(result)
 
     def test_a_target_whose_worker_died_is_taken_over_and_resumed(self):
         # Given: a target stuck uploading halfway, untouched for longer than a worker would be
@@ -191,14 +193,14 @@ class UploadScenarios(PublishingTestCase):
         half = len(CONTENT) // 2
         PublicationTarget.objects.filter(pk=target.pk).update(
             status=Status.UPLOADING,
-            last_activity_at=timezone.now() - pipeline.ABANDONED_AFTER * 2,
+            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2,
             resume_state={"session_uri": SESSION_URI, "offset": half},
         )
         google = self.given_google()
         google.received = half
 
         # When: the task is delivered again
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         # Then: it finishes, sending only what Google did not have
         self.assertEqual(result, Status.COMPLETED)
@@ -208,11 +210,11 @@ class UploadScenarios(PublishingTestCase):
         # Given: the token cannot be refreshed because Google is unreachable
         target = self.given_target()
         with mock.patch(
-            "publishing.pipeline.social_services.get_valid_access_token",
+            "social.tokens.DjangoAccessTokens.valid",
             side_effect=ProviderError("Google request failed: ConnectionError", transient=True),
         ):
             # When: the target runs
-            result = pipeline.run_target(target.pk)
+            result = container().pipeline.run(target.pk)
 
         # Then: it fails as network, so the person is not told to reconnect
         self.assertEqual(result, Status.FAILED)
@@ -224,7 +226,7 @@ class UploadScenarios(PublishingTestCase):
         self.given_google()
         PublicationTarget.objects.filter(pk=target.pk).update(cancel_requested=True)
 
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         self.assertEqual(result, Status.CANCELLED)
 
@@ -236,7 +238,7 @@ class UploadScenarios(PublishingTestCase):
         )
         google = self.given_google()
 
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         self.assertEqual(result, Status.COMPLETED)
         self.assertEqual(google.chunks, [])

@@ -2,9 +2,10 @@ from unittest import mock
 
 from django.utils import timezone
 
+from platforms.core.publishing.dispatcher import DeferredDispatcher
+from platforms.registry import PlatformRegistry
 from publishing import tasks
 from publishing.models import Publication, PublicationTarget
-from publishing.schedule import REDISPATCH_AFTER
 
 from .base import PublishingTestCase
 
@@ -19,7 +20,7 @@ class DeferredStartScenarios(PublishingTestCase):
         self.addCleanup(patcher.stop)
 
     def given_platform_without_native_scheduling(self):
-        patcher = mock.patch("publishing.schedule.deferred_platforms", return_value=["youtube"])
+        patcher = mock.patch.object(PlatformRegistry, "deferring_upload", return_value=("youtube",))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -90,7 +91,7 @@ class DeferredStartScenarios(PublishingTestCase):
         self.given_platform_without_native_scheduling()
         target = self.given_publication_at(timezone.now() - timezone.timedelta(hours=1))
         PublicationTarget.objects.filter(pk=target.pk).update(
-            last_activity_at=timezone.now() - REDISPATCH_AFTER * 2
+            last_activity_at=timezone.now() - DeferredDispatcher.REDISPATCH_AFTER * 2
         )
 
         # When: the sweep runs

@@ -1,4 +1,3 @@
-import time
 from dataclasses import dataclass
 
 from .status import TargetStatus
@@ -12,7 +11,7 @@ class Published:
 
     @classmethod
     def awaiting_confirmation(cls, **state) -> "Published":
-        return cls(TargetStatus.PROCESSING, resume_state={"confirming_since": time.time(), "polls": 0, **state})
+        return cls(TargetStatus.PROCESSING, resume_state=state)
 
 
 @dataclass(frozen=True)

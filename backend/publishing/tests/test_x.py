@@ -3,10 +3,12 @@ from unittest import mock
 
 from django.utils import timezone
 
+from config.wiring import container
 from media.models import MediaAsset
 from platforms.core.errors import FailureType
+from platforms.core.publishing.confirmation import ConfirmationPoller
+from platforms.core.publishing.pipeline import PublicationPipeline
 from platforms.x.client import API_ROOT
-from publishing import pipeline
 from publishing.models import PublicationTarget
 from social.models import SocialAccount
 
@@ -83,13 +85,13 @@ class XPublishingScenarios(PublishingTestCase):
     def given_uploaded(self, **double) -> PublicationTarget:
         self.given_x(**double)
         target = self.given_target()
-        pipeline.run_target(target.pk)
+        container().pipeline.run(target.pk)
         target.refresh_from_db()
         return target
 
     def confirm_again(self, target: PublicationTarget):
         PublicationTarget.objects.filter(pk=target.pk).update(last_activity_at=timezone.now())
-        return pipeline.confirm_target(target.pk)
+        return container().confirmations.confirm(target.pk)
 
     def test_an_upload_leaves_the_target_waiting_for_x(self):
         # Given: X accepts the video
@@ -97,7 +99,7 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_target()
 
         # When: the worker runs it
-        result = pipeline.run_target(target.pk)
+        result = container().pipeline.run(target.pk)
 
         # Then: the file went up, and nothing is posted until X has processed it
         target.refresh_from_db()
@@ -114,7 +116,7 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_target()
 
         # When: the worker runs it
-        pipeline.run_target(target.pk)
+        container().pipeline.run(target.pk)
 
         # Then: it fails locally, and X was never asked
         target.refresh_from_db()
@@ -131,7 +133,7 @@ class XPublishingScenarios(PublishingTestCase):
         )
         target = self.only_target()
 
-        pipeline.run_target(target.pk)
+        container().pipeline.run(target.pk)
 
         target.refresh_from_db()
         self.assertIn("captionTooLong", target.error["details"])
@@ -145,7 +147,7 @@ class XPublishingScenarios(PublishingTestCase):
         )
 
         # When: the confirmation runs
-        delay = pipeline.confirm_target(target.pk)
+        delay = container().confirmations.confirm(target.pk)
 
         # Then: one post, with the caption, the video and the chosen options
         target.refresh_from_db()
@@ -170,18 +172,18 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(states=["in_progress"])
 
         # When: the confirmation runs
-        delay = pipeline.confirm_target(target.pk)
+        delay = container().confirmations.confirm(target.pk)
 
         # Then: it asks again later and posts nothing
         target.refresh_from_db()
-        self.assertEqual(delay, pipeline.POLL_DELAYS_SECONDS[1])
+        self.assertEqual(delay, ConfirmationPoller.POLL_DELAYS_SECONDS[1])
         self.assertEqual(target.status, Status.PROCESSING)
         self.assertEqual(self.http.side_effect.posts, [])
 
     def test_a_video_x_could_not_process_fails_with_its_reason(self):
         target = self.given_uploaded(states=["failed"])
 
-        pipeline.confirm_target(target.pk)
+        container().confirmations.confirm(target.pk)
 
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
@@ -194,7 +196,7 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(post_answer=refused)
 
         # When: the confirmation runs
-        delay = pipeline.confirm_target(target.pk)
+        delay = container().confirmations.confirm(target.pk)
 
         # Then: it fails with X's words, after one attempt
         target.refresh_from_db()
@@ -209,11 +211,11 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(post_answer=FakeResponse(503, {}))
 
         # When: the confirmation runs, and the person retries the failed target
-        pipeline.confirm_target(target.pk)
+        container().confirmations.confirm(target.pk)
         target.refresh_from_db()
         failed = (target.status, target.error["message"])
         PublicationTarget.objects.filter(pk=target.pk).update(status=Status.QUEUED)
-        pipeline.run_target(target.pk)
+        container().pipeline.run(target.pk)
         self.confirm_again(target)
 
         # Then: both times it fails asking the person to check X, and only one post was ever sent
@@ -242,7 +244,7 @@ class XPublishingScenarios(PublishingTestCase):
         self.http.side_effect = route
 
         # When: the confirmation runs
-        pipeline.confirm_target(target.pk)
+        container().confirmations.confirm(target.pk)
 
         # Then: the refused attempt did not count as maybe posted, and the second completed it
         target.refresh_from_db()
@@ -259,7 +261,7 @@ class XPublishingScenarios(PublishingTestCase):
             FakeResponse(400, {"error": "invalid_request", "error_description": "Value passed for the token was invalid."}),
         ]
 
-        pipeline.confirm_target(target.pk)
+        container().confirmations.confirm(target.pk)
 
         target.refresh_from_db()
         self.account.refresh_from_db()
@@ -268,10 +270,10 @@ class XPublishingScenarios(PublishingTestCase):
 
     def test_a_video_never_processed_fails_after_the_deadline(self):
         target = self.given_uploaded(states=["in_progress"])
-        started = time.time() - pipeline.CONFIRM_WITHIN_SECONDS - 1
+        started = time.time() - ConfirmationPoller.CONFIRM_WITHIN_SECONDS - 1
         PublicationTarget.objects.filter(pk=target.pk).update(resume_state={"confirming_since": started, "polls": 9})
 
-        delay = pipeline.confirm_target(target.pk)
+        delay = container().confirmations.confirm(target.pk)
 
         target.refresh_from_db()
         self.assertIsNone(delay)
@@ -279,10 +281,10 @@ class XPublishingScenarios(PublishingTestCase):
 
     def test_a_confirmation_delivered_again_after_completion_does_nothing(self):
         target = self.given_uploaded()
-        pipeline.confirm_target(target.pk)
+        container().confirmations.confirm(target.pk)
         calls = self.http.call_count
 
-        delay = pipeline.confirm_target(target.pk)
+        delay = container().confirmations.confirm(target.pk)
 
         target.refresh_from_db()
         self.assertIsNone(delay)
@@ -292,10 +294,10 @@ class XPublishingScenarios(PublishingTestCase):
     def test_the_claim_for_abandoned_work_leaves_a_target_being_confirmed_alone(self):
         target = self.given_uploaded()
         PublicationTarget.objects.filter(pk=target.pk).update(
-            last_activity_at=timezone.now() - pipeline.ABANDONED_AFTER * 2
+            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2
         )
 
-        self.assertIsNone(pipeline.claim(target.pk))
+        self.assertIsNone(container().pipeline.claim(target.pk))
 
     def test_a_worker_killed_mid_upload_resumes_the_same_media(self):
         # Given: a target whose upload stopped after the first segment
@@ -303,12 +305,12 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_target()
         PublicationTarget.objects.filter(pk=target.pk).update(
             status=Status.UPLOADING,
-            last_activity_at=timezone.now() - pipeline.ABANDONED_AFTER * 2,
+            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2,
             resume_state={"media_id": MEDIA_ID, "segment_bytes": 1024, "next_segment": 1, "created_at": time.time() - 60},
         )
 
         # When: the worker picks it up again
-        pipeline.run_target(target.pk)
+        container().pipeline.run(target.pk)
 
         # Then: no new upload, only the rest of the file
         target.refresh_from_db()

@@ -4,7 +4,7 @@ import time
 from platforms import x
 from platforms.core.capabilities import ValidationResult
 from platforms.core.errors import FailureType, MaybePublished, NeedsFreshToken, PlatformError
-from platforms.core.publishing import Confirmation, NotReady, Published, PublishJob, TargetStatus
+from platforms.core.publishing import Confirmation, NotReady, PublicationDraft, PublishJob, Published, TargetStatus
 
 from ..repositories import DjangoTargetRepository
 from .publisher import AppPublisher
@@ -25,10 +25,10 @@ class XPublisher(AppPublisher):
     def __init__(self):
         self._targets = DjangoTargetRepository()
 
-    def validate(self, job: PublishJob) -> ValidationResult:
-        media = job.draft.media
+    def validate(self, draft: PublicationDraft) -> ValidationResult:
+        media = draft.media
         return x.validate(
-            caption=job.draft.caption(),
+            caption=draft.caption(),
             size_bytes=media.size_bytes,
             mime_type=media.mime_type,
             duration_seconds=media.duration_seconds,
@@ -54,16 +54,16 @@ class XPublisher(AppPublisher):
 
     def _post(self, job: PublishJob, access_token: str) -> str:
         before = dict(job.resume_state or {})
-        self._targets.save_resume_state(job.target_id, {**before, POSTING_STARTED: time.time()})
+        self._targets.update(job.target_id, resume_state={**before, POSTING_STARTED: time.time()})
         options = x.video_options_of(job.draft.settings)
         try:
             return x.create_post(access_token, job.draft.caption(), job.uploaded_media_id, options)
         except NeedsFreshToken:
-            self._targets.save_resume_state(job.target_id, before)
+            self._targets.update(job.target_id, resume_state=before)
             raise
         except PlatformError as failure:
             if failure.type not in UNANSWERED:
-                self._targets.save_resume_state(job.target_id, before)
+                self._targets.update(job.target_id, resume_state=before)
                 raise
             raise MaybePublished(self.label, failure.details) from None
 

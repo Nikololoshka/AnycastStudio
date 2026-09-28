@@ -3,7 +3,7 @@ import logging
 from platforms import instagram
 from platforms.core.capabilities import ValidationResult
 from platforms.core.errors import PlatformError
-from platforms.core.publishing import Confirmation, NotReady, Published, PublishJob, TargetStatus
+from platforms.core.publishing import Confirmation, NotReady, PublicationDraft, PublishJob, Published, TargetStatus
 
 from .publisher import AppPublisher
 
@@ -31,10 +31,10 @@ def _published_media_id(job: PublishJob, access_token: str) -> str | None:
 class InstagramPublisher(AppPublisher):
     platform = instagram
 
-    def validate(self, job: PublishJob) -> ValidationResult:
-        media = job.draft.media
+    def validate(self, draft: PublicationDraft) -> ValidationResult:
+        media = draft.media
         return instagram.validate(
-            caption=job.draft.caption(),
+            caption=draft.caption(),
             size_bytes=media.size_bytes,
             mime_type=media.mime_type,
             duration_seconds=media.duration_seconds,

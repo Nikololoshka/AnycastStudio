@@ -3,7 +3,7 @@ import logging
 from platforms import tiktok
 from platforms.core.capabilities import ValidationResult
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
-from platforms.core.publishing import Confirmation, NotReady, Published, PublishJob, TargetStatus
+from platforms.core.publishing import Confirmation, NotReady, PublicationDraft, PublishJob, Published, TargetStatus
 
 from .publisher import AppPublisher
 
@@ -34,11 +34,11 @@ def _url_of(post_ids: tuple[str, ...], access_token: str) -> str:
 class TikTokPublisher(AppPublisher):
     platform = tiktok
 
-    def validate(self, job: PublishJob) -> ValidationResult:
-        media = job.draft.media
+    def validate(self, draft: PublicationDraft) -> ValidationResult:
+        media = draft.media
         return tiktok.validate(
-            caption=job.draft.caption(),
-            options=tiktok.video_options_of(job.draft.settings),
+            caption=draft.caption(),
+            options=tiktok.video_options_of(draft.settings),
             size_bytes=media.size_bytes,
             mime_type=media.mime_type,
         )
