@@ -1,27 +1,3 @@
-from .client import LABEL
-from .capabilities import capabilities, validate
-from .creator_info import CreatorInfo
-from .creator_info import query as creator_info
-from .oauth import TikTokProvider
-from .status import PublishStatus, failure_of, fetch_status, post_url
-from .upload import PostInfo, ResumeState, upload
-from .video_options import VideoOptions, caption_of, video_options_of
+from .platform import TikTokFactory
 
-__all__ = [
-    "LABEL",
-    "CreatorInfo",
-    "PostInfo",
-    "PublishStatus",
-    "ResumeState",
-    "TikTokProvider",
-    "VideoOptions",
-    "capabilities",
-    "caption_of",
-    "creator_info",
-    "failure_of",
-    "fetch_status",
-    "post_url",
-    "upload",
-    "validate",
-    "video_options_of",
-]
+__all__ = ["TikTokFactory"]

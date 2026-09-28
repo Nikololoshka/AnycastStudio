@@ -1,9 +1,9 @@
 from typing import Self
 
-from ..core.auth import Identity, OAuth2Provider, Pkce
-from ..core.config import PlatformConfig
-from ..core.errors import PlatformError, ProviderError
-from .client import API_ROOT, TikTokClient
+from ...core.auth import Identity, OAuth2Provider, Pkce
+from ...core.config import PlatformConfig
+from ...core.errors import PlatformError, ProviderError
+from ..client import API_ROOT, TikTokClient
 from .responses import UserData
 
 AUTH_ENDPOINT = "https://www.tiktok.com/v2/auth/authorize/"
@@ -37,7 +37,8 @@ class TikTokProvider(OAuth2Provider):
             headers={"Authorization": f"Bearer {access_token}"},
         )
         try:
-            user = self.client.data_of(response, UserData, refusal="TikTok did not say which account signed in").user
+            refusal = "TikTok did not say which account signed in"
+            user = self.client.data_of(response, UserData, refusal=refusal).user
         except PlatformError as failure:
             raise ProviderError(failure.message) from None
 

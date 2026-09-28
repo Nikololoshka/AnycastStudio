@@ -1,4 +1,4 @@
-from ..core.http import PlatformModel, Present
+from ..core.http import PlatformModel
 
 OK_CODE = "ok"
 
@@ -15,18 +15,3 @@ class EnvelopeError(PlatformModel):
 class Envelope(PlatformModel):
     error: EnvelopeError = EnvelopeError()
     data: dict = {}
-
-
-class InitData(PlatformModel):
-    publish_id: Present
-    upload_url: Present
-
-
-class User(PlatformModel):
-    open_id: Present
-    display_name: str = ""
-    avatar_url: str = ""
-
-
-class UserData(PlatformModel):
-    user: User

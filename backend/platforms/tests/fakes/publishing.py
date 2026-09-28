@@ -232,6 +232,12 @@ class FakeAccounts(AccountRepository):
     def owned_accounts(self, owner_id: int) -> dict[int, AccountRecord]:
         return dict(self.accounts)
 
+    def owned_account(self, owner_id: int, account_id: int, platform: str) -> AccountRecord:
+        account = self.accounts.get(account_id)
+        if account is None or account.platform != platform:
+            raise NotFound()
+        return account
+
 
 class FakePublications(PublicationRepository):
     def __init__(self, limit: int = 5, created: int = 0):

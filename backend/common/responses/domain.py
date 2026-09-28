@@ -1,7 +1,15 @@
 import inspect
 from functools import wraps
 
-from platforms.core.errors import AccountNeedsReauth, Conflict, DomainError, Invalid, LimitReached, NotFound
+from platforms.core.errors import (
+    AccountNeedsReauth,
+    Conflict,
+    DomainError,
+    Invalid,
+    LimitReached,
+    NotFound,
+    Unavailable,
+)
 
 from .contract import api_response
 
@@ -11,6 +19,7 @@ DOMAIN_STATUS = {
     Conflict: "conflict",
     LimitReached: "quota_exceeded",
     AccountNeedsReauth: "conflict",
+    Unavailable: "server_error",
 }
 
 

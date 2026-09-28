@@ -1,8 +1,19 @@
 from platforms.core.errors import FailureType, NeedsFreshToken
-from platforms.tiktok import caption_of, failure_of, fetch_status, validate, video_options_of
-from platforms.tiktok.status import FAIL_REASONS
+from platforms.core.publishing import MediaInfo, PublicationDraft
+from platforms.tiktok.client import TikTokClient
+from platforms.tiktok.options import TikTokOptions, TikTokValidator
+from platforms.tiktok.publish import PublishStatus, PublishStatusApi
+from platforms.tiktok.publish.status import FAIL_REASONS
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import TEST_CONFIG, FakeResponse, PlatformTestCase
+
+
+def fetch_status(access_token: str, publish_id: str) -> PublishStatus:
+    return PublishStatusApi(TikTokClient(TEST_CONFIG.http)).fetch(access_token, publish_id)
+
+
+def failure_of(reason: str):
+    return PublishStatus(status="FAILED", fail_reason=reason).failure()
 
 
 def status(data: dict) -> FakeResponse:
@@ -59,8 +70,14 @@ class PublishStatusScenarios(PlatformTestCase):
 
 class ValidationScenarios(PlatformTestCase):
     def check(self, caption="A video", size=1024, mime="video/mp4", **settings):
-        options = video_options_of({"privacyLevel": "SELF_ONLY", **settings})
-        return validate(caption=caption, options=options, size_bytes=size, mime_type=mime)
+        draft = PublicationDraft(
+            title=caption,
+            description="",
+            hashtags=(),
+            media=MediaInfo(size, mime),
+            settings={"privacyLevel": "SELF_ONLY", **settings},
+        )
+        return TikTokValidator().validate(draft)
 
     def test_a_complete_post_is_valid(self):
         self.assertTrue(self.check().valid)
@@ -84,20 +101,14 @@ class ValidationScenarios(PlatformTestCase):
         self.assertIn("brandedContentCannotBePrivate", errors)
 
     def test_brand_toggles_are_sent_only_when_disclosed(self):
-        options = video_options_of({"brandContent": True, "brandOrganic": True})
+        options = TikTokOptions.of({"brandContent": True, "brandOrganic": True})
         self.assertFalse(options.brand_content_toggle)
         self.assertFalse(options.brand_organic_toggle)
 
     def test_an_unsupported_type_is_refused(self):
         self.assertIn("unsupportedType", self.check(mime="video/x-flv").errors)
 
-    def test_the_caption_joins_title_description_and_hashtags(self):
-        self.assertEqual(caption_of("Title", "About", ["one", "two"]), "Title\n\nAbout\n\n#one #two")
-
-    def test_an_empty_part_leaves_no_blank_lines(self):
-        self.assertEqual(caption_of("Title", "", []), "Title")
-
     def test_a_cover_frame_becomes_milliseconds(self):
-        self.assertEqual(video_options_of({"coverFrameSeconds": 1.5}).cover_timestamp_ms, 1500)
-        self.assertIsNone(video_options_of({"coverFrameSeconds": 0}).cover_timestamp_ms)
-        self.assertIsNone(video_options_of({"coverFrameSeconds": "3"}).cover_timestamp_ms)
+        self.assertEqual(TikTokOptions.of({"coverFrameSeconds": 1.5}).cover_timestamp_ms, 1500)
+        self.assertIsNone(TikTokOptions.of({"coverFrameSeconds": 0}).cover_timestamp_ms)
+        self.assertIsNone(TikTokOptions.of({"coverFrameSeconds": "3"}).cover_timestamp_ms)

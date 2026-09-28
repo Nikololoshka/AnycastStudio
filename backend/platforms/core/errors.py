@@ -92,3 +92,8 @@ class LimitReached(DomainError):
 class AccountNeedsReauth(DomainError):
     def __init__(self, platform: str):
         super().__init__(message="account_needs_reauth", platform=platform)
+
+
+class Unavailable(DomainError):
+    def __init__(self, message: str):
+        super().__init__(message=message)

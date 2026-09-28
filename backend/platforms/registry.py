@@ -3,9 +3,11 @@ from typing import Self
 
 from .core.config import PlatformConfig
 from .core.platform import Platform, PlatformCatalog, PlatformFactory
+from .core.ports import Clock
+from .tiktok import TikTokFactory
 from .youtube import YouTubeFactory
 
-FACTORIES: tuple[PlatformFactory, ...] = (YouTubeFactory(),)
+FACTORIES: tuple[PlatformFactory, ...] = (YouTubeFactory(), TikTokFactory())
 
 
 class PlatformRegistry(PlatformCatalog):
@@ -13,8 +15,8 @@ class PlatformRegistry(PlatformCatalog):
         self._platforms = {platform.name: platform for platform in platforms}
 
     @classmethod
-    def build(cls, config: PlatformConfig, factories: Iterable[PlatformFactory] = FACTORIES) -> Self:
-        return cls(factory.build(config) for factory in factories)
+    def build(cls, config: PlatformConfig, clock: Clock, factories: Iterable[PlatformFactory] = FACTORIES) -> Self:
+        return cls(factory.build(config, clock) for factory in factories)
 
     def get(self, name: str) -> Platform:
         return self._platforms[name]

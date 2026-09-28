@@ -1,11 +1,12 @@
 from pydantic import Field
 
-from ..core.errors import FailureType, PlatformError
-from ..core.http import PlatformModel
-from ..core.upload import TokenRejectionGuard
-from .client import API_ROOT, call
+from ...core.errors import FailureType, PlatformError
+from ...core.http import PlatformModel
+from ...core.upload import TokenRejectionGuard
+from ..client import API_ROOT, TikTokClient
 
 STATUS_ENDPOINT = f"{API_ROOT}/post/publish/status/fetch/"
+POST_URL = "https://www.tiktok.com/@{username}/video/{post_id}"
 
 COMPLETE_STATUSES = ("PUBLISH_COMPLETE", "SEND_TO_USER_INBOX")
 FAILED_STATUS = "FAILED"
@@ -45,17 +46,22 @@ class PublishStatus(PlatformModel):
     def is_failed(self) -> bool:
         return self.status == FAILED_STATUS
 
-
-def fetch_status(access_token: str, publish_id: str) -> PublishStatus:
-    return TokenRejectionGuard().run(
-        lambda: call("POST", STATUS_ENDPOINT, access_token, PublishStatus, json={"publish_id": publish_id})
-    )
-
-
-def failure_of(fail_reason: str) -> PlatformError:
-    kind, message = FAIL_REASONS.get(fail_reason, (FailureType.PLATFORM, "TikTok refused to publish the video"))
-    return PlatformError(kind, message, details=fail_reason)
+    def failure(self) -> PlatformError:
+        fallback = (FailureType.PLATFORM, "TikTok refused to publish the video")
+        kind, message = FAIL_REASONS.get(self.fail_reason, fallback)
+        return PlatformError(kind, message, details=self.fail_reason)
 
 
-def post_url(username: str, post_id: str) -> str:
-    return f"https://www.tiktok.com/@{username}/video/{post_id}"
+class PublishStatusApi:
+    def __init__(self, client: TikTokClient):
+        self._client = client
+
+    def fetch(self, access_token: str, publish_id: str) -> PublishStatus:
+        body = {"publish_id": publish_id}
+        return TokenRejectionGuard().run(
+            lambda: self._client.call("POST", STATUS_ENDPOINT, access_token, PublishStatus, json=body)
+        )
+
+    @staticmethod
+    def post_url(username: str, post_id: str) -> str:
+        return POST_URL.format(username=username, post_id=post_id)

@@ -2,6 +2,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
+from ..core.config import HttpConfig
 from ..core.errors import FailureType, PlatformError
 from ..core.http import FailureClassifier, PlatformClient, ResponseParser
 from .responses import Envelope
@@ -28,7 +29,7 @@ class TikTokFailureClassifier(FailureClassifier):
 class TikTokClient(PlatformClient):
     label = LABEL
 
-    def __init__(self, config):
+    def __init__(self, config: HttpConfig):
         super().__init__(config, TikTokFailureClassifier())
 
     @staticmethod
@@ -48,21 +49,3 @@ class TikTokClient(PlatformClient):
     ) -> M:
         response = self.send(method, url, headers=self.bearer(access_token), **kwargs)
         return self.data_of(response, model, refusal=refusal)
-
-
-def client() -> TikTokClient:
-    from config import wiring
-
-    return TikTokClient(wiring.container().config.http)
-
-
-def send(method: str, url: str, *, attempts: int | None = None, **kwargs):
-    return client().send(method, url, attempts=attempts, **kwargs)
-
-
-def data_of(response, model: type[M], *, refusal: str | None = None) -> M:
-    return client().data_of(response, model, refusal=refusal)
-
-
-def call(method: str, url: str, access_token: str, model: type[M], *, refusal: str | None = None, **kwargs) -> M:
-    return client().call(method, url, access_token, model, refusal=refusal, **kwargs)

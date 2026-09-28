@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from .auth import OAuth2Provider
 from .capabilities import Capabilities, Scheduling, Validator
 from .config import PlatformConfig
+from .ports.clock import Clock
 from .publishing import Publisher
 
 
@@ -37,4 +38,4 @@ class PlatformCatalog(ABC):
 
 class PlatformFactory(ABC):
     @abstractmethod
-    def build(self, config: PlatformConfig) -> Platform: ...
+    def build(self, config: PlatformConfig, clock: Clock) -> Platform: ...

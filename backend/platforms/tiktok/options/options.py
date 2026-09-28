@@ -1,13 +1,13 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Self
 
 PRIVACY_VALUES = ("PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY")
 PRIVATE = "SELF_ONLY"
 
-MAX_CAPTION_LENGTH = 2200
-
 
 @dataclass(frozen=True)
-class VideoOptions:
+class TikTokOptions:
     privacy_level: str | None = None
     disable_comment: bool = False
     disable_duet: bool = False
@@ -17,6 +17,22 @@ class VideoOptions:
     brand_content: bool = False
     is_aigc: bool = False
     cover_frame_seconds: float = 0
+
+    @classmethod
+    def of(cls, raw) -> Self:
+        raw = raw if isinstance(raw, Mapping) else {}
+        privacy = raw.get("privacyLevel")
+        return cls(
+            privacy_level=privacy if privacy in PRIVACY_VALUES else None,
+            disable_comment=cls._flag(raw, "disableComment"),
+            disable_duet=cls._flag(raw, "disableDuet"),
+            disable_stitch=cls._flag(raw, "disableStitch"),
+            disclose_content=cls._flag(raw, "discloseContent"),
+            brand_organic=cls._flag(raw, "brandOrganic"),
+            brand_content=cls._flag(raw, "brandContent"),
+            is_aigc=cls._flag(raw, "isAigc"),
+            cover_frame_seconds=cls._seconds(raw.get("coverFrameSeconds")),
+        )
 
     def as_json(self) -> dict:
         return {
@@ -32,6 +48,10 @@ class VideoOptions:
         }
 
     @property
+    def is_private(self) -> bool:
+        return self.privacy_level == PRIVATE
+
+    @property
     def brand_organic_toggle(self) -> bool:
         return self.disclose_content and self.brand_organic
 
@@ -43,37 +63,12 @@ class VideoOptions:
     def cover_timestamp_ms(self) -> int | None:
         return round(self.cover_frame_seconds * 1000) if self.cover_frame_seconds > 0 else None
 
+    @staticmethod
+    def _flag(raw: Mapping, key: str) -> bool:
+        return bool(raw.get(key) or False)
 
-def _flag(raw: dict, key: str) -> bool:
-    return bool(raw.get(key) or False)
-
-
-def _seconds(value) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return 0
-    return float(value) if value > 0 else 0
-
-
-def video_options_of(raw) -> VideoOptions:
-    raw = raw if isinstance(raw, dict) else {}
-    privacy = raw.get("privacyLevel")
-    return VideoOptions(
-        privacy_level=privacy if privacy in PRIVACY_VALUES else None,
-        disable_comment=_flag(raw, "disableComment"),
-        disable_duet=_flag(raw, "disableDuet"),
-        disable_stitch=_flag(raw, "disableStitch"),
-        disclose_content=_flag(raw, "discloseContent"),
-        brand_organic=_flag(raw, "brandOrganic"),
-        brand_content=_flag(raw, "brandContent"),
-        is_aigc=_flag(raw, "isAigc"),
-        cover_frame_seconds=_seconds(raw.get("coverFrameSeconds")),
-    )
-
-
-def caption_of(title: str, description: str, hashtags: list[str]) -> str:
-    tags = " ".join(f"#{tag}" for tag in hashtags)
-    return "\n\n".join(part for part in (title.strip(), description.strip(), tags) if part)
-
-
-def utf16_length(text: str) -> int:
-    return len(text.encode("utf-16-le")) // 2
+    @staticmethod
+    def _seconds(value) -> float:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return 0
+        return float(value) if value > 0 else 0

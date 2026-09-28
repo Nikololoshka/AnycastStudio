@@ -9,6 +9,7 @@ from platforms.core.platform import Platform, PlatformCatalog
 from platforms.core.ports import (
     AccessTokens,
     AccountRepository,
+    Cache,
     Clock,
     PublicationRepository,
     SystemClock,
@@ -24,9 +25,10 @@ from platforms.core.publishing.pipeline import PublicationPipeline
 from platforms.core.publishing.service import PublicationService
 from platforms.core.publishing.writer import TargetWriter
 from platforms.instagram import InstagramProvider
-from platforms.tiktok import TikTokProvider
 from platforms.x import XProvider
 from platforms.registry import PlatformRegistry
+from platforms.tiktok.account import CreatorInfoApi, CreatorInfoService
+from platforms.tiktok.client import TikTokClient
 
 CREDENTIAL_SETTINGS = {
     "youtube": ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET"),
@@ -67,8 +69,8 @@ class Container:
     def catalog(self) -> PlatformCatalog:
         from publishing.publishers import PUBLISHERS
 
-        providers = {kind.name: kind for kind in (TikTokProvider, InstagramProvider, XProvider)}
-        built = PlatformRegistry.build(self.config).all()
+        providers = {kind.name: kind for kind in (InstagramProvider, XProvider)}
+        built = PlatformRegistry.build(self.config, self.clock).all()
         transitional = (
             Platform(
                 name=name,
@@ -144,6 +146,16 @@ class Container:
             self.unit_of_work,
             self.clock,
         )
+
+    @cached_property
+    def cache(self) -> Cache:
+        from common.caching import DjangoCache
+
+        return DjangoCache()
+
+    @cached_property
+    def creator_info(self) -> CreatorInfoService:
+        return CreatorInfoService(CreatorInfoApi(TikTokClient(self.config.http)), self.tokens, self.cache)
 
     @cached_property
     def dispatcher(self) -> DeferredDispatcher:

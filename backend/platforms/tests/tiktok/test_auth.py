@@ -5,9 +5,9 @@ from django.test import override_settings
 from config.wiring import container
 from platforms.core.auth import Pkce
 from platforms.core.errors import ProviderError
-from platforms.tiktok import TikTokProvider
+from platforms.tiktok.auth import TikTokProvider
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import FakeResponse, PlatformTestCase
 
 TOKEN = {
     "access_token": "act.fresh",

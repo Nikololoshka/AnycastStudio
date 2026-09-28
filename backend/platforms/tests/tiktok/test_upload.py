@@ -1,10 +1,12 @@
 import time
 
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError, UploadCancelled
-from platforms.tiktok import PostInfo, ResumeState, upload
-from platforms.tiktok.upload import INIT_ENDPOINT, chunk_plan
+from platforms.core.ports import SystemClock
+from platforms.tiktok.client import TikTokClient
+from platforms.tiktok.upload import ChunkPlan, DirectPostProtocol, PostInfo, ResumeState, TikTokUploader
+from platforms.tiktok.upload.protocol import INIT_ENDPOINT
 
-from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
+from ..base import CHUNK, CONTENT, TEST_CONFIG, FakeResponse, PlatformTestCase
 
 UPLOAD_URL = "https://open-upload.tiktokapis.com/video/?upload_id=1"
 PUBLISH_ID = "v_pub_file~v2-1.123"
@@ -53,14 +55,15 @@ class TikTokUploadScenarios(PlatformTestCase):
             "post_info": POST_INFO,
             "access_token": "act.token",
         }
-        return upload(**{**defaults, **kwargs})
+        uploader = TikTokUploader(DirectPostProtocol(TikTokClient(TEST_CONFIG.http)), TEST_CONFIG.upload, SystemClock())
+        return uploader.upload(**{**defaults, **kwargs})
 
     def test_a_file_smaller_than_a_chunk_goes_in_one_piece(self):
-        self.assertEqual(chunk_plan(500, CHUNK), (500, 1))
+        self.assertEqual(ChunkPlan.of(500, CHUNK), ChunkPlan(500, 1))
 
     def test_the_last_chunk_takes_the_remainder(self):
         # TikTok counts chunks by rounding down; the remainder rides on the last one
-        self.assertEqual(chunk_plan(CHUNK * 3 + 100, CHUNK), (CHUNK, 3))
+        self.assertEqual(ChunkPlan.of(CHUNK * 3 + 100, CHUNK), ChunkPlan(CHUNK, 3))
 
     def test_the_init_announces_the_chunks_it_will_receive(self):
         # Given: TikTok accepts everything
