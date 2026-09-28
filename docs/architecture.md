@@ -143,27 +143,38 @@ is `database is locked` in the worker log.
 
 ---
 
+## Where the rules live
+
+`backend/platforms/` holds the business logic and imports nothing from
+Django (`docs/adr/0002-platforms-core.md`):
+
+```
+views / Celery tasks ──► platforms/core use cases ──► platforms/<p>
+        │                       │ ports
+        ▼                       ▼
+config/wiring.py ──────► Django adapters (repositories, Celery queue, cache)
+```
+
+- `platforms/core/publishing/` — `PublicationService` (create, cancel,
+  retry), `PublicationPipeline` (claim, validate, upload, publish),
+  `ConfirmationPoller` (polls, the confirmation window, the two-phase
+  commit), `DeferredDispatcher` (due targets, stalled confirmations).
+- `platforms/core/auth/` — `TokenService` (valid token, lease-guarded
+  refresh), `AccountService`, `ConnectFlow` (both `state` checks).
+- `platforms/<p>/` — one platform, built by its `PlatformFactory` into a
+  `Platform`: provider, publisher, validator, capabilities.
+
 ## Adding a platform
 
-1. `backend/platforms/<platform>/` — `api.py`, `oauth.py`, `upload.py`,
-   `status.py`, `video_options.py`, `capabilities.py`, and tests in
-   `backend/platforms/tests/`. No imports from another platform folder; shared
-   pieces come from `platforms/http/` and `platforms/upload/`.
-2. Register the provider in `social/providers.py`.
-3. Add `publishing/publishers/<platform>.py` — a `Publisher` subclass with
-   `validate`, `upload`, and `publish` / `confirm` as the platform needs — and
-   register it in `publishing/publishers/__init__.py`. The pipeline picks it
-   by the target's platform; the capabilities endpoint reads the same
-   registry.
-4. Add `frontend/src/platforms/<platform>/` — settings, descriptor, panel — and
+1. `backend/platforms/<platform>/` in the shared shape — `client.py`,
+   `auth/`, `upload/`, `publish/`, `options/`, `platform.py` — with tests in
+   `backend/platforms/tests/<platform>/`. No imports from another platform
+   folder; shared pieces come from `platforms/core/`.
+2. Add its factory to `platforms/registry.py` and its credential settings to
+   `config/wiring.py::CREDENTIAL_SETTINGS`. The pipeline, the capabilities
+   endpoint, the deferred sweep and the OAuth flow read the registry.
+3. Add `frontend/src/platforms/<platform>/` — settings, descriptor, panel — and
    the `AVAILABLE_PLATFORMS` entry, then register it in `platforms/registry.ts`,
    `platforms/settings.ts` and `features/composer/PlatformTab.tsx`.
 
-The full walkthrough, with what the TikTok port taught, is in
-`docs/platforms/adding-a-platform.md`.
-
-X and Instagram are in the `v0-desktop` tag, along with the Rust upload loops
-that document each one's protocol. Two defects in that code must be fixed while
-porting rather than carried over: X does not poll `STATUS` after `FINALIZE`,
-and Instagram does not poll the container status before `media_publish`. Both
-fit `confirm`, as TikTok's status polling does.
+The full walkthrough is in `docs/platforms/adding-a-platform.md`.

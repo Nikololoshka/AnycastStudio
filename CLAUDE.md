@@ -84,12 +84,12 @@ Unless asked otherwise:
 
 | Area | Library | Purpose | Notes / Constraints |
 | --- | --- | --- | --- |
-| API | plain Django views | HTTP layer | No DRF. `common/responses/` is the contract, `common/access/` and `common/rate_limit/` the decorators |
+| API | plain Django views | HTTP layer | No DRF. `common/responses/` is the contract and maps domain errors, `common/access/` and `common/rate_limit/` the decorators |
 | Validation | pydantic 2 | Request bodies | Through `common/request_body::validate` |
 | Queue | celery[redis] 5.6 | Background uploads | `acks_late`; no task-level retry, the pipeline decides |
 | Encryption | cryptography | Platform tokens at rest | `MultiFernet`, rotatable; see `common/encryption/` |
 | Passwords | argon2-cffi | Hashing | First in `PASSWORD_HASHERS` |
-| HTTP (server) | requests | Platform calls | Only through `platforms/http/` |
+| HTTP (server) | requests | Platform calls | Only through `platforms/core/http/` (`PlatformClient`) |
 | Config | python-dotenv | Reads `backend/.env` | Real env vars win |
 | UI | HeroUI 3 | Component library | Compound components; built on React Aria |
 | Styling | Tailwind CSS 4.3 | Utilities and theme tokens | Tokens defined in `src/styles.css` |
@@ -121,7 +121,10 @@ uvicorn / Django ──► SQLite (WAL)
 Celery worker ──► backend/media_files ──► platform APIs
 ```
 
-Server: `views → services → platforms/<p> → the platform's API`.
+Server: `views / tasks → platforms/core use cases → platforms/<p> → the platform's API`.
+The use cases reach the database, the queue and the cache only through the
+ports in `platforms/core/ports/`; the Django apps implement them and
+`config/wiring.py` assembles everything (see `docs/adr/0002-platforms-core.md`).
 Browser: `components → RTK Query hooks → the API`.
 
 **Business logic lives on the server.** The SPA renders, collects input and
@@ -129,29 +132,36 @@ reports progress. Publishing, scheduling and tokens are the server's.
 
 ### Architectural Rules
 
-- A platform adapter (`backend/platforms/<p>/`) is called only from
-  `publishing/services`, `publishing/pipeline` or a Celery task — never from a
-  view. A view returns in milliseconds; an upload takes minutes.
-- `backend/platforms/` is a plain Python package, not a Django app. It must not
-  import models, so a task can use it directly. Each platform folder is
-  self-contained: no imports between `platforms/youtube` and its future
-  siblings.
-- Every platform package has the same shape: `api.py` (`LABEL`, `send`,
-  its `failure_of`), `capabilities.py`, `upload.py`, `status.py`,
-  `video_options.py`, `oauth.py` (an `OAuth2Provider` subclass),
-  `responses.py` (a `PlatformModel` per answer, read with `http.parse`), and exports the same core names
-  (`capabilities`, `validate`, `upload`, `ResumeState`, `fetch_status`,
-  `failure_of`, `post_url`). `platforms/oauth/` and `platforms/capabilities/`
-  hold the shapes.
-- An upload is a `Session` driven by `platforms/upload::drive`; its
-  `ResumeState` extends `ResumableState`. Cancellation and token refresh use
-  the shared `UploadCancelled`, `NeedsFreshToken` and
-  `fresh_token_on_rejection` from `platforms/upload/`.
-- Each platform has a `Publisher` subclass in `publishing/publishers/` that
-  maps a `PublicationTarget` onto the platform package; the pipeline only
-  talks to `Publisher`.
-- Every platform HTTP call goes through `platforms/http/` (`http.send`), which
-  owns the timeout, the error classification and the retry policy.
+- `backend/platforms/` holds the business logic of publishing and of
+  connecting accounts, and imports nothing from Django or the apps.
+  `platforms/tests/core/test_architecture.py` enforces it.
+- `platforms/core/` holds the shared toolkit (`http/`, `upload/`,
+  `capabilities/`, `errors.py`, `config.py`), the interfaces (`ports/`,
+  `platform.py`) and the use cases: `publishing/` (`PublicationService`,
+  `PublicationPipeline`, `ConfirmationPoller`, `DeferredDispatcher`) and
+  `auth/` (`TokenService`, `AccountService`, `ConnectFlow`).
+- The Django apps are adapters: models, views, Celery tasks and one
+  repository per port (`publishing/repositories.py`, `social/repositories.py`,
+  `publishing/queue.py`, `common/transactions`, `common/caching`). Views and
+  tasks take services from `config.wiring.container()`, never build them.
+- A use case is called from a view only when it answers in milliseconds;
+  uploads and confirmations run from Celery tasks.
+- Every platform folder has the same shape: `client.py` (a `PlatformClient`
+  subclass with its own `FailureClassifier`), `auth/` (the `OAuth2Provider`),
+  `upload/` (state, protocol, `UploadSession`, uploader), `publish/` (the
+  `Publisher` and status calls), `options/` (options, `Validator`,
+  `CAPABILITIES`) and `platform.py` (a `PlatformFactory`). No imports between
+  platform folders; shared pieces come from `platforms/core/`.
+- A publisher works on a `PublishJob`, never on a model. A step that must not
+  run twice answers `ReadyToCommit`; the pipeline marks it before `commit`.
+- Behaviour lives in classes and value objects: no public module-level
+  functions in `platforms/`. Internal values are frozen dataclasses; pydantic
+  only reads what comes from outside (platform answers, request settings).
+- Every platform failure is a `PlatformError` with a `FailureType`; an API
+  refusal is a domain error (`NotFound`, `Conflict`, …) that
+  `common/responses::domain_errors` turns into the status contract.
+- Every platform HTTP call goes through `PlatformClient.send`, which owns the
+  timeout, the error classification and the retry policy.
 - Server state in the browser belongs to an RTK Query endpoint in `src/api/`.
   Only genuinely client-owned state goes in a slice: the composer draft, the
   in-flight browser upload, the theme and the language.
@@ -184,8 +194,8 @@ in a check afterwards:
 ### Background work
 
 - Tasks are idempotent and claim before they work: a conditional UPDATE whose
-  rowcount decides, as in `social/sessions.py::claim` and
-  `publishing/pipeline.py::claim`. `acks_late` gives at-least-once; the claim
+  rowcount decides, as in `DjangoTargetRepository.claim` and
+  `DjangoOAuthSessionRepository.claim`. `acks_late` gives at-least-once; the claim
   makes it effectively-once.
 - Never retry what the platform decided about. A rejected file or an exhausted
   quota does not improve on repetition, and each attempt spends YouTube quota
@@ -219,8 +229,12 @@ outcome is a new row there, not a new body shape.
 @require_auth
 @rate_limit("publications")
 @validate(CreatePublicationSchema)
+@domain_errors
 def publishing_create(request, data: CreatePublicationSchema): ...
 ```
+
+A view parses the request, checks ownership through a repository, calls a use
+case and serializes. Refusals come back as domain errors.
 
 `common/core/decorators.py::precondition` builds both sync and async wrappers
 from one check, which is why this project does not need a framework layer here.
@@ -231,13 +245,13 @@ from one check, which is why this project does not need a framework layer here.
 
 ```text
 backend/
-├─ config/        settings/{base,dev,test}.py, urls, asgi, celery
+├─ config/        settings/{base,dev,test}.py, urls, asgi, celery, wiring (the container)
 ├─ common/        one package per task: responses, access, rate_limit, request_body, encryption
 ├─ accounts/      User with its limits, sign-in
-├─ social/        SocialAccount, OAuthSession, provider registry, connect/callback
+├─ social/        SocialAccount, OAuthSession, repositories, connect/callback views
 ├─ media/         MediaAsset, UploadSession, chunked upload, storage, sweeps
-├─ publishing/    Publication, PublicationTarget, pipeline, tasks, API
-└─ platforms/     plain package: oauth/, capabilities/, http/, upload/, one folder per platform
+├─ publishing/    Publication, PublicationTarget, repositories, Celery queue, tasks, API
+└─ platforms/     the business logic: core/ (toolkit, ports, use cases), registry.py, one folder per platform
 
 frontend/src/
 ├─ api/           RTK Query: baseApi + one module per area
@@ -252,9 +266,11 @@ frontend/src/
 ### File Placement Rules
 
 - Anything touching a platform API, a token or a stored file is backend code.
-- A new platform goes in `backend/platforms/<platform>/` and
-  `publishing/publishers/<platform>.py`, plus one line each in
-  `social/providers.py` and `publishing/publishers/__init__.py`.
+- A new platform goes in `backend/platforms/<platform>/` in the shared shape,
+  plus its factory in `platforms/registry.py` and its credential settings in
+  `config/wiring.py::CREDENTIAL_SETTINGS`.
+- A new rule about publishing or accounts goes in a use case in
+  `platforms/core/`; the database side of it goes in the app's repository.
 - New screens go in `frontend/src/features/<feature>/`.
 - Cross-feature reusable UI goes in `frontend/src/components/`.
 - A new endpoint goes in `<app>/views/<name>.py`, one file per endpoint group.
@@ -323,9 +339,14 @@ npm run dev                                        # http://localhost:5173
 
 ## Testing
 
-- **Backend tests are mandatory** for new behaviour. They are Django
-  `TestCase`, written as Given / When / Then, with the platform mocked at
-  `platforms.http.transport.requests.request` so the real chunking and retry run.
+- **Backend tests are mandatory** for new behaviour, written as Given / When /
+  Then. Two kinds:
+  - use cases in `platforms/core/` are tested as `SimpleTestCase` against the
+    in-memory fakes in `platforms/tests/fakes/`, which implement the same
+    ports — state transitions, windows and leases without a database;
+  - adapters, views and the whole path are Django `TestCase`, with the
+    platform mocked at `platforms.core.http.transport.requests.request` so the
+    real chunking and retry run.
 - What must have a test: anything about who can see what, anything about
   tokens, the upload offsets, and every way a platform can refuse.
 - **Frontend tests cover pure functions only** — hashtag normalisation, the
@@ -391,7 +412,8 @@ Treat this section as mandatory.
 ### Human Approval Required Before
 
 - changing OAuth or credential handling (`backend/social/`,
-  `backend/platforms/*/oauth.py`, `backend/common/encryption/`);
+  `backend/platforms/core/auth/`, `backend/platforms/*/auth/`,
+  `backend/common/encryption/`);
 - deleting user data or stored media;
 - installing or replacing major dependencies;
 - rotating secrets or changing how `.env` is read;
@@ -400,7 +422,7 @@ Treat this section as mandatory.
 ### Sensitive Areas
 
 - Authentication: `backend/accounts/`, `backend/common/access/`, `backend/common/core/`
-- Platform authorisation: `backend/social/`, `backend/platforms/*/oauth.py`
+- Platform authorisation: `backend/social/`, `backend/platforms/core/auth/`, `backend/platforms/*/auth/`
 - Encryption: `backend/common/encryption/`
 - Configuration: `backend/.env`
 
