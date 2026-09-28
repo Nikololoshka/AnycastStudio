@@ -1,12 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from platforms.core.errors import FailureType, PlatformError, UploadCancelled
 from platforms.core.upload import ResumableState, UploadDriver
 
-from .base import CHUNK, CONTENT, PlatformTestCase
+from ..base import CHUNK, CONTENT, PlatformTestCase
 
 
-@dataclass
+@dataclass(frozen=True)
 class FakeState(ResumableState):
     upload_id: str
     offset: int = 0
@@ -73,7 +73,7 @@ class FakeSession:
     def send_next(self, video) -> None:
         length = min(CHUNK, self.size - self.state.offset)
         self.pieces.append(video.piece(self.state.offset, length))
-        self.state.offset += length
+        self.state = replace(self.state, offset=self.state.offset + length)
 
     def finish(self) -> str:
         return self.state.upload_id

@@ -5,7 +5,7 @@ from platforms.core.config import HttpConfig, OAuthCredentials, PlatformConfig
 from platforms.core.errors import ProviderError
 from platforms.core.http import PlatformClient
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import FakeResponse, PlatformTestCase
 
 TOKEN_ENDPOINT = "https://example.test/oauth/token"
 REDIRECT_URI = "https://app.example.test/api/social/example/callback"

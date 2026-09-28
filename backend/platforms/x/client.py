@@ -2,6 +2,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
+from ..core.config import HttpConfig
 from ..core.errors import FailureType, PlatformError
 from ..core.http import FailureClassifier, PlatformClient, ResponseParser
 from .responses import Data, Problem, ProblemAnswer
@@ -42,7 +43,7 @@ class XFailureClassifier(FailureClassifier):
 class XClient(PlatformClient):
     label = LABEL
 
-    def __init__(self, config):
+    def __init__(self, config: HttpConfig):
         super().__init__(config, XFailureClassifier())
 
     @staticmethod
@@ -56,24 +57,3 @@ class XClient(PlatformClient):
     def data_of(self, response, model: type[M], *, refusal: str | None = None) -> M:
         return self.parse(response, Data[model], refusal=refusal).data
 
-
-def client() -> XClient:
-    from config import wiring
-
-    return XClient(wiring.container().config.http)
-
-
-def send(method: str, url: str, *, attempts: int | None = None, **kwargs):
-    return client().send(method, url, attempts=attempts, **kwargs)
-
-
-def bearer(access_token: str) -> dict:
-    return XClient.bearer(access_token)
-
-
-def call(method: str, path: str, access_token: str, *, attempts: int | None = None, **kwargs):
-    return client().call(method, path, access_token, attempts=attempts, **kwargs)
-
-
-def data_of(response, model: type[M], *, refusal: str | None = None) -> M:
-    return client().data_of(response, model, refusal=refusal)

@@ -14,7 +14,7 @@ class ChunkPlan:
         return cls(chunk_size, max(1, size // chunk_size))
 
 
-@dataclass
+@dataclass(frozen=True)
 class ResumeState(ResumableState):
     publish_id: str
     upload_url: str

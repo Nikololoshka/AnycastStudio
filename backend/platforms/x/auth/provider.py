@@ -1,10 +1,11 @@
 from typing import Self
 
-from ..core.auth import Identity, OAuth2Provider
-from ..core.config import PlatformConfig
-from ..core.errors import ProviderError
-from .client import API_ROOT, XClient
-from .responses import Data, User
+from ...core.auth import Identity, OAuth2Provider
+from ...core.config import PlatformConfig
+from ...core.errors import ProviderError
+from ..client import API_ROOT, XClient
+from ..responses import Data
+from .responses import User
 
 AUTH_ENDPOINT = "https://x.com/i/oauth2/authorize"
 TOKEN_ENDPOINT = f"{API_ROOT}/oauth2/token"

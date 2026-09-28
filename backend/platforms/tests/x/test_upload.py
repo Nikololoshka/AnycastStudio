@@ -1,10 +1,11 @@
 import time
 
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError, UploadCancelled
-from platforms.x import ResumeState, upload
-from platforms.x.client import API_ROOT
+from platforms.core.ports import SystemClock
+from platforms.x.client import API_ROOT, XClient
+from platforms.x.upload import MediaUploadProtocol, ResumeState, XUploader
 
-from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
+from ..base import CHUNK, CONTENT, TEST_CONFIG, FakeResponse, PlatformTestCase
 
 MEDIA_ID = "1880000000000000001"
 NEW_MEDIA_ID = "1880000000000000002"
@@ -47,7 +48,8 @@ class XDouble:
 class XUploadScenarios(PlatformTestCase):
     def send(self, **kwargs):
         defaults = {"path": self.given_file(), "size": len(CONTENT), "mime_type": "video/mp4", "access_token": TOKEN}
-        return upload(**{**defaults, **kwargs})
+        uploader = XUploader(MediaUploadProtocol(XClient(TEST_CONFIG.http)), TEST_CONFIG.upload, SystemClock())
+        return uploader.upload(**{**defaults, **kwargs})
 
     def resume_state(self, next_segment: int, age_seconds: float = 60) -> ResumeState:
         return ResumeState(

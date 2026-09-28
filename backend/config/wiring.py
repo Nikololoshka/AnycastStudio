@@ -5,7 +5,7 @@ from django.core.signals import setting_changed
 
 from platforms.core.auth import OAuth2Provider
 from platforms.core.config import HttpConfig, OAuthCredentials, PlatformConfig, UploadConfig
-from platforms.core.platform import Platform, PlatformCatalog
+from platforms.core.platform import PlatformCatalog
 from platforms.core.ports import (
     AccessTokens,
     AccountRepository,
@@ -24,7 +24,6 @@ from platforms.core.publishing.failures import FailureMapper
 from platforms.core.publishing.pipeline import PublicationPipeline
 from platforms.core.publishing.service import PublicationService
 from platforms.core.publishing.writer import TargetWriter
-from platforms.x import XProvider
 from platforms.registry import PlatformRegistry
 from platforms.tiktok.account import CreatorInfoApi, CreatorInfoService
 from platforms.tiktok.client import TikTokClient
@@ -66,22 +65,7 @@ class Container:
 
     @cached_property
     def catalog(self) -> PlatformCatalog:
-        from publishing.publishers import PUBLISHERS
-
-        providers = {kind.name: kind for kind in (XProvider,)}
-        built = PlatformRegistry.build(self.config, self.clock).all()
-        transitional = (
-            Platform(
-                name=name,
-                label=publisher.label,
-                capabilities=publisher.capabilities(),
-                provider=providers[name].create(self.config),
-                publisher=publisher,
-                validator=publisher,
-            )
-            for name, publisher in PUBLISHERS.items()
-        )
-        return PlatformRegistry((*built, *transitional))
+        return PlatformRegistry.build(self.config, self.clock)
 
     @cached_property
     def targets(self) -> TargetRepository:

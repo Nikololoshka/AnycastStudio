@@ -1,13 +1,31 @@
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
-from platforms.x import VideoOptions, create_post, failure_of, fetch_status, validate
-from platforms.x.client import API_ROOT
-from platforms.x.status import status_of
+from platforms.core.publishing import MediaInfo, PublicationDraft
+from platforms.x.client import API_ROOT, XClient
+from platforms.x.options import XOptions, XValidator
+from platforms.x.publish import MediaStatusApi, PostApi
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import TEST_CONFIG, FakeResponse, PlatformTestCase
 
 MEDIA_ID = "1880000000000000001"
 POST_ID = "1990000000000000001"
 TOKEN = "x.access-token"
+
+
+def fetch_status(access_token: str, media_id: str):
+    return MediaStatusApi(XClient(TEST_CONFIG.http)).fetch(access_token, media_id)
+
+
+def status_of(body: dict):
+    return MediaStatusApi(XClient(TEST_CONFIG.http)).status_of(body)
+
+
+def create_post(access_token: str, text: str, media_id: str, options: XOptions) -> str:
+    return PostApi(XClient(TEST_CONFIG.http)).create(access_token, text, media_id, options)
+
+
+def validate(*, caption: str, size_bytes: int, mime_type: str, duration_seconds: float | None):
+    draft = PublicationDraft(caption, "", (), MediaInfo(size_bytes, mime_type, duration_seconds))
+    return XValidator().validate(draft)
 
 
 def processing(state: str, **extra) -> dict:
@@ -38,7 +56,7 @@ class XProcessingScenarios(PlatformTestCase):
         status = status_of(processing("failed", error={"code": 1, "name": "InvalidMedia", "message": "Bad codec"}))
 
         # When: it becomes a failure
-        failure = failure_of(status)
+        failure = status.failure()
 
         # Then: it is about the file, with X's words
         self.assertTrue(status.is_failed)
@@ -55,7 +73,7 @@ class XPostScenarios(PlatformTestCase):
     def test_the_post_carries_the_text_the_video_and_only_the_chosen_options(self):
         # Given: X creates the post
         self.http.side_effect = [FakeResponse(201, {"data": {"id": POST_ID, "text": "A video"}})]
-        options = VideoOptions(reply_audience="following", made_with_ai=True)
+        options = XOptions(reply_audience="following", made_with_ai=True)
 
         # When: the post is created
         post_id = create_post(TOKEN, "A video", MEDIA_ID, options)
@@ -73,7 +91,7 @@ class XPostScenarios(PlatformTestCase):
 
         # When / Then: the failure is reported after one attempt, so nothing is posted twice
         with self.assertRaises(PlatformError) as raised:
-            create_post(TOKEN, "A video", MEDIA_ID, VideoOptions())
+            create_post(TOKEN, "A video", MEDIA_ID, XOptions())
         self.assertEqual(raised.exception.type, FailureType.PLATFORM)
         self.assertEqual(self.http.call_count, 1)
 
@@ -82,7 +100,7 @@ class XPostScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(403, refusal)]
 
         with self.assertRaises(PlatformError) as raised:
-            create_post(TOKEN, "A video", MEDIA_ID, VideoOptions())
+            create_post(TOKEN, "A video", MEDIA_ID, XOptions())
         self.assertEqual(raised.exception.type, FailureType.AUTHORIZATION)
         self.assertIn("duplicate content", raised.exception.message)
 
@@ -91,7 +109,7 @@ class XPostScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(429, refusal)] * 5
 
         with self.assertRaises(PlatformError) as raised:
-            create_post(TOKEN, "A video", MEDIA_ID, VideoOptions())
+            create_post(TOKEN, "A video", MEDIA_ID, XOptions())
         self.assertEqual((raised.exception.type, raised.exception.details), (FailureType.RATE_LIMIT, "usage-capped"))
         self.assertFalse(raised.exception.retryable)
 
@@ -105,7 +123,7 @@ class XPostScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(403, refusal)]
 
         with self.assertRaises(PlatformError) as raised:
-            create_post(TOKEN, "A video", MEDIA_ID, VideoOptions())
+            create_post(TOKEN, "A video", MEDIA_ID, XOptions())
         self.assertEqual((raised.exception.type, raised.exception.details), (FailureType.AUTHORIZATION, "client-forbidden"))
 
 

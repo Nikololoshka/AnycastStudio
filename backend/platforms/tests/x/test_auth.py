@@ -5,10 +5,10 @@ from django.test import override_settings
 from config.wiring import container
 from platforms.core.auth import Pkce
 from platforms.core.errors import ProviderError
-from platforms.x import XProvider
-from platforms.x.oauth import REVOKE_ENDPOINT, TOKEN_ENDPOINT
+from platforms.x.auth import XProvider
+from platforms.x.auth.provider import REVOKE_ENDPOINT, TOKEN_ENDPOINT
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import FakeResponse, PlatformTestCase
 
 TOKEN = {
     "token_type": "bearer",

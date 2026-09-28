@@ -1,7 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 
 from platforms.core.auth import Pkce
-from platforms.x.oauth import TOKEN_ENDPOINT, USER_INFO_ENDPOINT
+from platforms.x.auth.provider import TOKEN_ENDPOINT, USER_INFO_ENDPOINT
 from social.models import OAuthSession
 from social.tests.base import FakeResponse, SocialTestCase
 

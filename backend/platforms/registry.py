@@ -6,9 +6,10 @@ from .core.platform import Platform, PlatformCatalog, PlatformFactory
 from .core.ports import Clock
 from .instagram import InstagramFactory
 from .tiktok import TikTokFactory
+from .x import XFactory
 from .youtube import YouTubeFactory
 
-FACTORIES: tuple[PlatformFactory, ...] = (YouTubeFactory(), TikTokFactory(), InstagramFactory())
+FACTORIES: tuple[PlatformFactory, ...] = (YouTubeFactory(), TikTokFactory(), InstagramFactory(), XFactory())
 
 
 class PlatformRegistry(PlatformCatalog):

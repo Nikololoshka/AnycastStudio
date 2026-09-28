@@ -3,7 +3,7 @@ from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
 from platforms.core.http import FailureClassifier, PlatformClient
 from platforms.core.upload import TokenRejectionGuard
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import FakeResponse, PlatformTestCase
 
 URL = "https://api.example.test/upload"
 

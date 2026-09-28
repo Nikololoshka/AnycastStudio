@@ -2,7 +2,7 @@ from dataclasses import MISSING, asdict, dataclass, fields
 from typing import Self
 
 
-@dataclass
+@dataclass(frozen=True)
 class ResumableState:
     def as_dict(self) -> dict:
         return asdict(self)

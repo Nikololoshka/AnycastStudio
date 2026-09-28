@@ -1,9 +1,9 @@
 import re
 from pathlib import Path
 
-from platforms import x
 from platforms.instagram.options import InstagramOptions
 from platforms.tiktok.options import TikTokOptions
+from platforms.x.options import XOptions
 from platforms.youtube.options import YouTubeOptions
 
 from .base import PublishingTestCase
@@ -57,4 +57,4 @@ class ContractScenarios(PublishingTestCase):
 
     def test_the_x_defaults_match_the_browsers(self):
         frontend = frontend_defaults("x", "X_DEFAULT_SETTINGS", "XSettings")
-        self.assert_defaults_agree(frontend, backend_defaults(x.video_options_of({})))
+        self.assert_defaults_agree(frontend, backend_defaults(XOptions.of({})))

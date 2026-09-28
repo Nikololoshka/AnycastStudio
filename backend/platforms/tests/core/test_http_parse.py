@@ -1,7 +1,7 @@
 from platforms.core.errors import FailureType, PlatformError
 from platforms.core.http import PlatformModel, ResponseParser
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import FakeResponse, PlatformTestCase
 
 SECRET = "ya29.do-not-leak"
 
