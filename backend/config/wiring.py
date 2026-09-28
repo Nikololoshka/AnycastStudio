@@ -24,7 +24,6 @@ from platforms.core.publishing.failures import FailureMapper
 from platforms.core.publishing.pipeline import PublicationPipeline
 from platforms.core.publishing.service import PublicationService
 from platforms.core.publishing.writer import TargetWriter
-from platforms.instagram import InstagramProvider
 from platforms.x import XProvider
 from platforms.registry import PlatformRegistry
 from platforms.tiktok.account import CreatorInfoApi, CreatorInfoService
@@ -69,7 +68,7 @@ class Container:
     def catalog(self) -> PlatformCatalog:
         from publishing.publishers import PUBLISHERS
 
-        providers = {kind.name: kind for kind in (InstagramProvider, XProvider)}
+        providers = {kind.name: kind for kind in (XProvider,)}
         built = PlatformRegistry.build(self.config, self.clock).all()
         transitional = (
             Platform(

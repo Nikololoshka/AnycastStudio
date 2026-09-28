@@ -4,10 +4,11 @@ from typing import Self
 from .core.config import PlatformConfig
 from .core.platform import Platform, PlatformCatalog, PlatformFactory
 from .core.ports import Clock
+from .instagram import InstagramFactory
 from .tiktok import TikTokFactory
 from .youtube import YouTubeFactory
 
-FACTORIES: tuple[PlatformFactory, ...] = (YouTubeFactory(), TikTokFactory())
+FACTORIES: tuple[PlatformFactory, ...] = (YouTubeFactory(), TikTokFactory(), InstagramFactory())
 
 
 class PlatformRegistry(PlatformCatalog):

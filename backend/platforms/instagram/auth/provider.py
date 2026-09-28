@@ -1,11 +1,10 @@
 import logging
-
 from typing import Self
 
-from ..core.auth import Identity, OAuth2Provider, TokenBundle
-from ..core.config import PlatformConfig
-from ..core.errors import ProviderError
-from .client import GRAPH_ROOT, GRAPH_VERSION, InstagramClient
+from ...core.auth import Identity, OAuth2Provider, TokenBundle
+from ...core.config import PlatformConfig
+from ...core.errors import ProviderError
+from ..client import GRAPH_ROOT, GRAPH_VERSION, InstagramClient
 from .responses import DebugToken, Page, PageList, UserToken
 
 AUTH_ENDPOINT = f"https://www.facebook.com/{GRAPH_VERSION}/dialog/oauth"

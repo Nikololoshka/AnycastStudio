@@ -1,21 +1,33 @@
 import requests
 
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
-from platforms.instagram import (
-    caption_of,
-    failure_of,
-    fetch_status,
-    publish_container,
-    validate,
-    video_options_of,
-)
-from platforms.instagram.capabilities import MAX_FILE_BYTES
-from platforms.instagram.client import GRAPH_ROOT
+from platforms.core.publishing import MediaInfo, PublicationDraft
+from platforms.instagram.client import GRAPH_ROOT, InstagramClient
+from platforms.instagram.options import InstagramOptions, InstagramValidator
+from platforms.instagram.options.capabilities import MAX_FILE_BYTES
+from platforms.instagram.publish import ContainerApi
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import TEST_CONFIG, FakeResponse, PlatformTestCase
 
 TOKEN = "EAAG.page-token"
 CONTAINER_ID = "17900000000000001"
+
+
+def containers() -> ContainerApi:
+    return ContainerApi(InstagramClient(TEST_CONFIG.http))
+
+
+def fetch_status(access_token: str, container_id: str):
+    return containers().status(access_token, container_id)
+
+
+def publish_container(access_token: str, ig_user_id: str, container_id: str) -> str:
+    return containers().publish(access_token, ig_user_id, container_id)
+
+
+def validate(*, caption: str, size_bytes: int, mime_type: str, duration_seconds: float | None):
+    draft = PublicationDraft(caption, "", (), MediaInfo(size_bytes, mime_type, duration_seconds))
+    return InstagramValidator().validate(draft)
 
 
 class ContainerStatusScenarios(PlatformTestCase):
@@ -33,7 +45,7 @@ class ContainerStatusScenarios(PlatformTestCase):
         ]
 
         status = fetch_status(TOKEN, CONTAINER_ID)
-        failure = failure_of(status)
+        failure = status.failure()
 
         self.assertTrue(status.is_dead)
         self.assertEqual(failure.type, FailureType.FILE)
@@ -42,7 +54,7 @@ class ContainerStatusScenarios(PlatformTestCase):
     def test_an_expired_container_fails_as_expired(self):
         self.http.side_effect = [FakeResponse(200, {"status_code": "EXPIRED"})]
 
-        failure = failure_of(fetch_status(TOKEN, CONTAINER_ID))
+        failure = fetch_status(TOKEN, CONTAINER_ID).failure()
 
         self.assertEqual((failure.type, failure.details), (FailureType.PLATFORM, "EXPIRED"))
 
@@ -117,18 +129,15 @@ class ValidationScenarios(PlatformTestCase):
 
 class OptionScenarios(PlatformTestCase):
     def test_missing_options_fall_back_to_the_defaults(self):
-        options = video_options_of({})
+        options = InstagramOptions.of({})
 
         self.assertEqual(options.as_json(), {"shareToFeed": True, "coverFrameSeconds": 0})
         self.assertEqual(options.thumb_offset_ms, 0)
 
     def test_nonsense_falls_back_rather_than_failing(self):
-        options = video_options_of({"shareToFeed": "no", "coverFrameSeconds": -4})
+        options = InstagramOptions.of({"shareToFeed": "no", "coverFrameSeconds": -4})
 
         self.assertEqual((options.share_to_feed, options.cover_frame_seconds), (True, 0))
 
     def test_the_cover_frame_is_sent_in_milliseconds(self):
-        self.assertEqual(video_options_of({"coverFrameSeconds": 2.5}).thumb_offset_ms, 2500)
-
-    def test_the_caption_is_built_like_tiktoks(self):
-        self.assertEqual(caption_of("A title", " About ", ["one", "two"]), "A title\n\nAbout\n\n#one #two")
+        self.assertEqual(InstagramOptions.of({"coverFrameSeconds": 2.5}).thumb_offset_ms, 2500)

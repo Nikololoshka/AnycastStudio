@@ -1,9 +1,7 @@
-from .instagram import InstagramPublisher
 from .publisher import AppPublisher
 from .x import XPublisher
 
 PUBLISHERS: dict[str, AppPublisher] = {
-    "instagram": InstagramPublisher(),
     "x": XPublisher(),
 }
 

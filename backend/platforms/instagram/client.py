@@ -2,6 +2,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
+from ..core.config import HttpConfig
 from ..core.errors import FailureType, PlatformError
 from ..core.http import FailureClassifier, PlatformClient, ResponseParser
 from .responses import ErrorAnswer, GraphError
@@ -55,7 +56,7 @@ class InstagramFailureClassifier(FailureClassifier):
 class InstagramClient(PlatformClient):
     label = LABEL
 
-    def __init__(self, config):
+    def __init__(self, config: HttpConfig):
         super().__init__(config, InstagramFailureClassifier())
 
     @staticmethod
@@ -77,29 +78,3 @@ class InstagramClient(PlatformClient):
         response = self.send(method, f"{GRAPH_ROOT}/{path}", attempts=attempts, headers=headers, **kwargs)
         return self.parse(response, model, refusal=refusal)
 
-
-def client() -> InstagramClient:
-    from config import wiring
-
-    return InstagramClient(wiring.container().config.http)
-
-
-def send(method: str, url: str, *, attempts: int | None = None, **kwargs):
-    return client().send(method, url, attempts=attempts, **kwargs)
-
-
-def authorization(access_token: str) -> dict:
-    return InstagramClient.authorization(access_token)
-
-
-def call(
-    method: str,
-    path: str,
-    access_token: str,
-    model: type[M],
-    *,
-    refusal: str | None = None,
-    attempts: int | None = None,
-    **kwargs,
-) -> M:
-    return client().call(method, path, access_token, model, refusal=refusal, attempts=attempts, **kwargs)

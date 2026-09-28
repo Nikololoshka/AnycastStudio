@@ -1,10 +1,12 @@
 import time
 
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError, UploadCancelled
-from platforms.instagram import ReelInfo, ResumeState, upload
-from platforms.instagram.client import GRAPH_ROOT, RUPLOAD_ROOT
+from platforms.core.ports import SystemClock
+from platforms.instagram.client import GRAPH_ROOT, RUPLOAD_ROOT, InstagramClient
+from platforms.instagram.publish import ContainerApi
+from platforms.instagram.upload import ContainerUploadProtocol, InstagramUploader, ReelInfo, ResumeState
 
-from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
+from ..base import CHUNK, CONTENT, TEST_CONFIG, FakeResponse, PlatformTestCase
 
 IG_USER_ID = "17841400000000001"
 CONTAINER_ID = "17900000000000001"
@@ -60,7 +62,9 @@ class InstagramUploadScenarios(PlatformTestCase):
             "reel": REEL,
             "access_token": TOKEN,
         }
-        return upload(**{**defaults, **kwargs})
+        client = InstagramClient(TEST_CONFIG.http)
+        uploader = InstagramUploader(ContainerUploadProtocol(client), ContainerApi(client), TEST_CONFIG.upload, SystemClock())
+        return uploader.upload(**{**defaults, **kwargs})
 
     def resume_state(self, offset: int, age_seconds: float = 60) -> ResumeState:
         return ResumeState(container_id=CONTAINER_ID, offset=offset, created_at=time.time() - age_seconds)

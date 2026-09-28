@@ -4,10 +4,10 @@ from django.test import override_settings
 
 from config.wiring import container
 from platforms.core.errors import ProviderError
-from platforms.instagram import InstagramProvider
+from platforms.instagram.auth import InstagramProvider
 from platforms.instagram.client import GRAPH_ROOT
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import FakeResponse, PlatformTestCase
 
 USER_TOKEN = "EAAG.short-user-token"
 LONG_USER_TOKEN = "EAAG.long-user-token"
