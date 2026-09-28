@@ -1,7 +1,7 @@
 import logging
 import secrets
 
-from platforms.oauth import PlatformProvider, pkce
+from platforms.core.auth import OAuth2Provider, Pkce
 
 from .models import OAuthSession
 
@@ -16,10 +16,10 @@ def _sweep_expired() -> None:
         logger.info("Removed %d expired OAuth sessions", deleted)
 
 
-def create(user, provider: PlatformProvider) -> tuple[OAuthSession, str | None]:
+def create(user, provider: OAuth2Provider) -> tuple[OAuthSession, str | None]:
     _sweep_expired()
 
-    verifier = pkce.generate_verifier() if provider.uses_pkce else ""
+    verifier = Pkce.generate().verifier if provider.uses_pkce else ""
     session = OAuthSession.objects.create(
         user=user,
         platform=provider.name,

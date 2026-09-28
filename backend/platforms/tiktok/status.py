@@ -2,7 +2,7 @@ from pydantic import Field
 
 from ..core.errors import FailureType, PlatformError
 from ..core.http import PlatformModel
-from ..upload import fresh_token_on_rejection
+from ..core.upload import TokenRejectionGuard
 from .client import API_ROOT, call
 
 STATUS_ENDPOINT = f"{API_ROOT}/post/publish/status/fetch/"
@@ -47,7 +47,7 @@ class PublishStatus(PlatformModel):
 
 
 def fetch_status(access_token: str, publish_id: str) -> PublishStatus:
-    return fresh_token_on_rejection(
+    return TokenRejectionGuard().run(
         lambda: call("POST", STATUS_ENDPOINT, access_token, PublishStatus, json={"publish_id": publish_id})
     )
 

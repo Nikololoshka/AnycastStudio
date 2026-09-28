@@ -1,12 +1,14 @@
 from urllib.parse import parse_qs, urlparse
 
-from django.test import override_settings
-
-from platforms.oauth import OAuth2Provider, ProviderError
+from platforms.core.auth import Identity, OAuth2Provider
+from platforms.core.config import HttpConfig, OAuthCredentials, PlatformConfig
+from platforms.core.errors import ProviderError
+from platforms.core.http import PlatformClient
 
 from .base import FakeResponse, PlatformTestCase
 
 TOKEN_ENDPOINT = "https://example.test/oauth/token"
+REDIRECT_URI = "https://app.example.test/api/social/example/callback"
 
 
 class ExampleProvider(OAuth2Provider):
@@ -15,20 +17,32 @@ class ExampleProvider(OAuth2Provider):
     scopes = ("video.read", "video.write")
     authorize_endpoint = "https://example.test/oauth/authorize"
     token_endpoint = TOKEN_ENDPOINT
-    client_id_setting = "EXAMPLE_CLIENT_ID"
-    client_secret_setting = "EXAMPLE_CLIENT_SECRET"
     scope_separator = ","
+
+    @classmethod
+    def create(cls, config: PlatformConfig):
+        return cls(PlatformClient(config.http, label=cls.label), config.credentials_of(cls.name), REDIRECT_URI)
+
+    def fetch_identity(self, access_token: str) -> Identity:
+        return Identity(external_id="1", display_name="Example")
+
+    def revoke(self, access_token: str, refresh_token: str) -> None:
+        return None
 
 
 class NoPkceProvider(ExampleProvider):
     uses_pkce = False
 
 
-@override_settings(EXAMPLE_CLIENT_ID="client-id", EXAMPLE_CLIENT_SECRET="client-secret")
+def example(kind=ExampleProvider, client_id: str = "client-id"):
+    credentials = OAuthCredentials("EXAMPLE_CLIENT_ID", "EXAMPLE_CLIENT_SECRET", client_id, "client-secret")
+    return kind.create(PlatformConfig(http=HttpConfig(attempts=3), credentials={"example": credentials}))
+
+
 class OAuth2ProviderScenarios(PlatformTestCase):
     def test_the_consent_url_carries_the_client_scopes_and_challenge(self):
         # When: the consent URL is built
-        url = ExampleProvider().authorize_url("the-state", "the-challenge")
+        url = example().authorize_url("the-state", "the-challenge")
 
         # Then: it names the client, joins the scopes with the platform's separator and sends the challenge
         query = parse_qs(urlparse(url).query)
@@ -40,7 +54,7 @@ class OAuth2ProviderScenarios(PlatformTestCase):
 
     def test_a_platform_without_pkce_sends_no_challenge(self):
         # When: the consent URL is built for a platform without PKCE
-        query = parse_qs(urlparse(NoPkceProvider().authorize_url("the-state", None)).query)
+        query = parse_qs(urlparse(example(NoPkceProvider).authorize_url("the-state", None)).query)
 
         # Then: no challenge parameters are sent
         self.assertNotIn("code_challenge", query)
@@ -51,7 +65,7 @@ class OAuth2ProviderScenarios(PlatformTestCase):
         self.http.return_value = FakeResponse(200, {"access_token": "a", "scope": "video.read, video.write"})
 
         # When: the code is exchanged
-        bundle = ExampleProvider().exchange_code("code", "verifier")
+        bundle = example().exchange_code("code", "verifier")
 
         # Then: each scope is kept on its own
         self.assertEqual(bundle.scopes, ("video.read", "video.write"))
@@ -61,7 +75,7 @@ class OAuth2ProviderScenarios(PlatformTestCase):
         self.http.return_value = FakeResponse(200, {"access_token": "a"})
 
         # When: the token is refreshed
-        ExampleProvider().refresh("r")
+        example().refresh("r")
 
         # Then: the client and the grant are in the form body
         sent = self.http.call_args.kwargs["data"]
@@ -75,7 +89,7 @@ class OAuth2ProviderScenarios(PlatformTestCase):
 
         # When / Then: the refusal names the platform and the reason
         with self.assertRaisesMessage(ProviderError, "Example refused the token request: Bad verifier"):
-            ExampleProvider().exchange_code("code", "verifier")
+            example().exchange_code("code", "verifier")
 
     def test_a_malformed_token_answer_is_refused_without_repeating_the_token(self):
         # Given: the token arrives next to an expiry that is not a number
@@ -83,7 +97,7 @@ class OAuth2ProviderScenarios(PlatformTestCase):
 
         # When: the code is exchanged
         with self.assertRaises(ProviderError) as raised:
-            ExampleProvider().exchange_code("code", "verifier")
+            example().exchange_code("code", "verifier")
 
         # Then: the refusal is final and does not carry the token
         self.assertFalse(raised.exception.transient)
@@ -95,16 +109,15 @@ class OAuth2ProviderScenarios(PlatformTestCase):
 
         # When: the token is refreshed
         with self.assertRaises(ProviderError) as raised:
-            ExampleProvider().refresh("r")
+            example().refresh("r")
 
         # Then: the caller may try again later
         self.assertTrue(raised.exception.transient)
 
 
-@override_settings(EXAMPLE_CLIENT_ID="", EXAMPLE_CLIENT_SECRET="client-secret")
 class MissingConfigurationScenarios(PlatformTestCase):
     def test_an_unconfigured_client_names_the_setting(self):
         # When / Then: the setting to fill in is named, and nothing is sent
         with self.assertRaisesMessage(ProviderError, "EXAMPLE_CLIENT_ID is not configured"):
-            ExampleProvider().authorize_url("the-state", "the-challenge")
+            example(client_id="").authorize_url("the-state", "the-challenge")
         self.http.assert_not_called()

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from ..core.errors import FailureType, PlatformError
 from ..core.http import ResponseParser
-from ..upload import fresh_token_on_rejection
+from ..core.upload import TokenRejectionGuard
 from .client import LABEL, call, data_of
 from .responses import Created, MediaStatusAnswer
 from .video_options import VideoOptions
@@ -40,7 +40,7 @@ def status_of(body: dict) -> ProcessingStatus:
 
 
 def fetch_status(access_token: str, media_id: str) -> ProcessingStatus:
-    response = fresh_token_on_rejection(
+    response = TokenRejectionGuard().run(
         lambda: call("GET", "media/upload", access_token, params={"command": "STATUS", "media_id": media_id})
     )
     return _status(ResponseParser(LABEL).parse(response, MediaStatusAnswer))
@@ -52,7 +52,7 @@ def failure_of(status: ProcessingStatus) -> PlatformError:
 
 def create_post(access_token: str, text: str, media_id: str, options: VideoOptions) -> str:
     body = {"text": text, "media": {"media_ids": [media_id]}, **options.as_post_fields()}
-    response = fresh_token_on_rejection(lambda: call("POST", "tweets", access_token, attempts=1, json=body))
+    response = TokenRejectionGuard().run(lambda: call("POST", "tweets", access_token, attempts=1, json=body))
     return data_of(response, Created, refusal="X did not say which post it created").id
 
 

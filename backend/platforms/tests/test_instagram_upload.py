@@ -1,9 +1,8 @@
 import time
 
-from platforms.core.errors import FailureType, PlatformError
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError, UploadCancelled
 from platforms.instagram import ReelInfo, ResumeState, upload
 from platforms.instagram.client import GRAPH_ROOT, RUPLOAD_ROOT
-from platforms.upload import NeedsFreshToken, UploadCancelled
 
 from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
 

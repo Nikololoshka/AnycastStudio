@@ -3,10 +3,10 @@ from unittest import mock
 from django.utils import timezone
 
 from media import storage
-from platforms.oauth import ProviderError
 from publishing import pipeline
 from publishing.models import PublicationTarget
 
+from platforms.core.errors import ProviderError
 from .base import CHUNK, CONTENT, SESSION_URI, VIDEO_ID, FakeResponse, PublishingTestCase
 
 Status = PublicationTarget.Status

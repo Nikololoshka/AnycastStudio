@@ -1,6 +1,7 @@
 from django.test import override_settings
 
-from platforms.oauth import ProviderError
+from config.wiring import container
+from platforms.core.errors import ProviderError
 from platforms.youtube import YouTubeProvider
 
 from .base import FakeResponse, PlatformTestCase
@@ -15,7 +16,7 @@ class RefreshScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(503, {"error": "backendError"}), FakeResponse(200, TOKEN)]
 
         # When: the token is refreshed
-        bundle = YouTubeProvider().refresh("1//refresh")
+        bundle = YouTubeProvider.create(container().config).refresh("1//refresh")
 
         # Then: the retry got the token, so the account is not marked for reconnecting
         self.assertEqual(bundle.access_token, "ya29.fresh")
@@ -27,7 +28,7 @@ class RefreshScenarios(PlatformTestCase):
 
         # When / Then: that is final, and the reason is kept
         with self.assertRaisesMessage(ProviderError, "Token revoked"):
-            YouTubeProvider().refresh("1//refresh")
+            YouTubeProvider.create(container().config).refresh("1//refresh")
         self.assertEqual(self.http.call_count, 1)
 
 
@@ -38,4 +39,4 @@ class IdentityScenarios(PlatformTestCase):
 
         # When / Then: it becomes a ProviderError the caller already handles
         with self.assertRaisesMessage(ProviderError, "invalid_token"):
-            YouTubeProvider().fetch_identity("ya29.token")
+            YouTubeProvider.create(container().config).fetch_identity("ya29.token")

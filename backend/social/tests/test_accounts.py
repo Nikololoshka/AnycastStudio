@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from media.models import MediaAsset
-from platforms.oauth import ProviderError
+from platforms.core.errors import ProviderError
 from publishing.models import Publication, PublicationTarget
 from social import services, tasks
 from social.models import SocialAccount

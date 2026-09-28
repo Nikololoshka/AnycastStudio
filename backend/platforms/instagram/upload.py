@@ -6,7 +6,7 @@ from django.conf import settings
 
 from ..core.errors import FailureType, PlatformError
 from ..core.http import ResponseParser
-from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
+from ..core.upload import ResumableState, TokenRejectionGuard, UploadDriver, UploadSession, VideoFile
 from .client import LABEL, RUPLOAD_ROOT, authorization, call, send
 from .responses import Chunk, Created
 from .status import fetch_status
@@ -44,7 +44,7 @@ class ResumeState(ResumableState):
 
 
 def start(access_token: str, ig_user_id: str, reel: ReelInfo) -> ResumeState:
-    container = fresh_token_on_rejection(
+    container = TokenRejectionGuard().run(
         lambda: call(
             "POST",
             f"{ig_user_id}/media",
@@ -75,7 +75,7 @@ def _resumed(access_token: str, resume: ResumeState | None, size: int) -> Resume
 
 
 @dataclass
-class Session:
+class Session(UploadSession):
     state: ResumeState
     size: int
     access_token: str
@@ -88,12 +88,12 @@ class Session:
     def uploaded(self) -> int:
         return self.state.offset
 
-    def send_next(self, handle) -> None:
+    def send_next(self, video: VideoFile) -> None:
         length = min(settings.PLATFORM_CHUNK_BYTES, self.size - self.state.offset)
-        piece = read_piece(handle, self.state.offset, length)
+        piece = video.piece(self.state.offset, length)
         headers = {**authorization(self.access_token), "offset": str(self.state.offset), "file_size": str(self.size)}
-        response = fresh_token_on_rejection(
-            lambda: send("POST", f"{RUPLOAD_ROOT}/{self.state.container_id}", headers=headers, data=piece), self.state
+        response = TokenRejectionGuard(self.state).run(
+            lambda: send("POST", f"{RUPLOAD_ROOT}/{self.state.container_id}", headers=headers, data=piece)
         )
         refusal = "Instagram did not accept a piece of the video"
         if not ResponseParser(LABEL).parse(response, Chunk, refusal=refusal).success:
@@ -121,4 +121,4 @@ def upload(
 
     state = _resumed(access_token, resume, size) or start(access_token, ig_user_id, reel)
     session = Session(state, size, access_token)
-    return drive(session, path=path, size=size, on_progress=on_progress, should_cancel=should_cancel)
+    return UploadDriver(on_progress, should_cancel).drive(session, path=path, size=size)

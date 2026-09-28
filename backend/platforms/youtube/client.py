@@ -1,4 +1,4 @@
-from config.wiring import container
+from config import wiring
 
 from ..core.http import PlatformClient
 
@@ -14,7 +14,7 @@ class YouTubeClient(PlatformClient):
 
 
 def client() -> YouTubeClient:
-    return YouTubeClient(container().config.http)
+    return YouTubeClient(wiring.container().config.http)
 
 
 def bearer(access_token: str) -> dict:

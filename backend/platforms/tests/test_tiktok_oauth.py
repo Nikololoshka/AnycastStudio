@@ -2,7 +2,9 @@ from urllib.parse import parse_qs, urlparse
 
 from django.test import override_settings
 
-from platforms.oauth import ProviderError, pkce
+from config.wiring import container
+from platforms.core.auth import Pkce
+from platforms.core.errors import ProviderError
 from platforms.tiktok import TikTokProvider
 
 from .base import FakeResponse, PlatformTestCase
@@ -26,8 +28,8 @@ USER = {
 class TikTokOAuthScenarios(PlatformTestCase):
     def test_the_consent_url_carries_the_client_key_and_a_hex_challenge(self):
         # Given: a verifier kept on the server
-        provider = TikTokProvider()
-        verifier = pkce.generate_verifier()
+        provider = TikTokProvider.create(container().config)
+        verifier = Pkce.generate().verifier
 
         # When: the consent URL is built
         query = parse_qs(urlparse(provider.authorize_url("the-state", provider.code_challenge(verifier))).query)
@@ -36,7 +38,7 @@ class TikTokOAuthScenarios(PlatformTestCase):
         self.assertEqual(query["client_key"], ["client-key"])
         self.assertEqual(query["scope"], ["user.info.basic,video.publish"])
         self.assertEqual(query["state"], ["the-state"])
-        self.assertEqual(query["code_challenge"], [pkce.hex_s256_challenge(verifier)])
+        self.assertEqual(query["code_challenge"], [Pkce(verifier).hex_challenge()])
         self.assertEqual(query["redirect_uri"], ["http://localhost:5173/api/social/tiktok/callback"])
 
     def test_the_code_is_exchanged_with_the_secret_and_the_verifier(self):
@@ -44,7 +46,7 @@ class TikTokOAuthScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(200, TOKEN)]
 
         # When: the code is exchanged
-        bundle = TikTokProvider().exchange_code("the-code", "the-verifier")
+        bundle = TikTokProvider.create(container().config).exchange_code("the-code", "the-verifier")
 
         # Then: the form carried what TikTok requires, and the scopes are split on commas
         sent = self.http.call_args.kwargs["data"]
@@ -59,20 +61,20 @@ class TikTokOAuthScenarios(PlatformTestCase):
 
         # When / Then: the refusal says the account must be reconnected
         with self.assertRaises(ProviderError) as raised:
-            TikTokProvider().refresh("rft.old")
+            TikTokProvider.create(container().config).refresh("rft.old")
         self.assertFalse(raised.exception.transient)
 
     def test_a_refresh_returns_the_rotated_refresh_token(self):
         self.http.side_effect = [FakeResponse(200, TOKEN)]
 
-        bundle = TikTokProvider().refresh("rft.old")
+        bundle = TikTokProvider.create(container().config).refresh("rft.old")
 
         self.assertEqual(bundle.refresh_token, "rft.rotated")
 
     def test_the_identity_is_the_open_id(self):
         self.http.side_effect = [FakeResponse(200, USER)]
 
-        identity = TikTokProvider().fetch_identity("act.fresh")
+        identity = TikTokProvider.create(container().config).fetch_identity("act.fresh")
 
         self.assertEqual(identity.external_id, "open-id-1")
         self.assertEqual(identity.display_name, "A Creator")
@@ -85,17 +87,17 @@ class TikTokOAuthScenarios(PlatformTestCase):
 
         # When / Then: it is not mistaken for an identity
         with self.assertRaises(ProviderError):
-            TikTokProvider().fetch_identity("act.fresh")
+            TikTokProvider.create(container().config).fetch_identity("act.fresh")
 
     def test_revoking_sends_the_access_token(self):
         self.http.side_effect = [FakeResponse(200, {})]
 
-        TikTokProvider().revoke("act.current", "rft.current")
+        TikTokProvider.create(container().config).revoke("act.current", "rft.current")
 
         self.assertEqual(self.http.call_args.kwargs["data"]["token"], "act.current")
 
     @override_settings(TIKTOK_CLIENT_KEY="")
     def test_a_missing_client_key_is_reported_before_anything_is_sent(self):
         with self.assertRaises(ProviderError):
-            TikTokProvider().authorize_url("state", "challenge")
+            TikTokProvider.create(container().config).authorize_url("state", "challenge")
         self.http.assert_not_called()

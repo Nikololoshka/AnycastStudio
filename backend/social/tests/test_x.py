@@ -1,6 +1,6 @@
 from urllib.parse import parse_qs, urlparse
 
-from platforms.oauth import pkce
+from platforms.core.auth import Pkce
 from platforms.x.oauth import TOKEN_ENDPOINT, USER_INFO_ENDPOINT
 from social.models import OAuthSession
 from social.tests.base import FakeResponse, SocialTestCase
@@ -35,7 +35,7 @@ class XConnectScenarios(SocialTestCase):
         session = OAuthSession.objects.get()
         self.assertTrue(auth_url.startswith("https://x.com/i/oauth2/authorize?"))
         self.assertEqual(query["client_id"], ["test-x-client-id"])
-        self.assertEqual(query["code_challenge"], [pkce.s256_challenge(session.code_verifier)])
+        self.assertEqual(query["code_challenge"], [Pkce(session.code_verifier).challenge()])
 
     def test_a_completed_consent_connects_the_account(self):
         # Given: a connection was started and X issues tokens

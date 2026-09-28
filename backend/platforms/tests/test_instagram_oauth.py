@@ -2,9 +2,10 @@ from urllib.parse import parse_qs, urlparse
 
 from django.test import override_settings
 
+from config.wiring import container
+from platforms.core.errors import ProviderError
 from platforms.instagram import InstagramProvider
 from platforms.instagram.client import GRAPH_ROOT
-from platforms.oauth import ProviderError
 
 from .base import FakeResponse, PlatformTestCase
 
@@ -51,7 +52,7 @@ class FacebookDouble:
 class InstagramOAuthScenarios(PlatformTestCase):
     def setUp(self):
         super().setUp()
-        self.provider = InstagramProvider()
+        self.provider = InstagramProvider.create(container().config)
 
     def test_the_consent_url_asks_facebook_for_the_publishing_scopes(self):
         url = self.provider.authorize_url("the-state", None)

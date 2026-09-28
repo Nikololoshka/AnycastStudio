@@ -2,7 +2,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from config.wiring import container
+from config import wiring
 
 from ..core.errors import FailureType, PlatformError
 from ..core.http import FailureClassifier, PlatformClient, ResponseParser
@@ -45,12 +45,15 @@ class TikTokClient(PlatformClient):
             raise PlatformError(kind, (error.message or f"TikTok answered {error.code}")[:500], details=error.code)
         return self.parse_body(envelope.data, model, refusal=refusal)
 
-    def call(self, method: str, url: str, access_token: str, model: type[M], *, refusal: str | None = None, **kwargs) -> M:
-        return self.data_of(self.send(method, url, headers=self.bearer(access_token), **kwargs), model, refusal=refusal)
+    def call(
+        self, method: str, url: str, access_token: str, model: type[M], *, refusal: str | None = None, **kwargs
+    ) -> M:
+        response = self.send(method, url, headers=self.bearer(access_token), **kwargs)
+        return self.data_of(response, model, refusal=refusal)
 
 
 def client() -> TikTokClient:
-    return TikTokClient(container().config.http)
+    return TikTokClient(wiring.container().config.http)
 
 
 def send(method: str, url: str, *, attempts: int | None = None, **kwargs):

@@ -1,9 +1,8 @@
 import time
 
-from platforms.core.errors import FailureType, PlatformError
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError, UploadCancelled
 from platforms.tiktok import PostInfo, ResumeState, upload
 from platforms.tiktok.upload import INIT_ENDPOINT, chunk_plan
-from platforms.upload import NeedsFreshToken, UploadCancelled
 
 from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
 

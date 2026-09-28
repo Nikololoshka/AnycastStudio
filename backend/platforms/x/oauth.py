@@ -1,5 +1,9 @@
-from ..oauth import Identity, OAuth2Provider, ProviderError
-from .client import API_ROOT, bearer, send
+from typing import Self
+
+from ..core.auth import Identity, OAuth2Provider
+from ..core.config import PlatformConfig
+from ..core.errors import ProviderError
+from .client import API_ROOT, XClient
 from .responses import Data, User
 
 AUTH_ENDPOINT = "https://x.com/i/oauth2/authorize"
@@ -14,11 +18,10 @@ class XProvider(OAuth2Provider):
     scopes = ("tweet.read", "tweet.write", "users.read", "media.write", "offline.access")
     authorize_endpoint = AUTH_ENDPOINT
     token_endpoint = TOKEN_ENDPOINT
-    client_id_setting = "X_CLIENT_ID"
-    client_secret_setting = "X_CLIENT_SECRET"
 
-    def transport(self, method: str, url: str, **kwargs):
-        return send(method, url, **kwargs)
+    @classmethod
+    def create(cls, config: PlatformConfig) -> Self:
+        return cls(XClient(config.http), config.credentials_of(cls.name), config.callback_url(cls.name))
 
     def _client_auth(self) -> tuple[str, str]:
         return self.client_id(), self.client_secret()
@@ -33,7 +36,7 @@ class XProvider(OAuth2Provider):
             Data[User],
             refusal="X did not say which account signed in",
             params={"user.fields": "profile_image_url"},
-            headers=bearer(access_token),
+            headers=XClient.bearer(access_token),
         ).data
 
         return Identity(

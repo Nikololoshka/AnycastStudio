@@ -6,10 +6,11 @@ from django.db.models import Q
 from django.utils import timezone
 
 from common.encryption import current_key_version
-from platforms.oauth import Identity, ProviderError, TokenBundle
+from platforms.core.auth import Identity, TokenBundle
+from platforms.core.errors import ProviderError
 
 from .models import REFRESH_LEASE, REFRESH_MARGIN, SocialAccount
-from .providers import PROVIDERS
+from .providers import providers
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def _refreshed_bundle(account: SocialAccount) -> TokenBundle:
         _mark_needs_reauth(account, "No refresh token stored")
         raise ProviderError("This account must be reconnected")
     try:
-        return PROVIDERS[account.platform].refresh(account.refresh_token).merged_with(_stored_bundle(account))
+        return providers()[account.platform].refresh(account.refresh_token).merged_with(_stored_bundle(account))
     except ProviderError as error:
         if error.transient:
             raise
@@ -142,7 +143,7 @@ def _mark_needs_reauth(account: SocialAccount, reason: str) -> None:
 
 
 def disconnect(account: SocialAccount) -> None:
-    provider = PROVIDERS.get(account.platform)
+    provider = providers().get(account.platform)
     if provider is not None and (account.access_token or account.refresh_token):
         try:
             provider.revoke(account.access_token, account.refresh_token)

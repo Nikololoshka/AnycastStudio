@@ -3,8 +3,13 @@ from functools import cache, cached_property
 from django.conf import settings
 from django.core.signals import setting_changed
 
+from platforms.core.auth import OAuth2Provider
 from platforms.core.config import HttpConfig, OAuthCredentials, PlatformConfig, UploadConfig
 from platforms.core.ports import Clock, SystemClock
+from platforms.instagram import InstagramProvider
+from platforms.tiktok import TikTokProvider
+from platforms.x import XProvider
+from platforms.youtube import YouTubeProvider
 
 CREDENTIAL_SETTINGS = {
     "youtube": ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET"),
@@ -32,6 +37,11 @@ class Container:
             redirect_origin=settings.PUBLIC_REDIRECT_ORIGIN,
             credentials={name: _credentials(*names) for name, names in CREDENTIAL_SETTINGS.items()},
         )
+
+    @cached_property
+    def providers(self) -> dict[str, OAuth2Provider]:
+        kinds = (YouTubeProvider, TikTokProvider, InstagramProvider, XProvider)
+        return {kind.name: kind.create(self.config) for kind in kinds}
 
     @cached_property
     def clock(self) -> Clock:

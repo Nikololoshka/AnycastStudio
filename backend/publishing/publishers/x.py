@@ -2,7 +2,7 @@ import logging
 import time
 
 from platforms import x
-from platforms.capabilities import ValidationResult
+from platforms.core.capabilities import ValidationResult
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
 
 from ..models import PublicationTarget

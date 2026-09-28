@@ -4,7 +4,7 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 
-from platforms.oauth import pkce
+from platforms.core.auth import Pkce
 from social.models import OAuthSession
 from social.tests.base import CONNECT_URL, SocialTestCase
 
@@ -65,7 +65,7 @@ class ConnectScenarios(SocialTestCase):
 
         # Then: the challenge is the provider's encoding of the verifier we kept
         session = OAuthSession.objects.get()
-        self.assertEqual(query["code_challenge"], [pkce.s256_challenge(session.code_verifier)])
+        self.assertEqual(query["code_challenge"], [Pkce(session.code_verifier).challenge()])
 
     def test_the_verifier_is_encrypted_at_rest(self):
         self.sign_in()

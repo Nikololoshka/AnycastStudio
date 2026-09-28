@@ -1,5 +1,4 @@
-from platforms.core.errors import FailureType, PlatformError
-from platforms.upload import NeedsFreshToken
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
 from platforms.x import VideoOptions, create_post, failure_of, fetch_status, validate
 from platforms.x.client import API_ROOT
 from platforms.x.status import status_of

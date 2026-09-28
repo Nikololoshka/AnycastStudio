@@ -1,7 +1,7 @@
 import logging
 
 from platforms import instagram
-from platforms.capabilities import ValidationResult
+from platforms.core.capabilities import ValidationResult
 from platforms.core.errors import PlatformError
 
 from ..models import PublicationTarget

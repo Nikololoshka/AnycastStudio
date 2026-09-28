@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from django.conf import settings
 
 from ..core.errors import FailureType, PlatformError
-from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
+from ..core.upload import ResumableState, TokenRejectionGuard, UploadDriver, UploadSession, VideoFile
 from .client import API_ROOT, call, send
 from .responses import InitData
 
@@ -82,7 +82,7 @@ def start(access_token: str, post_info: PostInfo, size: int) -> ResumeState:
             "total_chunk_count": total_chunks,
         },
     }
-    data = fresh_token_on_rejection(
+    data = TokenRejectionGuard().run(
         lambda: call("POST", INIT_ENDPOINT, access_token, InitData, refusal="TikTok did not open an upload", json=body)
     )
 
@@ -96,7 +96,7 @@ def start(access_token: str, post_info: PostInfo, size: int) -> ResumeState:
 
 
 @dataclass
-class Session:
+class Session(UploadSession):
     state: ResumeState
     size: int
     mime_type: str
@@ -109,9 +109,9 @@ class Session:
     def uploaded(self) -> int:
         return self.state.uploaded_bytes(self.size)
 
-    def send_next(self, handle) -> None:
+    def send_next(self, video: VideoFile) -> None:
         first, last = self.state.bounds_of(self.state.next_chunk, self.size)
-        piece = read_piece(handle, first, last - first + 1)
+        piece = video.piece(first, last - first + 1)
         headers = {"Content-Type": self.mime_type, "Content-Range": f"bytes {first}-{last}/{self.size}"}
         response = send("PUT", self.state.upload_url, headers=headers, data=piece)
 
@@ -144,4 +144,4 @@ def upload(
         state = start(access_token, post_info, size)
 
     session = Session(state, size, mime_type)
-    return drive(session, path=path, size=size, on_progress=on_progress, should_cancel=should_cancel)
+    return UploadDriver(on_progress, should_cancel).drive(session, path=path, size=size)

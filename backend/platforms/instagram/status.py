@@ -1,5 +1,5 @@
 from ..core.errors import FailureType, PlatformError
-from ..upload import fresh_token_on_rejection
+from ..core.upload import TokenRejectionGuard
 from .client import call
 from .responses import ERROR, EXPIRED, ContainerStatus, Created, Permalink
 
@@ -7,8 +7,8 @@ STATUS_FIELDS = "status_code,status,video_status"
 
 
 def fetch_status(access_token: str, container_id: str, state=None) -> ContainerStatus:
-    return fresh_token_on_rejection(
-        lambda: call("GET", container_id, access_token, ContainerStatus, params={"fields": STATUS_FIELDS}), state
+    return TokenRejectionGuard(state).run(
+        lambda: call("GET", container_id, access_token, ContainerStatus, params={"fields": STATUS_FIELDS})
     )
 
 
@@ -19,7 +19,7 @@ def failure_of(status: ContainerStatus) -> PlatformError:
 
 
 def publish(access_token: str, ig_user_id: str, container_id: str) -> str:
-    published = fresh_token_on_rejection(
+    published = TokenRejectionGuard().run(
         lambda: call(
             "POST",
             f"{ig_user_id}/media_publish",

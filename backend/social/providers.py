@@ -1,9 +1,6 @@
-from platforms.instagram import InstagramProvider
-from platforms.oauth import PlatformProvider
-from platforms.tiktok import TikTokProvider
-from platforms.x import XProvider
-from platforms.youtube import YouTubeProvider
+from config.wiring import container
+from platforms.core.auth import OAuth2Provider
 
-PROVIDERS: dict[str, PlatformProvider] = {
-    provider.name: provider for provider in (YouTubeProvider(), TikTokProvider(), InstagramProvider(), XProvider())
-}
+
+def providers() -> dict[str, OAuth2Provider]:
+    return container().providers

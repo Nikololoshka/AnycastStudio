@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from django.conf import settings
 
 from ..core.errors import FailureType, PlatformError
-from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
+from ..core.upload import ResumableState, TokenRejectionGuard, UploadDriver, UploadSession, VideoFile
 from .client import call, data_of
 from .responses import Created
 
@@ -39,7 +39,7 @@ def segment_bytes() -> int:
 
 
 def start(access_token: str, size: int, mime_type: str) -> ResumeState:
-    response = fresh_token_on_rejection(
+    response = TokenRejectionGuard().run(
         lambda: call(
             "POST",
             "media/upload/initialize",
@@ -63,13 +63,13 @@ def _resumed(resume: ResumeState | None, size: int) -> ResumeState | None:
 
 
 def finalize(access_token: str, state: ResumeState) -> None:
-    fresh_token_on_rejection(
-        lambda: call("POST", f"media/upload/{state.media_id}/finalize", access_token, attempts=1), state
+    TokenRejectionGuard(state).run(
+        lambda: call("POST", f"media/upload/{state.media_id}/finalize", access_token, attempts=1)
     )
 
 
 @dataclass
-class Session:
+class Session(UploadSession):
     state: ResumeState
     size: int
     access_token: str
@@ -82,18 +82,17 @@ class Session:
     def uploaded(self) -> int:
         return self.state.uploaded_bytes(self.size)
 
-    def send_next(self, handle) -> None:
+    def send_next(self, video: VideoFile) -> None:
         offset = self.state.next_segment * self.state.segment_bytes
-        piece = read_piece(handle, offset, min(self.state.segment_bytes, self.size - offset))
-        fresh_token_on_rejection(
+        piece = video.piece(offset, min(self.state.segment_bytes, self.size - offset))
+        TokenRejectionGuard(self.state).run(
             lambda: call(
                 "POST",
                 f"media/upload/{self.state.media_id}/append",
                 self.access_token,
                 data={"segment_index": str(self.state.next_segment)},
                 files={"media": ("segment", piece, "application/octet-stream")},
-            ),
-            self.state,
+            )
         )
         self.state.next_segment += 1
 
@@ -118,4 +117,4 @@ def upload(
 
     state = _resumed(resume, size) or start(access_token, size, mime_type)
     session = Session(state, size, access_token)
-    return drive(session, path=path, size=size, on_progress=on_progress, should_cancel=should_cancel)
+    return UploadDriver(on_progress, should_cancel).drive(session, path=path, size=size)

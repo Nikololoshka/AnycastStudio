@@ -1,4 +1,4 @@
-from ..capabilities import Capabilities, Scheduling, ValidationResult
+from ..core.capabilities import Capabilities, Scheduling, ValidationResult
 from .client import LABEL
 from .video_options import MAX_CAPTION_LENGTH, PRIVATE, VideoOptions, utf16_length
 

@@ -5,10 +5,10 @@ from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.views.decorators.http import require_GET
 
-from platforms.oauth import ProviderError
+from platforms.core.errors import ProviderError
 
 from .. import services, sessions
-from ..providers import PROVIDERS
+from ..providers import providers
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def social_callback(request, platform: str):
     if _arrived_off_the_app_origin(request):
         return _on_to_the_app_origin(request)
 
-    provider = PROVIDERS.get(platform)
+    provider = providers().get(platform)
     if provider is None:
         return back_to_app(platform, "invalid")
 

@@ -2,7 +2,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from config.wiring import container
+from config import wiring
 
 from ..core.errors import FailureType, PlatformError
 from ..core.http import FailureClassifier, PlatformClient, ResponseParser
@@ -60,7 +60,7 @@ class XClient(PlatformClient):
 
 
 def client() -> XClient:
-    return XClient(container().config.http)
+    return XClient(wiring.container().config.http)
 
 
 def send(method: str, url: str, *, attempts: int | None = None, **kwargs):

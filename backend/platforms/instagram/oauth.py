@@ -1,7 +1,11 @@
 import logging
 
-from ..oauth import Identity, OAuth2Provider, ProviderError, TokenBundle
-from .client import GRAPH_ROOT, GRAPH_VERSION, authorization, send
+from typing import Self
+
+from ..core.auth import Identity, OAuth2Provider, TokenBundle
+from ..core.config import PlatformConfig
+from ..core.errors import ProviderError
+from .client import GRAPH_ROOT, GRAPH_VERSION, InstagramClient
 from .responses import DebugToken, Page, PageList, UserToken
 
 AUTH_ENDPOINT = f"https://www.facebook.com/{GRAPH_VERSION}/dialog/oauth"
@@ -25,15 +29,14 @@ class InstagramProvider(OAuth2Provider):
     scopes = ("instagram_basic", "instagram_content_publish", "pages_show_list", "pages_read_engagement")
     authorize_endpoint = AUTH_ENDPOINT
     token_endpoint = TOKEN_ENDPOINT
-    client_id_setting = "INSTAGRAM_CLIENT_ID"
-    client_secret_setting = "INSTAGRAM_CLIENT_SECRET"
     scope_separator = ","
 
-    def transport(self, method: str, url: str, **kwargs):
-        return send(method, url, **kwargs)
+    @classmethod
+    def create(cls, config: PlatformConfig) -> Self:
+        return cls(InstagramClient(config.http), config.credentials_of(cls.name), config.callback_url(cls.name))
 
     def _app_authorization(self) -> dict:
-        return authorization(f"{self.client_id()}|{self.client_secret()}")
+        return InstagramClient.authorization(f"{self.client_id()}|{self.client_secret()}")
 
     def code_challenge(self, verifier: str) -> str:
         raise ProviderError("Facebook Login is used without PKCE")
@@ -70,7 +73,7 @@ class InstagramProvider(OAuth2Provider):
             return None
 
     def _pages(self, user_token: str) -> list[Page]:
-        user = authorization(user_token)
+        user = InstagramClient.authorization(user_token)
         pages = self._answer(
             "GET", f"{GRAPH_ROOT}/me/accounts", PageList, params={"fields": PAGE_FIELDS}, headers=user
         ).data
@@ -93,9 +96,8 @@ class InstagramProvider(OAuth2Provider):
         raise ProviderError("An Instagram connection cannot be refreshed; reconnect the account")
 
     def fetch_identity(self, access_token: str) -> Identity:
-        page = self._answer(
-            "GET", f"{GRAPH_ROOT}/me", Page, params={"fields": IDENTITY_FIELDS}, headers=authorization(access_token)
-        )
+        headers = InstagramClient.authorization(access_token)
+        page = self._answer("GET", f"{GRAPH_ROOT}/me", Page, params={"fields": IDENTITY_FIELDS}, headers=headers)
         account = page.instagram_business_account
         if account is None or not account.id:
             raise ProviderError("The Facebook Page has no Instagram professional account")

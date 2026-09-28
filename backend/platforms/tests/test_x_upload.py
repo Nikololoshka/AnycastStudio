@@ -1,7 +1,6 @@
 import time
 
-from platforms.core.errors import FailureType, PlatformError
-from platforms.upload import NeedsFreshToken, UploadCancelled
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError, UploadCancelled
 from platforms.x import ResumeState, upload
 from platforms.x.client import API_ROOT
 

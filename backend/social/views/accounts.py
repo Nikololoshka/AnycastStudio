@@ -3,7 +3,7 @@ from common.responses import api_response
 
 from .. import services
 from ..models import SocialAccount
-from ..providers import PROVIDERS
+from ..providers import providers
 from .serializers import account_json
 
 
@@ -14,7 +14,7 @@ def social_accounts(request):
     return api_response(
         status="ok",
         accounts=[account_json(account) for account in rows],
-        platforms=sorted(PROVIDERS),
+        platforms=sorted(providers()),
     )
 
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from platforms.core.errors import FailureType, PlatformError
-from platforms.upload import ResumableState, UploadCancelled, drive, read_piece
+from platforms.core.errors import FailureType, PlatformError, UploadCancelled
+from platforms.core.upload import ResumableState, UploadDriver
 
 from .base import CHUNK, CONTENT, PlatformTestCase
 
@@ -70,9 +70,9 @@ class FakeSession:
     def uploaded(self) -> int:
         return self.state.offset
 
-    def send_next(self, handle) -> None:
+    def send_next(self, video) -> None:
         length = min(CHUNK, self.size - self.state.offset)
-        self.pieces.append(read_piece(handle, self.state.offset, length))
+        self.pieces.append(video.piece(self.state.offset, length))
         self.state.offset += length
 
     def finish(self) -> str:
@@ -86,12 +86,8 @@ class DriveScenarios(PlatformTestCase):
         reports = []
 
         # When: it is driven to the end
-        media_id = drive(
-            session,
-            path=self.given_file(),
-            size=len(CONTENT),
-            on_progress=lambda uploaded, total, state: reports.append((uploaded, state["offset"])),
-        )
+        driver = UploadDriver(on_progress=lambda uploaded, total, state: reports.append((uploaded, state["offset"])))
+        media_id = driver.drive(session, path=self.given_file(), size=len(CONTENT))
 
         # Then: every piece went out and progress carried the stored state
         self.assertEqual(media_id, "u1")
@@ -104,12 +100,8 @@ class DriveScenarios(PlatformTestCase):
 
         # When: the upload runs
         with self.assertRaises(UploadCancelled) as raised:
-            drive(
-                session,
-                path=self.given_file(),
-                size=len(CONTENT),
-                should_cancel=lambda: len(session.pieces) == 2,
-            )
+            driver = UploadDriver(should_cancel=lambda: len(session.pieces) == 2)
+            driver.drive(session, path=self.given_file(), size=len(CONTENT))
 
         # Then: it stopped there and knows where to continue
         self.assertEqual(len(session.pieces), 2)
@@ -121,7 +113,7 @@ class DriveScenarios(PlatformTestCase):
 
         # When: the upload reaches the missing bytes
         with self.assertRaises(PlatformError) as raised:
-            drive(session, path=self.given_file(), size=len(CONTENT) + CHUNK)
+            UploadDriver().drive(session, path=self.given_file(), size=len(CONTENT) + CHUNK)
 
         # Then: the refusal names the file
         self.assertEqual(raised.exception.type, FailureType.FILE)

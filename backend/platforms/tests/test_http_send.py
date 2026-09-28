@@ -1,7 +1,7 @@
 from platforms.core.config import HttpConfig
-from platforms.core.errors import FailureType, PlatformError
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
 from platforms.core.http import FailureClassifier, PlatformClient
-from platforms.upload import NeedsFreshToken, fresh_token_on_rejection
+from platforms.core.upload import TokenRejectionGuard
 
 from .base import FakeResponse, PlatformTestCase
 
@@ -68,7 +68,7 @@ class FreshTokenScenarios(PlatformTestCase):
 
         # When: it runs
         with self.assertRaises(NeedsFreshToken) as raised:
-            fresh_token_on_rejection(action, FakeState())
+            TokenRejectionGuard(FakeState()).run(action)
 
         # Then: the state to resume from travels with it
         self.assertEqual(raised.exception.state, {"offset": 42})
@@ -80,7 +80,7 @@ class FreshTokenScenarios(PlatformTestCase):
 
         # When: it runs
         with self.assertRaises(NeedsFreshToken) as raised:
-            fresh_token_on_rejection(action)
+            TokenRejectionGuard().run(action)
 
         # Then: there is nothing to resume from
         self.assertIsNone(raised.exception.state)
@@ -92,4 +92,4 @@ class FreshTokenScenarios(PlatformTestCase):
 
         # When / Then: the failure is not turned into a token refresh
         with self.assertRaises(PlatformError):
-            fresh_token_on_rejection(action)
+            TokenRejectionGuard().run(action)

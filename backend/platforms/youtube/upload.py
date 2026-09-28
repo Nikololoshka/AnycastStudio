@@ -6,7 +6,7 @@ from django.conf import settings
 
 from ..core.errors import FailureType, PlatformError
 from ..core.http import ResponseParser
-from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
+from ..core.upload import ResumableState, TokenRejectionGuard, UploadDriver, UploadSession, VideoFile
 from .client import LABEL, bearer, send
 from .responses import UploadedVideo
 
@@ -86,7 +86,7 @@ def _is_complete(response) -> bool:
 
 
 def _put(state: ResumeState, headers: dict, body: bytes = b""):
-    return fresh_token_on_rejection(lambda: send("PUT", state.session_uri, headers=headers, data=body), state)
+    return TokenRejectionGuard(state).run(lambda: send("PUT", state.session_uri, headers=headers, data=body))
 
 
 def _ask_progress(state: ResumeState, size: int):
@@ -100,13 +100,14 @@ def _send_piece(state: ResumeState, piece: bytes, size: int, mime_type: str):
 
 
 def _video_id(response, size: int) -> str:
-    video = ResponseParser(LABEL).parse(response, UploadedVideo, refusal="YouTube accepted the file but returned no video id")
+    refusal = "YouTube accepted the file but returned no video id"
+    video = ResponseParser(LABEL).parse(response, UploadedVideo, refusal=refusal)
     logger.info("Uploaded %d bytes to YouTube as %s", size, video.id)
     return video.id
 
 
 @dataclass
-class Session:
+class Session(UploadSession):
     state: ResumeState
     size: int
     mime_type: str
@@ -121,9 +122,9 @@ class Session:
     def uploaded(self) -> int:
         return self.state.offset
 
-    def send_next(self, handle) -> None:
+    def send_next(self, video: VideoFile) -> None:
         length = min(settings.PLATFORM_CHUNK_BYTES, self.size - self.state.offset)
-        piece = read_piece(handle, self.state.offset, length)
+        piece = video.piece(self.state.offset, length)
         response = _send_piece(self.state, piece, self.size, self.mime_type)
         if _is_complete(response):
             self.state.offset = self.size
@@ -166,4 +167,4 @@ def upload(
     should_cancel=None,
 ) -> str:
     session = _session(access_token, metadata, size, mime_type, resume)
-    return drive(session, path=path, size=size, on_progress=on_progress, should_cancel=should_cancel)
+    return UploadDriver(on_progress, should_cancel).drive(session, path=path, size=size)

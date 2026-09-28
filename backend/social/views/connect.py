@@ -3,10 +3,10 @@ import logging
 from common.access import require_auth, require_post
 from common.rate_limit import rate_limit
 from common.responses import api_response
-from platforms.oauth import ProviderError
+from platforms.core.errors import ProviderError
 
 from .. import sessions
-from ..providers import PROVIDERS
+from ..providers import providers
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 @require_auth
 @rate_limit("connect")
 def social_connect(request, platform: str):
-    provider = PROVIDERS.get(platform)
+    provider = providers().get(platform)
     if provider is None:
         return api_response("not_found")
 

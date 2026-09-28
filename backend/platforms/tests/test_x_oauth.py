@@ -2,7 +2,9 @@ from urllib.parse import parse_qs, urlparse
 
 from django.test import override_settings
 
-from platforms.oauth import ProviderError, pkce
+from config.wiring import container
+from platforms.core.auth import Pkce
+from platforms.core.errors import ProviderError
 from platforms.x import XProvider
 from platforms.x.oauth import REVOKE_ENDPOINT, TOKEN_ENDPOINT
 
@@ -22,8 +24,8 @@ USER = {"data": {"id": "2244994945", "name": "A Creator", "username": "a_creator
 class XOAuthScenarios(PlatformTestCase):
     def test_the_consent_url_carries_the_scopes_and_a_base64url_challenge(self):
         # Given: a verifier kept on the server
-        provider = XProvider()
-        verifier = pkce.generate_verifier()
+        provider = XProvider.create(container().config)
+        verifier = Pkce.generate().verifier
 
         # When: the consent URL is built
         url = provider.authorize_url("the-state", provider.code_challenge(verifier))
@@ -33,7 +35,7 @@ class XOAuthScenarios(PlatformTestCase):
         self.assertTrue(url.startswith("https://x.com/i/oauth2/authorize?"))
         self.assertEqual(query["client_id"], ["client-id"])
         self.assertEqual(query["scope"], ["tweet.read tweet.write users.read media.write offline.access"])
-        self.assertEqual(query["code_challenge"], [pkce.s256_challenge(verifier)])
+        self.assertEqual(query["code_challenge"], [Pkce(verifier).challenge()])
         self.assertEqual(query["code_challenge_method"], ["S256"])
         self.assertEqual(query["redirect_uri"], ["http://localhost:5173/api/social/x/callback"])
         self.assertNotIn("client-secret", url)
@@ -43,7 +45,7 @@ class XOAuthScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(200, TOKEN)]
 
         # When: the code is exchanged
-        bundle = XProvider().exchange_code("the-code", "the-verifier")
+        bundle = XProvider.create(container().config).exchange_code("the-code", "the-verifier")
 
         # Then: the secret travels in the Basic header, never in the form
         call = self.http.call_args
@@ -59,7 +61,7 @@ class XOAuthScenarios(PlatformTestCase):
     def test_a_refresh_returns_the_rotated_refresh_token(self):
         self.http.side_effect = [FakeResponse(200, TOKEN)]
 
-        bundle = XProvider().refresh("x.old")
+        bundle = XProvider.create(container().config).refresh("x.old")
 
         self.assertEqual(bundle.refresh_token, "x.rotated")
         self.assertEqual(self.http.call_args.kwargs["data"]["refresh_token"], "x.old")
@@ -71,14 +73,14 @@ class XOAuthScenarios(PlatformTestCase):
 
         # When / Then: the refusal says the account must be reconnected, in X's words
         with self.assertRaises(ProviderError) as raised:
-            XProvider().refresh("x.used")
+            XProvider.create(container().config).refresh("x.used")
         self.assertFalse(raised.exception.transient)
         self.assertIn("token was invalid", raised.exception.message)
 
     def test_the_identity_is_the_user_id_named_by_the_username(self):
         self.http.side_effect = [FakeResponse(200, USER)]
 
-        identity = XProvider().fetch_identity("x.fresh")
+        identity = XProvider.create(container().config).fetch_identity("x.fresh")
 
         self.assertEqual((identity.external_id, identity.display_name), ("2244994945", "a_creator"))
         self.assertEqual(identity.avatar_url, "https://pbs.twimg.com/a.jpg")
@@ -87,7 +89,7 @@ class XOAuthScenarios(PlatformTestCase):
     def test_revoking_ends_the_refresh_token_and_the_access_token(self):
         self.http.side_effect = [FakeResponse(200, {"revoked": True}), FakeResponse(200, {"revoked": True})]
 
-        XProvider().revoke("x.access", "x.refresh")
+        XProvider.create(container().config).revoke("x.access", "x.refresh")
 
         sent = [(call.args[1], call.kwargs["data"]["token"], call.kwargs["data"]["token_type_hint"]) for call in self.http.call_args_list]
         self.assertEqual(
@@ -98,18 +100,18 @@ class XOAuthScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(400, {"error": "invalid_request"}), FakeResponse(200, {"revoked": True})]
 
         with self.assertRaises(ProviderError):
-            XProvider().revoke("x.access", "x.refresh")
+            XProvider.create(container().config).revoke("x.access", "x.refresh")
         self.assertEqual(self.http.call_count, 2)
 
     @override_settings(X_CLIENT_SECRET="")
     def test_a_missing_secret_is_reported_before_anything_is_sent(self):
         with self.assertRaises(ProviderError):
-            XProvider().exchange_code("the-code", "the-verifier")
+            XProvider.create(container().config).exchange_code("the-code", "the-verifier")
         self.http.assert_not_called()
 
     def test_the_secret_never_reaches_a_log(self):
         self.http.side_effect = [FakeResponse(503, {})] * 3
 
         with self.assertLogs("platforms", level="DEBUG") as logs, self.assertRaises(ProviderError):
-            XProvider().refresh("x.old")
+            XProvider.create(container().config).refresh("x.old")
         self.assertFalse(any("client-secret" in line or "x.old" in line for line in logs.output))

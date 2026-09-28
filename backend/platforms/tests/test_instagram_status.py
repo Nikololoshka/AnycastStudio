@@ -1,6 +1,6 @@
 import requests
 
-from platforms.core.errors import FailureType, PlatformError
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
 from platforms.instagram import (
     caption_of,
     failure_of,
@@ -9,9 +9,8 @@ from platforms.instagram import (
     validate,
     video_options_of,
 )
-from platforms.instagram.client import GRAPH_ROOT
 from platforms.instagram.capabilities import MAX_FILE_BYTES
-from platforms.upload import NeedsFreshToken
+from platforms.instagram.client import GRAPH_ROOT
 
 from .base import FakeResponse, PlatformTestCase
 

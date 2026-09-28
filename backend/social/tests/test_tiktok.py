@@ -3,7 +3,7 @@ from urllib.parse import parse_qs, urlparse
 from django.utils import timezone
 
 from accounts.models import User
-from platforms.oauth import pkce
+from platforms.core.auth import Pkce
 from social.models import OAuthSession, SocialAccount
 from social.tests.base import FakeResponse, SocialTestCase
 
@@ -40,7 +40,7 @@ class TikTokConnectScenarios(SocialTestCase):
         session = OAuthSession.objects.get()
         self.assertTrue(auth_url.startswith("https://www.tiktok.com/v2/auth/authorize/"))
         self.assertEqual(query["client_key"], ["test-client-key"])
-        self.assertEqual(query["code_challenge"], [pkce.hex_s256_challenge(session.code_verifier)])
+        self.assertEqual(query["code_challenge"], [Pkce(session.code_verifier).hex_challenge()])
 
     def test_a_completed_consent_connects_the_account(self):
         # Given: a connection was started and TikTok issues tokens

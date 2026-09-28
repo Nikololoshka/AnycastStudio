@@ -1,5 +1,5 @@
 from platforms import youtube
-from platforms.capabilities import ValidationResult
+from platforms.core.capabilities import ValidationResult
 
 from ..models import PublicationTarget
 from .outcome import Published

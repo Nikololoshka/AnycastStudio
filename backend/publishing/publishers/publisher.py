@@ -3,7 +3,7 @@ from pathlib import Path
 from types import ModuleType
 
 from media import storage
-from platforms.capabilities import Capabilities, ValidationResult
+from platforms.core.capabilities import Capabilities, ValidationResult
 
 from ..models import PublicationTarget
 from .outcome import Published, awaiting_confirmation

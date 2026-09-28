@@ -1,6 +1,9 @@
-from ..core.errors import PlatformError
-from ..oauth import Identity, OAuth2Provider, ProviderError, pkce
-from .client import API_ROOT, data_of, send
+from typing import Self
+
+from ..core.auth import Identity, OAuth2Provider, Pkce
+from ..core.config import PlatformConfig
+from ..core.errors import PlatformError, ProviderError
+from .client import API_ROOT, TikTokClient
 from .responses import UserData
 
 AUTH_ENDPOINT = "https://www.tiktok.com/v2/auth/authorize/"
@@ -15,16 +18,15 @@ class TikTokProvider(OAuth2Provider):
     scopes = ("user.info.basic", "video.publish")
     authorize_endpoint = AUTH_ENDPOINT
     token_endpoint = TOKEN_ENDPOINT
-    client_id_setting = "TIKTOK_CLIENT_KEY"
-    client_secret_setting = "TIKTOK_CLIENT_SECRET"
     client_id_param = "client_key"
     scope_separator = ","
 
-    def transport(self, method: str, url: str, **kwargs):
-        return send(method, url, **kwargs)
+    @classmethod
+    def create(cls, config: PlatformConfig) -> Self:
+        return cls(TikTokClient(config.http), config.credentials_of(cls.name), config.callback_url(cls.name))
 
     def code_challenge(self, verifier: str) -> str:
-        return pkce.hex_s256_challenge(verifier)
+        return Pkce(verifier).hex_challenge()
 
     def fetch_identity(self, access_token: str) -> Identity:
         response = self._send(
@@ -34,7 +36,7 @@ class TikTokProvider(OAuth2Provider):
             headers={"Authorization": f"Bearer {access_token}"},
         )
         try:
-            user = data_of(response, UserData, refusal="TikTok did not say which account signed in").user
+            user = self.client.data_of(response, UserData, refusal="TikTok did not say which account signed in").user
         except PlatformError as failure:
             raise ProviderError(failure.message) from None
 

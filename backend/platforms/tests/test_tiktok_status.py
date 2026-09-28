@@ -1,7 +1,6 @@
-from platforms.core.errors import FailureType
+from platforms.core.errors import FailureType, NeedsFreshToken
 from platforms.tiktok import caption_of, failure_of, fetch_status, validate, video_options_of
 from platforms.tiktok.status import FAIL_REASONS
-from platforms.upload import NeedsFreshToken
 
 from .base import FakeResponse, PlatformTestCase
 

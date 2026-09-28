@@ -2,7 +2,7 @@ from unittest import mock
 
 from django.utils import timezone
 
-from platforms.oauth import ProviderError
+from platforms.core.errors import ProviderError
 from social import services
 from social.models import REFRESH_LEASE, SocialAccount
 from social.tests.base import CODE, FakeResponse, SocialTestCase

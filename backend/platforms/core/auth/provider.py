@@ -1,15 +1,14 @@
-from typing import TypeVar
+from abc import ABC, abstractmethod
+from typing import Self, TypeVar
 from urllib.parse import urlencode
 
-from django.conf import settings
 from pydantic import BaseModel
 
-from config.wiring import container
-
-from ..core.errors import PlatformError, ProviderError
-from ..core.http import PlatformClient, ResponseParser
-from . import pkce
-from .redirect import callback_url
+from ..config import OAuthCredentials, PlatformConfig
+from ..errors import PlatformError, ProviderError
+from ..http import PlatformClient, ResponseParser
+from .identity import Identity
+from .pkce import Pkce
 from .tokens import TokenAnswer, TokenBundle
 
 OAUTH_ATTEMPTS = 3
@@ -17,46 +16,52 @@ OAUTH_ATTEMPTS = 3
 M = TypeVar("M", bound=BaseModel)
 
 
-class OAuth2Provider:
+class OAuth2Provider(ABC):
     name: str
     label: str
     scopes: tuple[str, ...]
     uses_pkce = True
     authorize_endpoint: str
     token_endpoint: str
-    client_id_setting: str
-    client_secret_setting: str
     client_id_param = "client_id"
     scope_separator = " "
 
-    @property
-    def redirect_uri(self) -> str:
-        return callback_url(self.name)
+    def __init__(self, client: PlatformClient, credentials: OAuthCredentials, redirect_uri: str):
+        self.client = client
+        self.redirect_uri = redirect_uri
+        self._credentials = credentials
+        self._parser = ResponseParser(self.label)
+
+    @classmethod
+    @abstractmethod
+    def create(cls, config: PlatformConfig) -> Self: ...
+
+    @abstractmethod
+    def fetch_identity(self, access_token: str) -> Identity: ...
+
+    @abstractmethod
+    def revoke(self, access_token: str, refresh_token: str) -> None: ...
+
+    def client_id(self) -> str:
+        return self._configured(self._credentials.client_id, self._credentials.client_id_name)
+
+    def client_secret(self) -> str:
+        return self._configured(self._credentials.client_secret, self._credentials.client_secret_name)
 
     @staticmethod
-    def _setting(name: str) -> str:
-        value = getattr(settings, name, "")
+    def _configured(value: str, name: str) -> str:
         if not value:
             raise ProviderError(f"{name} is not configured")
         return value
 
-    def client_id(self) -> str:
-        return self._setting(self.client_id_setting)
-
-    def client_secret(self) -> str:
-        return self._setting(self.client_secret_setting)
-
-    def transport(self, method: str, url: str, **kwargs):
-        return PlatformClient(container().config.http, label=self.label).send(method, url, **kwargs)
-
     def _send(self, method: str, url: str, attempts: int = OAUTH_ATTEMPTS, **kwargs):
         try:
-            return self.transport(method, url, attempts=attempts, **kwargs)
+            return self.client.send(method, url, attempts=attempts, **kwargs)
         except PlatformError as failure:
             raise ProviderError(failure.message, transient=failure.retryable) from None
 
     def code_challenge(self, verifier: str) -> str:
-        return pkce.s256_challenge(verifier)
+        return Pkce(verifier).challenge()
 
     def authorize_params(self, state: str, code_challenge: str | None) -> dict:
         params = {
@@ -80,14 +85,14 @@ class OAuth2Provider:
     def _answer(self, method: str, url: str, model: type[M], *, refusal: str | None = None, **kwargs) -> M:
         response = self._send(method, url, **kwargs)
         try:
-            return ResponseParser(self.label).parse(response, model, refusal=refusal)
+            return self._parser.parse(response, model, refusal=refusal)
         except PlatformError as failure:
             raise ProviderError(failure.message) from None
 
     def _post_token(self, grant: dict) -> TokenBundle:
         response = self._send("POST", self.token_endpoint, **self.token_request(grant))
         try:
-            answer = ResponseParser(self.label).parse(response, TokenAnswer)
+            answer = self._parser.parse(response, TokenAnswer)
         except PlatformError as failure:
             raise ProviderError(failure.message) from None
 

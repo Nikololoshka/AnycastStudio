@@ -4,7 +4,7 @@ from datetime import timedelta
 from celery import shared_task
 from django.utils import timezone
 
-from platforms.oauth import ProviderError
+from platforms.core.errors import ProviderError
 
 from . import services
 from .models import SocialAccount

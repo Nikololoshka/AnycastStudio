@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.db.models import Q
 from django.utils import timezone
 
-from platforms.capabilities import Scheduling
+from platforms.core.capabilities import Scheduling
 
 from .models import PublicationTarget
 from .publishers import PUBLISHERS
