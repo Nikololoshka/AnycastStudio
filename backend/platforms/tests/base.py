@@ -5,10 +5,14 @@ from unittest import mock
 
 from django.test import SimpleTestCase, override_settings
 
+from platforms.core.config import HttpConfig, PlatformConfig, UploadConfig
+
 CHUNK = 1024
 CONTENT = b"0123456789" * 512
 SESSION_URI = "https://upload.googleapis.com/session/abc"
 VIDEO_ID = "vid_abc123"
+
+TEST_CONFIG = PlatformConfig(http=HttpConfig(attempts=3), upload=UploadConfig(chunk_bytes=CHUNK, stall_limit=3))
 
 
 class FakeResponse:

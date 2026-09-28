@@ -23,7 +23,8 @@ class TikTokProvider(OAuth2Provider):
 
     @classmethod
     def create(cls, config: PlatformConfig) -> Self:
-        return cls(TikTokClient(config.http), config.credentials_of(cls.name), config.callback_url(cls.name))
+        client = TikTokClient(config.http)
+        return cls(client, config.credentials_of(cls.name), config.callback_url(cls.name))
 
     def code_challenge(self, verifier: str) -> str:
         return Pkce(verifier).hex_challenge()

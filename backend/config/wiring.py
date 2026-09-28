@@ -27,7 +27,6 @@ from platforms.instagram import InstagramProvider
 from platforms.tiktok import TikTokProvider
 from platforms.x import XProvider
 from platforms.registry import PlatformRegistry
-from platforms.youtube import YouTubeProvider
 
 CREDENTIAL_SETTINGS = {
     "youtube": ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET"),
@@ -58,8 +57,7 @@ class Container:
 
     @cached_property
     def providers(self) -> dict[str, OAuth2Provider]:
-        kinds = (YouTubeProvider, TikTokProvider, InstagramProvider, XProvider)
-        return {kind.name: kind.create(self.config) for kind in kinds}
+        return {platform.name: platform.provider for platform in self.catalog.all()}
 
     @cached_property
     def clock(self) -> Clock:
@@ -69,17 +67,20 @@ class Container:
     def catalog(self) -> PlatformCatalog:
         from publishing.publishers import PUBLISHERS
 
-        return PlatformRegistry(
+        providers = {kind.name: kind for kind in (TikTokProvider, InstagramProvider, XProvider)}
+        built = PlatformRegistry.build(self.config).all()
+        transitional = (
             Platform(
                 name=name,
                 label=publisher.label,
                 capabilities=publisher.capabilities(),
-                provider=self.providers[name],
+                provider=providers[name].create(self.config),
                 publisher=publisher,
                 validator=publisher,
             )
             for name, publisher in PUBLISHERS.items()
         )
+        return PlatformRegistry((*built, *transitional))
 
     @cached_property
     def targets(self) -> TargetRepository:

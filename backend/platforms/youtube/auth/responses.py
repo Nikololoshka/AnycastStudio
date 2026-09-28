@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ..core.http import PlatformModel, Present
+from ...core.http import PlatformModel
 
 
 class Thumbnail(PlatformModel):
@@ -25,6 +25,3 @@ class Channel(PlatformModel):
 class ChannelList(PlatformModel):
     items: list[Channel] = []
 
-
-class UploadedVideo(PlatformModel):
-    id: Present

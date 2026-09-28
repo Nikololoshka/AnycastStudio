@@ -33,7 +33,8 @@ class InstagramProvider(OAuth2Provider):
 
     @classmethod
     def create(cls, config: PlatformConfig) -> Self:
-        return cls(InstagramClient(config.http), config.credentials_of(cls.name), config.callback_url(cls.name))
+        client = InstagramClient(config.http)
+        return cls(client, config.credentials_of(cls.name), config.callback_url(cls.name))
 
     def _app_authorization(self) -> dict:
         return InstagramClient.authorization(f"{self.client_id()}|{self.client_secret()}")

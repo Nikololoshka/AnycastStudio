@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from .auth import OAuth2Provider
 from .capabilities import Capabilities, Scheduling, Validator
+from .config import PlatformConfig
 from .publishing import Publisher
 
 
@@ -32,3 +33,8 @@ class PlatformCatalog(ABC):
 
     def deferring_upload(self) -> tuple[str, ...]:
         return tuple(platform.name for platform in self.all() if platform.defers_upload)
+
+
+class PlatformFactory(ABC):
+    @abstractmethod
+    def build(self, config: PlatformConfig) -> Platform: ...

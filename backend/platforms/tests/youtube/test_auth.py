@@ -2,9 +2,9 @@ from django.test import override_settings
 
 from config.wiring import container
 from platforms.core.errors import ProviderError
-from platforms.youtube import YouTubeProvider
+from platforms.youtube.auth import YouTubeProvider
 
-from .base import FakeResponse, PlatformTestCase
+from ..base import FakeResponse, PlatformTestCase
 
 TOKEN = {"access_token": "ya29.fresh", "expires_in": 3599, "scope": "https://www.googleapis.com/auth/youtube"}
 

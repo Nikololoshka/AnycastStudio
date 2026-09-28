@@ -1,12 +1,13 @@
 from platforms.core.errors import PlatformError
-from platforms.youtube import ResumeState, VideoMetadata, upload
+from platforms.youtube.client import YouTubeClient
+from platforms.youtube.upload import ResumableProtocol, ResumeState, VideoMetadata, YouTubeUploader
 
-from .base import CHUNK, CONTENT, SESSION_URI, VIDEO_ID, FakeResponse, PlatformTestCase, persisted
+from ..base import CHUNK, CONTENT, SESSION_URI, TEST_CONFIG, VIDEO_ID, FakeResponse, PlatformTestCase, persisted
 
 METADATA = VideoMetadata(
     title="A clip",
     description="",
-    tags=[],
+    tags=(),
     privacy_status="private",
     category_id="22",
     license="youtube",
@@ -18,9 +19,13 @@ METADATA = VideoMetadata(
 )
 
 
+def uploader() -> YouTubeUploader:
+    return YouTubeUploader(ResumableProtocol(YouTubeClient(TEST_CONFIG.http)), TEST_CONFIG.upload)
+
+
 class ResumeScenarios(PlatformTestCase):
     def resume(self, offset: int):
-        return upload(
+        return uploader().upload(
             path=self.given_file(),
             size=len(CONTENT),
             mime_type="video/mp4",
@@ -61,7 +66,7 @@ class ResumeScenarios(PlatformTestCase):
 
 class OffsetScenarios(PlatformTestCase):
     def upload_fresh(self):
-        return upload(
+        return uploader().upload(
             path=self.given_file(),
             size=len(CONTENT),
             mime_type="video/mp4",

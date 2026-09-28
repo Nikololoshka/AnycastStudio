@@ -1,13 +1,10 @@
 from common.access import require_auth, require_get
 from common.responses import api_response
-
-from ..publishers import PUBLISHERS
+from config.wiring import container
 
 
 @require_get
 @require_auth
 def publishing_platforms(request):
-    return api_response(
-        "ok",
-        platforms={name: publisher.capabilities().as_json() for name, publisher in PUBLISHERS.items()},
-    )
+    catalog = container().catalog
+    return api_response("ok", platforms={platform.name: platform.capabilities.as_json() for platform in catalog.all()})

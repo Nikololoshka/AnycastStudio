@@ -21,7 +21,8 @@ class XProvider(OAuth2Provider):
 
     @classmethod
     def create(cls, config: PlatformConfig) -> Self:
-        return cls(XClient(config.http), config.credentials_of(cls.name), config.callback_url(cls.name))
+        client = XClient(config.http)
+        return cls(client, config.credentials_of(cls.name), config.callback_url(cls.name))
 
     def _client_auth(self) -> tuple[str, str]:
         return self.client_id(), self.client_secret()
