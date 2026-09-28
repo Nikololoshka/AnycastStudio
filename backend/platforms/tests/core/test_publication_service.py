@@ -9,9 +9,9 @@ from platforms.core.publishing import TargetStatus
 from platforms.core.publishing.request import NewPublication, NewTarget
 from platforms.core.publishing.service import PublicationService
 
+from ..fakes.auth import FakeAccounts
+from ..fakes.clock import FakeClock
 from ..fakes.publishing import (
-    FakeAccounts,
-    FakeClock,
     FakePublications,
     FakePublisher,
     FakeQueue,

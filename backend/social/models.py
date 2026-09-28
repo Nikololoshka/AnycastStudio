@@ -1,20 +1,14 @@
-from datetime import timedelta
-
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
 from common.encryption import EncryptedTextField
-
-REFRESH_MARGIN = timedelta(minutes=5)
-REFRESH_LEASE = timedelta(minutes=2)
+from platforms.core.auth.account import AccountStatus
+from platforms.core.auth.session import OAuthSessionStatus
 
 
 class SocialAccount(models.Model):
-    class Status(models.TextChoices):
-        ACTIVE = "active"
-        NEEDS_REAUTH = "needs_reauth"
-        REVOKED = "revoked"
+    Status = models.TextChoices("Status", [(status.name, status.value) for status in AccountStatus])
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="social_accounts"
@@ -49,18 +43,9 @@ class SocialAccount(models.Model):
     def __str__(self) -> str:
         return f"{self.platform}:{self.display_name or self.external_id}"
 
-    def expires_within(self, margin: timedelta) -> bool:
-        if not self.token_expires_at:
-            return False
-        return timezone.now() >= self.token_expires_at - margin
-
 
 class OAuthSession(models.Model):
-    class Status(models.TextChoices):
-        PENDING = "pending"
-        PROCESSING = "processing"
-        DONE = "done"
-        ERROR = "error"
+    Status = models.TextChoices("Status", [(status.name, status.value) for status in OAuthSessionStatus])
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="oauth_sessions"
@@ -74,11 +59,3 @@ class OAuthSession(models.Model):
 
     def __str__(self) -> str:
         return f"{self.platform}:{self.status}:{self.pk}"
-
-    @staticmethod
-    def expiry_cutoff():
-        return timezone.now() - timedelta(seconds=settings.OAUTH_SESSION_TTL)
-
-    @property
-    def is_expired(self) -> bool:
-        return self.created_at < self.expiry_cutoff()

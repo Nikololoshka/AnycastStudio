@@ -1,6 +1,7 @@
 from .accounts import AccountRepository
 from .cache import Cache
 from .clock import Clock, SystemClock
+from .oauth_sessions import OAuthSessionRepository
 from .publications import PublicationRepository
 from .queue import TaskQueue
 from .targets import TargetRepository
@@ -12,6 +13,7 @@ __all__ = [
     "AccountRepository",
     "Cache",
     "Clock",
+    "OAuthSessionRepository",
     "PublicationRepository",
     "SystemClock",
     "TargetRepository",

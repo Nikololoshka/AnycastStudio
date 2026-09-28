@@ -139,10 +139,10 @@ class UploadScenarios(PublishingTestCase):
         # When: the upload runs with a token our clock still thinks is good
         with (
             mock.patch(
-                "social.tokens.DjangoAccessTokens.valid", return_value="stale-token"
+                "platforms.core.auth.token_service.TokenService.valid", return_value="stale-token"
             ),
             mock.patch(
-                "social.tokens.DjangoAccessTokens.refresh", return_value="fresh-token"
+                "platforms.core.auth.token_service.TokenService.refresh", return_value="fresh-token"
             ) as refresh,
         ):
             result = container().pipeline.run(target.pk)
@@ -210,7 +210,7 @@ class UploadScenarios(PublishingTestCase):
         # Given: the token cannot be refreshed because Google is unreachable
         target = self.given_target()
         with mock.patch(
-            "social.tokens.DjangoAccessTokens.valid",
+            "platforms.core.auth.token_service.TokenService.valid",
             side_effect=ProviderError("Google request failed: ConnectionError", transient=True),
         ):
             # When: the target runs

@@ -259,7 +259,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
 
         # When: the confirmation runs
         with mock.patch(
-            "social.tokens.DjangoAccessTokens.refresh", return_value="act.fresh"
+            "platforms.core.auth.token_service.TokenService.refresh", return_value="act.fresh"
         ) as refresh:
             container().confirmations.confirm(target.pk)
 

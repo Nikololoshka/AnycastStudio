@@ -1,5 +1,6 @@
 from urllib.parse import parse_qs, urlparse
 
+from django.conf import settings
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
@@ -120,7 +121,7 @@ class ConnectScenarios(SocialTestCase):
         self.client.post(CONNECT_URL)
         stale = OAuthSession.objects.get()
         OAuthSession.objects.filter(pk=stale.pk).update(
-            created_at=OAuthSession.expiry_cutoff() - timezone.timedelta(seconds=1)
+            created_at=timezone.now() - timezone.timedelta(seconds=settings.OAUTH_SESSION_TTL) - timezone.timedelta(seconds=1)
         )
 
         # When: another connection starts

@@ -2,9 +2,10 @@ from unittest import mock
 
 from django.utils import timezone
 
+from config.wiring import container
+from platforms.core.auth.token_service import TokenService
 from platforms.core.errors import ProviderError
-from social import services
-from social.models import REFRESH_LEASE, SocialAccount
+from social.models import SocialAccount
 from social.tests.base import CODE, FakeResponse, SocialTestCase
 
 NEW_ACCESS_TOKEN = "ya29.refreshed-access-token"
@@ -14,7 +15,7 @@ OTHER_ACCESS_TOKEN = "ya29.refreshed-by-the-other-caller"
 class RefreshLeaseScenarios(SocialTestCase):
     def setUp(self):
         super().setUp()
-        sleeper = mock.patch("social.services.time.sleep")
+        sleeper = mock.patch("platforms.core.ports.clock.time.sleep")
         self.sleep = sleeper.start()
         self.addCleanup(sleeper.stop)
 
@@ -28,7 +29,7 @@ class RefreshLeaseScenarios(SocialTestCase):
         return account
 
     def given_another_caller_is_refreshing(self, account: SocialAccount) -> None:
-        SocialAccount.objects.filter(pk=account.pk).update(refresh_lease_until=timezone.now() + REFRESH_LEASE)
+        SocialAccount.objects.filter(pk=account.pk).update(refresh_lease_until=timezone.now() + TokenService.REFRESH_LEASE)
 
     def other_caller_finishes(self, account: SocialAccount):
         def finish(_seconds):
@@ -47,7 +48,7 @@ class RefreshLeaseScenarios(SocialTestCase):
         self.sleep.side_effect = self.other_caller_finishes(account)
 
         # When: we need a valid token
-        token = services.get_valid_access_token(account)
+        token = container().token_service.valid(account.pk)
 
         # Then: we get theirs without spending the rotating refresh token again
         self.assertEqual(token, OTHER_ACCESS_TOKEN)
@@ -60,7 +61,7 @@ class RefreshLeaseScenarios(SocialTestCase):
 
         # When: we need a valid token
         with self.assertRaises(ProviderError) as raised:
-            services.get_valid_access_token(account)
+            container().token_service.valid(account.pk)
 
         # Then: the failure is transient, the account stays usable, the platform was not called
         self.assertTrue(raised.exception.transient)
@@ -74,7 +75,7 @@ class RefreshLeaseScenarios(SocialTestCase):
         self.http.side_effect = [FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})]
 
         # When: we need a valid token
-        token = services.get_valid_access_token(account)
+        token = container().token_service.valid(account.pk)
 
         # Then: we refresh it ourselves
         self.assertEqual(token, NEW_ACCESS_TOKEN)
@@ -85,7 +86,7 @@ class RefreshLeaseScenarios(SocialTestCase):
         self.http.side_effect = [FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})]
 
         # When: it is refreshed
-        services.get_valid_access_token(account)
+        container().token_service.valid(account.pk)
 
         # Then: nobody else has to wait
         account.refresh_from_db()
@@ -98,7 +99,7 @@ class RefreshLeaseScenarios(SocialTestCase):
 
         # When: the refresh fails
         with self.assertRaises(ProviderError):
-            services.get_valid_access_token(account)
+            container().token_service.valid(account.pk)
 
         # Then: the lease is gone and the account asks to be reconnected
         account.refresh_from_db()
@@ -115,7 +116,7 @@ class RefreshLeaseScenarios(SocialTestCase):
 
         # When: we need a valid token
         with self.assertRaises(ProviderError) as raised:
-            services.get_valid_access_token(account)
+            container().token_service.valid(account.pk)
 
         # Then: we are told to reconnect, not to try again
         self.assertFalse(raised.exception.transient)

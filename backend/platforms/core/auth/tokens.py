@@ -1,14 +1,20 @@
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 from ..http import PlatformModel
 
 
 @dataclass(frozen=True)
 class TokenBundle:
-    access_token: str
-    refresh_token: str | None = None
+    access_token: str = field(repr=False)
+    refresh_token: str | None = field(default=None, repr=False)
     expires_in: int | None = None
     scopes: tuple[str, ...] = field(default_factory=tuple)
+
+    def expires_at(self, now: datetime) -> datetime | None:
+        if not self.expires_in:
+            return None
+        return now + timedelta(seconds=int(self.expires_in))
 
     def merged_with(self, previous: "TokenBundle | None") -> "TokenBundle":
         if self.refresh_token or previous is None:

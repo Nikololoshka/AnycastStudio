@@ -29,6 +29,7 @@ class PlatformConfig:
     http: HttpConfig = HttpConfig()
     upload: UploadConfig = UploadConfig()
     redirect_origin: str = ""
+    oauth_session_ttl_seconds: int = 600
     credentials: Mapping[str, OAuthCredentials] = field(default_factory=dict)
 
     def callback_url(self, platform: str) -> str:

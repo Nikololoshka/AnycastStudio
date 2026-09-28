@@ -4,10 +4,10 @@ from django.db import connection
 from django.utils import timezone
 
 from accounts.models import User
+from config.wiring import container
 from media.models import MediaAsset
 from platforms.core.errors import ProviderError
 from publishing.models import Publication, PublicationTarget
-from social import services, tasks
 from social.models import SocialAccount
 from social.tests.base import (
     ACCESS_TOKEN,
@@ -220,7 +220,7 @@ class TokenRefreshScenarios(SocialTestCase):
         account = self.given_connected_account()
         self.http.reset_mock(side_effect=True)
 
-        token = services.get_valid_access_token(account)
+        token = container().token_service.valid(account.pk)
 
         self.assertEqual(token, ACCESS_TOKEN)
         self.http.assert_not_called()
@@ -232,7 +232,7 @@ class TokenRefreshScenarios(SocialTestCase):
             FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
         ]
 
-        token = services.get_valid_access_token(account)
+        token = container().token_service.valid(account.pk)
 
         self.assertEqual(token, NEW_ACCESS_TOKEN)
 
@@ -244,7 +244,7 @@ class TokenRefreshScenarios(SocialTestCase):
             FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
         ]
 
-        services.get_valid_access_token(account)
+        container().token_service.valid(account.pk)
 
         account.refresh_from_db()
         self.assertEqual(account.refresh_token, REFRESH_TOKEN)
@@ -262,7 +262,7 @@ class TokenRefreshScenarios(SocialTestCase):
             )
         ]
 
-        services.get_valid_access_token(account)
+        container().token_service.valid(account.pk)
 
         account.refresh_from_db()
         self.assertEqual(account.refresh_token, "1//rotated-refresh-token")
@@ -273,7 +273,7 @@ class TokenRefreshScenarios(SocialTestCase):
         self.http.side_effect = [FakeResponse(400, {"error": "invalid_grant"})]
 
         with self.assertRaises(ProviderError):
-            services.get_valid_access_token(account)
+            container().token_service.valid(account.pk)
 
         account.refresh_from_db()
         self.assertEqual(account.status, SocialAccount.Status.NEEDS_REAUTH)
@@ -283,7 +283,7 @@ class TokenRefreshScenarios(SocialTestCase):
         account = self.given_connected_account(token_expires_at=timezone.now(), refresh_token="")
 
         with self.assertRaises(ProviderError):
-            services.get_valid_access_token(account)
+            container().token_service.valid(account.pk)
 
         account.refresh_from_db()
         self.assertEqual(account.status, SocialAccount.Status.NEEDS_REAUTH)
@@ -302,11 +302,11 @@ class TokenRefreshScenarios(SocialTestCase):
         self.http.side_effect = [
             FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
         ]
-        services.get_valid_access_token(account)
+        container().token_service.valid(account.pk)
         self.http.reset_mock(side_effect=True)
 
         # When: a second caller arrives holding the stale copy of the row
-        token = services.get_valid_access_token(account)
+        token = container().token_service.valid(account.pk)
 
         # Then: it sees the fresh token and does not call Google again. On a
         # platform that rotates refresh tokens, a second call would burn one.
@@ -321,7 +321,7 @@ class TokenRefreshScenarios(SocialTestCase):
         self.http.side_effect = [FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})]
 
         # When: the upload asks for a fresh one
-        token = services.refresh_access_token(account)
+        token = container().token_service.refresh(account.pk)
 
         # Then: Google was asked, and the new token is stored
         self.assertEqual(token, NEW_ACCESS_TOKEN)
@@ -340,7 +340,7 @@ class TokenRefreshScenarios(SocialTestCase):
         self.http.side_effect = google
 
         # When: the token is refreshed
-        services.get_valid_access_token(account)
+        container().token_service.valid(account.pk)
 
         # Then: Google was called outside any transaction of ours
         self.assertEqual(depth_during_call, [depth_outside])
@@ -352,7 +352,7 @@ class TokenRefreshScenarios(SocialTestCase):
 
         # When: the refresh gives up
         with self.assertRaises(ProviderError):
-            services.get_valid_access_token(account)
+            container().token_service.valid(account.pk)
 
         # Then: the account stays active, because nothing was refused
         account.refresh_from_db()
@@ -364,7 +364,7 @@ class TokenRefreshScenarios(SocialTestCase):
         self.http.side_effect = [FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})]
 
         # When: the periodic task runs
-        refreshed = tasks.refresh_expiring_tokens()
+        refreshed = container().token_service.refresh_expiring()
 
         # Then: it refreshed it ahead of time, and says so
         self.assertEqual(refreshed, 1)

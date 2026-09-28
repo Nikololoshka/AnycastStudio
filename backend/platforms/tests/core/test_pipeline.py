@@ -13,8 +13,8 @@ from platforms.core.publishing.failures import FailureMapper
 from platforms.core.publishing.pipeline import PublicationPipeline
 from platforms.core.publishing.writer import TargetWriter
 
+from ..fakes.clock import FakeClock
 from ..fakes.publishing import (
-    FakeClock,
     FakePublisher,
     FakeQueue,
     FakeTargets,

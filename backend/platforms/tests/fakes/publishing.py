@@ -1,17 +1,14 @@
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
-from platforms.core.auth.account import AccountRecord
 from platforms.core.capabilities import Capabilities, Scheduling, ValidationResult, Validator
 from platforms.core.errors import NeedsFreshToken, NotFound
 from platforms.core.platform import Platform
 from platforms.core.ports import (
     AccessTokens,
-    AccountRepository,
-    Clock,
     PublicationRepository,
     TargetRepository,
     TaskQueue,
@@ -29,20 +26,6 @@ from platforms.core.publishing import (
 )
 from platforms.core.publishing.request import CreatedPublication, CreatedTarget, NewPublication
 from platforms.registry import PlatformRegistry
-
-START = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
-
-
-class FakeClock(Clock):
-    def __init__(self, now: datetime = START):
-        self.current = now
-
-    def now(self) -> datetime:
-        return self.current
-
-    def advance(self, delta: timedelta) -> None:
-        self.current += delta
-
 
 @dataclass
 class TargetRow:
@@ -203,12 +186,12 @@ def rejected(state: dict | None) -> NeedsFreshToken:
     return NeedsFreshToken(state, "The connection expired")
 
 
-def fake_catalog(publisher: Publisher, validator: Validator) -> PlatformRegistry:
+def fake_catalog(publisher: Publisher, validator: Validator, provider=None) -> PlatformRegistry:
     capabilities = Capabilities(
         label="Fake", scheduling=Scheduling.DEFERRED_UPLOAD, title=True, description=True, hashtags=True, drafts=False
     )
     return PlatformRegistry(
-        [Platform("fake", "Fake", capabilities, provider=None, publisher=publisher, validator=validator)]
+        [Platform("fake", "Fake", capabilities, provider=provider, publisher=publisher, validator=validator)]
     )
 
 
@@ -223,20 +206,6 @@ def fake_job(video_path: Path, target_id: int = 1, **overrides) -> PublishJob:
         video_path=video_path,
     )
     return replace(job, **overrides)
-
-
-class FakeAccounts(AccountRepository):
-    def __init__(self, *accounts: AccountRecord):
-        self.accounts = {account.id: account for account in accounts}
-
-    def owned_accounts(self, owner_id: int) -> dict[int, AccountRecord]:
-        return dict(self.accounts)
-
-    def owned_account(self, owner_id: int, account_id: int, platform: str) -> AccountRecord:
-        account = self.accounts.get(account_id)
-        if account is None or account.platform != platform:
-            raise NotFound()
-        return account
 
 
 class FakePublications(PublicationRepository):

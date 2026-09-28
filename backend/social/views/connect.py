@@ -1,31 +1,12 @@
-import logging
-
 from common.access import require_auth, require_post
 from common.rate_limit import rate_limit
-from common.responses import api_response
-from platforms.core.errors import ProviderError
-
-from .. import sessions
-from ..providers import providers
-
-logger = logging.getLogger(__name__)
+from common.responses import api_response, domain_errors
+from config.wiring import container
 
 
 @require_post
 @require_auth
 @rate_limit("connect")
+@domain_errors
 def social_connect(request, platform: str):
-    provider = providers().get(platform)
-    if provider is None:
-        return api_response("not_found")
-
-    session, challenge = sessions.create(request.user, provider)
-
-    try:
-        auth_url = provider.authorize_url(session.state, challenge)
-    except ProviderError as error:
-        sessions.finish(session, sessions.Status.ERROR)
-        logger.error("Cannot start %s sign-in: %s", provider.name, error.message)
-        return api_response("server_error", message=error.message)
-
-    return api_response("ok", authUrl=auth_url)
+    return api_response("ok", authUrl=container().connect_flow.start(request.user.pk, platform))

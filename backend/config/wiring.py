@@ -1,9 +1,12 @@
+from datetime import timedelta
 from functools import cache, cached_property
 
 from django.conf import settings
 from django.core.signals import setting_changed
 
-from platforms.core.auth import OAuth2Provider
+from platforms.core.auth.account_service import AccountService
+from platforms.core.auth.connect_flow import ConnectFlow
+from platforms.core.auth.token_service import TokenService
 from platforms.core.config import HttpConfig, OAuthCredentials, PlatformConfig, UploadConfig
 from platforms.core.platform import PlatformCatalog
 from platforms.core.ports import (
@@ -11,6 +14,7 @@ from platforms.core.ports import (
     AccountRepository,
     Cache,
     Clock,
+    OAuthSessionRepository,
     PublicationRepository,
     SystemClock,
     TargetRepository,
@@ -52,12 +56,9 @@ class Container:
             http=HttpConfig(timeout=settings.HTTP_TIMEOUT, attempts=settings.UPLOAD_RETRY_ATTEMPTS),
             upload=UploadConfig(chunk_bytes=settings.PLATFORM_CHUNK_BYTES, stall_limit=settings.UPLOAD_RETRY_ATTEMPTS),
             redirect_origin=settings.PUBLIC_REDIRECT_ORIGIN,
+            oauth_session_ttl_seconds=settings.OAUTH_SESSION_TTL,
             credentials={name: _credentials(*names) for name, names in CREDENTIAL_SETTINGS.items()},
         )
-
-    @cached_property
-    def providers(self) -> dict[str, OAuth2Provider]:
-        return {platform.name: platform.provider for platform in self.catalog.all()}
 
     @cached_property
     def clock(self) -> Clock:
@@ -92,10 +93,27 @@ class Container:
         return DjangoUnitOfWork()
 
     @cached_property
-    def tokens(self) -> AccessTokens:
-        from social.tokens import DjangoAccessTokens
+    def oauth_sessions(self) -> OAuthSessionRepository:
+        from social.repositories import DjangoOAuthSessionRepository
 
-        return DjangoAccessTokens()
+        return DjangoOAuthSessionRepository()
+
+    @cached_property
+    def token_service(self) -> TokenService:
+        return TokenService(self.accounts, self.catalog, self.clock)
+
+    @cached_property
+    def tokens(self) -> AccessTokens:
+        return self.token_service
+
+    @cached_property
+    def account_service(self) -> AccountService:
+        return AccountService(self.accounts, self.catalog, self.clock)
+
+    @cached_property
+    def connect_flow(self) -> ConnectFlow:
+        ttl = timedelta(seconds=self.config.oauth_session_ttl_seconds)
+        return ConnectFlow(self.oauth_sessions, self.account_service, self.catalog, self.clock, ttl)
 
     @cached_property
     def queue(self) -> TaskQueue:

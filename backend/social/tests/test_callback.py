@@ -1,6 +1,7 @@
 import logging
 
 import requests
+from django.conf import settings
 from django.db import connection
 from django.utils import timezone
 
@@ -145,7 +146,7 @@ class CallbackScenarios(SocialTestCase):
         self.sign_in()
         state = self.given_started_connection()
         OAuthSession.objects.update(
-            created_at=OAuthSession.expiry_cutoff() - timezone.timedelta(seconds=1)
+            created_at=timezone.now() - timezone.timedelta(seconds=settings.OAUTH_SESSION_TTL) - timezone.timedelta(seconds=1)
         )
 
         response = self.callback(state=state, code=CODE)

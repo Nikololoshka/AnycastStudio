@@ -1,9 +1,8 @@
 from common.access import require_auth, require_delete, require_get
-from common.responses import api_response
+from common.responses import api_response, domain_errors
+from config.wiring import container
 
-from .. import services
 from ..models import SocialAccount
-from ..providers import providers
 from .serializers import account_json
 
 
@@ -14,18 +13,16 @@ def social_accounts(request):
     return api_response(
         status="ok",
         accounts=[account_json(account) for account in rows],
-        platforms=sorted(providers()),
+        platforms=sorted(container().catalog.names()),
     )
 
 
 @require_delete
 @require_auth
+@domain_errors
 def social_account(request, pk: int):
-    row = _connected_accounts_of(request.user).filter(pk=pk).first()
-    if row is None:
-        return api_response("not_found")
-
-    services.disconnect(row)
+    account = container().accounts.owned_account(request.user.pk, pk)
+    container().account_service.disconnect(account.id)
     return api_response("ok")
 
 
