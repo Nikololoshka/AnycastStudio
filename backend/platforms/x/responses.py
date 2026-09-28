@@ -1,6 +1,6 @@
 from typing import Generic, TypeVar
 
-from ..http import PlatformModel, Present
+from ..core.http import PlatformModel, Present
 
 PROBLEM_PREFIX = "https://api.x.com/2/problems/"
 PENDING = "pending"

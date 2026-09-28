@@ -3,7 +3,7 @@ from urllib.parse import parse_qs, urlparse
 from django.test import override_settings
 
 from platforms.instagram import InstagramProvider
-from platforms.instagram.api import GRAPH_ROOT
+from platforms.instagram.client import GRAPH_ROOT
 from platforms.oauth import ProviderError
 
 from .base import FakeResponse, PlatformTestCase

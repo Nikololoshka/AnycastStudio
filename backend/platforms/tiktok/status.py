@@ -1,8 +1,9 @@
 from pydantic import Field
 
-from ..http import AUTHENTICATION, FILE, PLATFORM, VALIDATION, PlatformFailure, PlatformModel
+from ..core.errors import FailureType, PlatformError
+from ..core.http import PlatformModel
 from ..upload import fresh_token_on_rejection
-from .api import API_ROOT, call
+from .client import API_ROOT, call
 
 STATUS_ENDPOINT = f"{API_ROOT}/post/publish/status/fetch/"
 
@@ -10,24 +11,24 @@ COMPLETE_STATUSES = ("PUBLISH_COMPLETE", "SEND_TO_USER_INBOX")
 FAILED_STATUS = "FAILED"
 
 FAIL_REASONS = {
-    "file_format_check_failed": (FILE, "TikTok rejected the video format"),
-    "duration_check_failed": (FILE, "The video duration is outside TikTok's allowed range"),
-    "frame_rate_check_failed": (FILE, "The video frame rate is outside TikTok's allowed range"),
-    "picture_size_check_failed": (FILE, "The video resolution is outside TikTok's allowed range"),
-    "video_pull_failed": (PLATFORM, "TikTok could not read the uploaded video"),
-    "publish_cancelled": (PLATFORM, "The publish was cancelled on TikTok"),
-    "spam_risk_too_many_posts": (PLATFORM, "TikTok blocked the publish: daily post limit reached"),
-    "spam_risk_user_banned_from_posting": (PLATFORM, "TikTok blocked the publish: the account cannot post"),
-    "spam_risk_text": (VALIDATION, "TikTok flagged the caption as spam"),
-    "spam_risk": (PLATFORM, "TikTok flagged the publish as spam"),
-    "user_cancel": (PLATFORM, "The publish was cancelled by the user on TikTok"),
-    "auth_removed": (AUTHENTICATION, "The TikTok authorization was revoked; reconnect the account"),
+    "file_format_check_failed": (FailureType.FILE, "TikTok rejected the video format"),
+    "duration_check_failed": (FailureType.FILE, "The video duration is outside TikTok's allowed range"),
+    "frame_rate_check_failed": (FailureType.FILE, "The video frame rate is outside TikTok's allowed range"),
+    "picture_size_check_failed": (FailureType.FILE, "The video resolution is outside TikTok's allowed range"),
+    "video_pull_failed": (FailureType.PLATFORM, "TikTok could not read the uploaded video"),
+    "publish_cancelled": (FailureType.PLATFORM, "The publish was cancelled on TikTok"),
+    "spam_risk_too_many_posts": (FailureType.PLATFORM, "TikTok blocked the publish: daily post limit reached"),
+    "spam_risk_user_banned_from_posting": (FailureType.PLATFORM, "TikTok blocked the publish: the account cannot post"),
+    "spam_risk_text": (FailureType.VALIDATION, "TikTok flagged the caption as spam"),
+    "spam_risk": (FailureType.PLATFORM, "TikTok flagged the publish as spam"),
+    "user_cancel": (FailureType.PLATFORM, "The publish was cancelled by the user on TikTok"),
+    "auth_removed": (FailureType.AUTHENTICATION, "The TikTok authorization was revoked; reconnect the account"),
     "unaudited_client_can_only_post_to_private_accounts": (
-        VALIDATION,
+        FailureType.VALIDATION,
         "This TikTok app is not audited yet and can only post to private accounts",
     ),
-    "privacy_level_check_failed": (VALIDATION, "TikTok rejected the selected privacy level"),
-    "internal": (PLATFORM, "TikTok failed on its side; publish again later"),
+    "privacy_level_check_failed": (FailureType.VALIDATION, "TikTok rejected the selected privacy level"),
+    "internal": (FailureType.PLATFORM, "TikTok failed on its side; publish again later"),
 }
 
 
@@ -51,9 +52,9 @@ def fetch_status(access_token: str, publish_id: str) -> PublishStatus:
     )
 
 
-def failure_of(fail_reason: str) -> PlatformFailure:
-    kind, message = FAIL_REASONS.get(fail_reason, (PLATFORM, "TikTok refused to publish the video"))
-    return PlatformFailure(kind, message, details=fail_reason)
+def failure_of(fail_reason: str) -> PlatformError:
+    kind, message = FAIL_REASONS.get(fail_reason, (FailureType.PLATFORM, "TikTok refused to publish the video"))
+    return PlatformError(kind, message, details=fail_reason)
 
 
 def post_url(username: str, post_id: str) -> str:

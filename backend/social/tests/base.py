@@ -57,10 +57,10 @@ class SocialTestCase(TestCase):
     def setUp(self):
         cache.clear()
         self.user = User.objects.create_user(EMAIL, PASSWORD)
-        patcher = mock.patch("platforms.http.transport.requests.request")
+        patcher = mock.patch("platforms.core.http.transport.requests.request")
         self.http = patcher.start()
         self.addCleanup(patcher.stop)
-        sleeper = mock.patch("platforms.http.retry.time.sleep")
+        sleeper = mock.patch("platforms.core.http.retry.time.sleep")
         sleeper.start()
         self.addCleanup(sleeper.stop)
         self.given_platform_responds()

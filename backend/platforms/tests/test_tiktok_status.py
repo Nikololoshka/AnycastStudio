@@ -1,4 +1,4 @@
-from platforms.http import AUTHENTICATION, FILE, PLATFORM
+from platforms.core.errors import FailureType
 from platforms.tiktok import caption_of, failure_of, fetch_status, validate, video_options_of
 from platforms.tiktok.status import FAIL_REASONS
 from platforms.upload import NeedsFreshToken
@@ -49,13 +49,13 @@ class PublishStatusScenarios(PlatformTestCase):
             self.assertNotEqual(failure.message, failure_of("something_new").message)
 
     def test_a_revoked_authorisation_is_an_authentication_failure(self):
-        self.assertEqual(failure_of("auth_removed").type, AUTHENTICATION)
+        self.assertEqual(failure_of("auth_removed").type, FailureType.AUTHENTICATION)
 
     def test_a_rejected_format_is_a_file_failure(self):
-        self.assertEqual(failure_of("file_format_check_failed").type, FILE)
+        self.assertEqual(failure_of("file_format_check_failed").type, FailureType.FILE)
 
     def test_an_unknown_reason_is_a_platform_failure(self):
-        self.assertEqual(failure_of("something_new").type, PLATFORM)
+        self.assertEqual(failure_of("something_new").type, FailureType.PLATFORM)
 
 
 class ValidationScenarios(PlatformTestCase):

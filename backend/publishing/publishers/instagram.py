@@ -2,7 +2,7 @@ import logging
 
 from platforms import instagram
 from platforms.capabilities import ValidationResult
-from platforms.http import PlatformFailure
+from platforms.core.errors import PlatformError
 
 from ..models import PublicationTarget
 from .outcome import Published
@@ -16,7 +16,7 @@ Status = PublicationTarget.Status
 def _url_of(media_id: str, access_token: str) -> str:
     try:
         return instagram.post_url(access_token, media_id)
-    except PlatformFailure as failure:
+    except PlatformError as failure:
         logger.info("Could not learn the Instagram post link: %s", failure.type)
         return ""
 
@@ -24,7 +24,7 @@ def _url_of(media_id: str, access_token: str) -> str:
 def _published_media_id(target: PublicationTarget, access_token: str) -> str | None:
     try:
         return instagram.publish_container(access_token, target.social_account.external_id, target.uploaded_media_id)
-    except PlatformFailure as failure:
+    except PlatformError as failure:
         if failure.retryable:
             logger.info("Target %s: Instagram publish did not answer, asking again later", target.pk)
             return None

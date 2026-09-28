@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import PLATFORM, PlatformFailure
+from ..core.errors import FailureType, PlatformError
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
-from .api import API_ROOT, call, send
+from .client import API_ROOT, call, send
 from .responses import InitData
 
 INIT_ENDPOINT = f"{API_ROOT}/post/publish/video/init/"
@@ -117,7 +117,7 @@ class Session:
 
         is_last = self.state.next_chunk == self.state.total_chunks - 1
         if is_last and response.status_code != 201:
-            raise PlatformFailure(PLATFORM, f"TikTok answered HTTP {response.status_code} to the last chunk")
+            raise PlatformError(FailureType.PLATFORM, f"TikTok answered HTTP {response.status_code} to the last chunk")
         self.state.next_chunk += 1
 
     def finish(self) -> str:

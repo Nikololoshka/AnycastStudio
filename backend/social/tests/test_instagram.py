@@ -1,6 +1,6 @@
 from urllib.parse import parse_qs, urlparse
 
-from platforms.instagram.api import GRAPH_ROOT
+from platforms.instagram.client import GRAPH_ROOT
 from social.models import OAuthSession, SocialAccount
 from social.tests.base import ACCOUNTS_URL, FakeResponse, SocialTestCase
 

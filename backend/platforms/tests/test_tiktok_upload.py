@@ -1,6 +1,6 @@
 import time
 
-from platforms.http import FILE, PLATFORM, PlatformFailure
+from platforms.core.errors import FailureType, PlatformError
 from platforms.tiktok import PostInfo, ResumeState, upload
 from platforms.tiktok.upload import INIT_ENDPOINT, chunk_plan
 from platforms.upload import NeedsFreshToken, UploadCancelled
@@ -95,9 +95,9 @@ class TikTokUploadScenarios(PlatformTestCase):
         self.http.side_effect = TikTokDouble(final_status=206)
 
         # When / Then: the upload is not reported as complete
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send()
-        self.assertEqual(raised.exception.type, PLATFORM)
+        self.assertEqual(raised.exception.type, FailureType.PLATFORM)
 
     def test_progress_reports_whole_chunks(self):
         self.http.side_effect = TikTokDouble()
@@ -154,7 +154,7 @@ class TikTokUploadScenarios(PlatformTestCase):
         ]
 
         # When / Then: the code survives for the person to see
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send()
         self.assertEqual(raised.exception.details, "spam_risk_too_many_posts")
 
@@ -170,6 +170,6 @@ class TikTokUploadScenarios(PlatformTestCase):
     def test_a_file_shorter_than_declared_fails(self):
         self.http.side_effect = TikTokDouble()
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send(size=len(CONTENT) + CHUNK)
-        self.assertEqual(raised.exception.type, FILE)
+        self.assertEqual(raised.exception.type, FailureType.FILE)

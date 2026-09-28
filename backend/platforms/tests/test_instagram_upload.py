@@ -1,8 +1,8 @@
 import time
 
-from platforms.http import AUTHENTICATION, FILE, PLATFORM, RATE_LIMIT, PlatformFailure
+from platforms.core.errors import FailureType, PlatformError
 from platforms.instagram import ReelInfo, ResumeState, upload
-from platforms.instagram.api import GRAPH_ROOT, RUPLOAD_ROOT
+from platforms.instagram.client import GRAPH_ROOT, RUPLOAD_ROOT
 from platforms.upload import NeedsFreshToken, UploadCancelled
 
 from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
@@ -186,7 +186,7 @@ class InstagramUploadScenarios(PlatformTestCase):
         ]
 
         # When / Then: the code survives for the person to see
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send()
         self.assertEqual(raised.exception.details, "100/2207026")
         self.assertEqual(raised.exception.message, "Invalid parameter")
@@ -194,9 +194,9 @@ class InstagramUploadScenarios(PlatformTestCase):
     def test_an_exhausted_quota_is_not_retried(self):
         self.http.side_effect = [FakeResponse(400, {"error": {"message": "Application request limit reached", "code": 4}})]
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send()
-        self.assertEqual(raised.exception.type, RATE_LIMIT)
+        self.assertEqual(raised.exception.type, FailureType.RATE_LIMIT)
         self.assertEqual(self.http.call_count, 1)
 
     def test_a_chunk_lost_to_an_outage_is_sent_again(self):
@@ -215,7 +215,7 @@ class InstagramUploadScenarios(PlatformTestCase):
             400, {"debug_info": {"retriable": False, "type": "ProcessingFailedError", "message": "Bad file"}}
         )
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send()
         self.assertEqual(raised.exception.message, "Bad file")
 
@@ -224,9 +224,9 @@ class InstagramUploadScenarios(PlatformTestCase):
         self.http.side_effect = double
         double.chunk_failure = FakeResponse(200, {"success": False})
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send()
-        self.assertEqual(raised.exception.type, PLATFORM)
+        self.assertEqual(raised.exception.type, FailureType.PLATFORM)
 
     def test_cancelling_keeps_the_state_to_resume_from(self):
         self.http.side_effect = InstagramDouble()
@@ -240,9 +240,9 @@ class InstagramUploadScenarios(PlatformTestCase):
     def test_a_file_shorter_than_declared_fails(self):
         self.http.side_effect = InstagramDouble(size=len(CONTENT) + CHUNK)
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send(size=len(CONTENT) + CHUNK)
-        self.assertEqual(raised.exception.type, FILE)
+        self.assertEqual(raised.exception.type, FailureType.FILE)
 
     def test_the_state_survives_a_round_trip_through_json(self):
         state = self.resume_state(offset=CHUNK)
@@ -259,6 +259,6 @@ class InstagramUploadScenarios(PlatformTestCase):
     def test_a_permission_error_is_not_a_rejected_token(self):
         self.http.side_effect = [FakeResponse(400, {"error": {"message": "Permissions error", "code": 200}})]
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send()
-        self.assertNotEqual(raised.exception.type, AUTHENTICATION)
+        self.assertNotEqual(raised.exception.type, FailureType.AUTHENTICATION)

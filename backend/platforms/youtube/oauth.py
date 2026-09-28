@@ -1,4 +1,6 @@
-from .. import http
+from config.wiring import container
+
+from ..core.http import PlatformClient
 from ..oauth import Identity, OAuth2Provider, ProviderError
 from .responses import ChannelList
 
@@ -23,7 +25,7 @@ class YouTubeProvider(OAuth2Provider):
     client_secret_setting = "YOUTUBE_CLIENT_SECRET"
 
     def transport(self, method: str, url: str, **kwargs):
-        return http.send(method, url, label=LABEL, **kwargs)
+        return PlatformClient(container().config.http, label=LABEL).send(method, url, **kwargs)
 
     def authorize_params(self, state: str, code_challenge: str | None) -> dict:
         return {

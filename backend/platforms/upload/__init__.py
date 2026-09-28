@@ -1,4 +1,4 @@
-from .errors import NeedsFreshToken, UploadCancelled
+from ..core.errors import NeedsFreshToken, UploadCancelled
 from .session import UploadSession, drive, read_piece
 from .state import ResumableState
 from .tokens import fresh_token_on_rejection

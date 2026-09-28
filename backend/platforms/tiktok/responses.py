@@ -1,4 +1,4 @@
-from ..http import PlatformModel, Present
+from ..core.http import PlatformModel, Present
 
 OK_CODE = "ok"
 

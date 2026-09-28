@@ -1,9 +1,9 @@
 import time
 
-from platforms.http import VALIDATION, PlatformFailure
+from platforms.core.errors import FailureType, PlatformError
 from platforms.upload import NeedsFreshToken, UploadCancelled
 from platforms.x import ResumeState, upload
-from platforms.x.api import API_ROOT
+from platforms.x.client import API_ROOT
 
 from .base import CHUNK, CONTENT, FakeResponse, PlatformTestCase
 
@@ -167,9 +167,9 @@ class XUploadScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(400, refusal)]
 
         # When / Then: the refusal carries X's kind and detail, and it was asked once
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send()
-        self.assertEqual(raised.exception.type, VALIDATION)
+        self.assertEqual(raised.exception.type, FailureType.VALIDATION)
         self.assertEqual(raised.exception.details, "invalid-request")
         self.assertEqual(raised.exception.message, "Unsupported media type")
         self.assertEqual(self.http.call_count, 1)
@@ -197,9 +197,9 @@ class XUploadScenarios(PlatformTestCase):
         self.assertTrue(all(TOKEN not in call.args[1] for call in self.http.call_args_list))
 
     def test_an_empty_video_is_refused_before_any_call(self):
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             self.send(size=0)
-        self.assertEqual(raised.exception.type, VALIDATION)
+        self.assertEqual(raised.exception.type, FailureType.VALIDATION)
         self.http.assert_not_called()
 
 

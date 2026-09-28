@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import VALIDATION, PlatformFailure
+from ..core.errors import FailureType, PlatformError
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
-from .api import call, data_of
+from .client import call, data_of
 from .responses import Created
 
 MAX_SEGMENT_BYTES = 4 * 1024**2
@@ -114,7 +114,7 @@ def upload(
     should_cancel=None,
 ) -> str:
     if size <= 0:
-        raise PlatformFailure(VALIDATION, "The video is empty")
+        raise PlatformError(FailureType.VALIDATION, "The video is empty")
 
     state = _resumed(resume, size) or start(access_token, size, mime_type)
     session = Session(state, size, access_token)

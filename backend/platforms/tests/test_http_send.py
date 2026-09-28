@@ -1,9 +1,15 @@
-from platforms.http import AUTHENTICATION, RATE_LIMIT, VALIDATION, PlatformFailure, send
+from platforms.core.config import HttpConfig
+from platforms.core.errors import FailureType, PlatformError
+from platforms.core.http import FailureClassifier, PlatformClient
 from platforms.upload import NeedsFreshToken, fresh_token_on_rejection
 
 from .base import FakeResponse, PlatformTestCase
 
 URL = "https://api.example.test/upload"
+
+
+def example_client(classifier=None) -> PlatformClient:
+    return PlatformClient(HttpConfig(attempts=3), classifier, label="Example")
 
 
 class SendScenarios(PlatformTestCase):
@@ -12,7 +18,7 @@ class SendScenarios(PlatformTestCase):
         self.http.return_value = FakeResponse(200, {"id": "1"})
 
         # When: we send
-        response = send("POST", URL, label="Example")
+        response = example_client().send("POST", URL)
 
         # Then: the response comes back after one call
         self.assertEqual(response.json(), {"id": "1"})
@@ -23,7 +29,7 @@ class SendScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(503), FakeResponse(200)]
 
         # When: we send
-        response = send("POST", URL, label="Example")
+        response = example_client().send("POST", URL)
 
         # Then: the second answer wins
         self.assertEqual(response.status_code, 200)
@@ -33,17 +39,18 @@ class SendScenarios(PlatformTestCase):
         # Given: the platform hides a refusal inside a 200 body
         self.http.return_value = FakeResponse(200, {"error": "quota"})
 
-        def failure_of(response):
-            if response.json().get("error"):
-                return PlatformFailure(RATE_LIMIT, "Quota exhausted", details="quota")
-            return None
+        class QuotaClassifier(FailureClassifier):
+            def classify(self, response, label):
+                if response.json().get("error"):
+                    return PlatformError(FailureType.RATE_LIMIT, "Quota exhausted", details="quota")
+                return super().classify(response, label)
 
         # When: we send with that classifier
-        with self.assertRaises(PlatformFailure) as raised:
-            send("POST", URL, label="Example", failure_of=failure_of)
+        with self.assertRaises(PlatformError) as raised:
+            example_client(QuotaClassifier()).send("POST", URL)
 
         # Then: its failure is raised without a retry
-        self.assertEqual(raised.exception.type, RATE_LIMIT)
+        self.assertEqual(raised.exception.type, FailureType.RATE_LIMIT)
         self.assertEqual(raised.exception.details, "quota")
         self.assertEqual(self.http.call_count, 1)
 
@@ -57,7 +64,7 @@ class FreshTokenScenarios(PlatformTestCase):
     def test_a_rejected_token_asks_for_a_fresh_one_with_the_state(self):
         # Given: an action the platform refuses as unauthenticated
         def action():
-            raise PlatformFailure(AUTHENTICATION, "The connection expired")
+            raise PlatformError(FailureType.AUTHENTICATION, "The connection expired")
 
         # When: it runs
         with self.assertRaises(NeedsFreshToken) as raised:
@@ -69,7 +76,7 @@ class FreshTokenScenarios(PlatformTestCase):
     def test_a_rejection_without_state_carries_none(self):
         # Given: a refused action with no upload in progress
         def action():
-            raise PlatformFailure(AUTHENTICATION, "The connection expired")
+            raise PlatformError(FailureType.AUTHENTICATION, "The connection expired")
 
         # When: it runs
         with self.assertRaises(NeedsFreshToken) as raised:
@@ -81,8 +88,8 @@ class FreshTokenScenarios(PlatformTestCase):
     def test_other_failures_pass_through(self):
         # Given: an action refused for another reason
         def action():
-            raise PlatformFailure(VALIDATION, "Bad file")
+            raise PlatformError(FailureType.VALIDATION, "Bad file")
 
         # When / Then: the failure is not turned into a token refresh
-        with self.assertRaises(PlatformFailure):
+        with self.assertRaises(PlatformError):
             fresh_token_on_rejection(action)

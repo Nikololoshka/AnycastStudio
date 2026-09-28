@@ -1,5 +1,5 @@
 from ..capabilities import Capabilities, Scheduling, ValidationResult
-from .api import LABEL
+from .client import LABEL
 from .video_options import MAX_CAPTION_LENGTH, MAX_HASHTAGS, hashtag_count
 
 MAX_FILE_BYTES = 300 * 1000**2

@@ -1,5 +1,5 @@
 from ..capabilities import Capabilities, Scheduling, ValidationResult
-from .api import LABEL
+from .client import LABEL
 from .video_options import MAX_TEXT_LENGTH, utf16_length
 
 MAX_FILE_BYTES = 512 * 1024**2

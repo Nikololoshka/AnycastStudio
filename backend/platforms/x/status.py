@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 
-from ..http import FILE, PlatformFailure, parse, parse_body
+from ..core.errors import FailureType, PlatformError
+from ..core.http import ResponseParser
 from ..upload import fresh_token_on_rejection
-from .api import LABEL, call, data_of
+from .client import LABEL, call, data_of
 from .responses import Created, MediaStatusAnswer
 from .video_options import VideoOptions
 
@@ -35,18 +36,18 @@ def _status(answer: MediaStatusAnswer) -> ProcessingStatus:
 
 
 def status_of(body: dict) -> ProcessingStatus:
-    return _status(parse_body(body, MediaStatusAnswer, label=LABEL))
+    return _status(ResponseParser(LABEL).parse_body(body, MediaStatusAnswer))
 
 
 def fetch_status(access_token: str, media_id: str) -> ProcessingStatus:
     response = fresh_token_on_rejection(
         lambda: call("GET", "media/upload", access_token, params={"command": "STATUS", "media_id": media_id})
     )
-    return _status(parse(response, MediaStatusAnswer, label=LABEL))
+    return _status(ResponseParser(LABEL).parse(response, MediaStatusAnswer))
 
 
-def failure_of(status: ProcessingStatus) -> PlatformFailure:
-    return PlatformFailure(FILE, status.error or "X could not process the video", details=FAILED)
+def failure_of(status: ProcessingStatus) -> PlatformError:
+    return PlatformError(FailureType.FILE, status.error or "X could not process the video", details=FAILED)
 
 
 def create_post(access_token: str, text: str, media_id: str, options: VideoOptions) -> str:

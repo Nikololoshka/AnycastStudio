@@ -1,5 +1,5 @@
 from ..oauth import Identity, OAuth2Provider, ProviderError
-from .api import API_ROOT, bearer, send
+from .client import API_ROOT, bearer, send
 from .responses import Data, User
 
 AUTH_ENDPOINT = "https://x.com/i/oauth2/authorize"

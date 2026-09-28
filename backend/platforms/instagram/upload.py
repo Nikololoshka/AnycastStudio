@@ -4,9 +4,10 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import PLATFORM, VALIDATION, PlatformFailure, parse
+from ..core.errors import FailureType, PlatformError
+from ..core.http import ResponseParser
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
-from .api import LABEL, RUPLOAD_ROOT, authorization, call, send
+from .client import LABEL, RUPLOAD_ROOT, authorization, call, send
 from .responses import Chunk, Created
 from .status import fetch_status
 
@@ -95,8 +96,8 @@ class Session:
             lambda: send("POST", f"{RUPLOAD_ROOT}/{self.state.container_id}", headers=headers, data=piece), self.state
         )
         refusal = "Instagram did not accept a piece of the video"
-        if not parse(response, Chunk, label=LABEL, refusal=refusal).success:
-            raise PlatformFailure(PLATFORM, refusal)
+        if not ResponseParser(LABEL).parse(response, Chunk, refusal=refusal).success:
+            raise PlatformError(FailureType.PLATFORM, refusal)
         self.state.offset += length
 
     def finish(self) -> str:
@@ -116,7 +117,7 @@ def upload(
     should_cancel=None,
 ) -> str:
     if size <= 0:
-        raise PlatformFailure(VALIDATION, "The video is empty")
+        raise PlatformError(FailureType.VALIDATION, "The video is empty")
 
     state = _resumed(access_token, resume, size) or start(access_token, ig_user_id, reel)
     session = Session(state, size, access_token)

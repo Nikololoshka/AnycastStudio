@@ -1,4 +1,4 @@
-from .api import LABEL
+from .client import LABEL
 from .capabilities import capabilities, validate
 from .oauth import InstagramProvider
 from .status import ContainerStatus, failure_of, fetch_status, post_url

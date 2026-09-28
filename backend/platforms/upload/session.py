@@ -1,7 +1,6 @@
 from typing import Protocol
 
-from ..http import FILE, PlatformFailure
-from .errors import UploadCancelled
+from ..core.errors import FailureType, PlatformError, UploadCancelled
 from .state import ResumableState
 
 
@@ -23,7 +22,7 @@ def read_piece(handle, offset: int, length: int) -> bytes:
     handle.seek(offset)
     piece = handle.read(length) if length > 0 else b""
     if not piece or len(piece) != length:
-        raise PlatformFailure(FILE, "The video is shorter than it claimed to be")
+        raise PlatformError(FailureType.FILE, "The video is shorter than it claimed to be")
     return piece
 
 

@@ -1,7 +1,7 @@
 from django.test import override_settings
 from django.utils import timezone
 
-from platforms.http import PlatformFailure
+from platforms.core.errors import PlatformError
 from publishing.models import PublicationTarget
 from publishing import pipeline
 
@@ -64,7 +64,7 @@ class PublishScenarios(PublishingTestCase):
     @override_settings(UPLOAD_RETRY_ATTEMPTS=2)
     def test_a_platform_outage_eventually_gives_up(self):
         self.create_publication()
-        self.http.side_effect = PlatformFailure("platform", "down", retryable=True)
+        self.http.side_effect = PlatformError("platform", "down", retryable=True)
 
         result = pipeline.run_target(self.only_target().pk)
 

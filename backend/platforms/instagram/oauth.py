@@ -1,7 +1,7 @@
 import logging
 
 from ..oauth import Identity, OAuth2Provider, ProviderError, TokenBundle
-from .api import GRAPH_ROOT, GRAPH_VERSION, authorization, send
+from .client import GRAPH_ROOT, GRAPH_VERSION, authorization, send
 from .responses import DebugToken, Page, PageList, UserToken
 
 AUTH_ENDPOINT = f"https://www.facebook.com/{GRAPH_VERSION}/dialog/oauth"

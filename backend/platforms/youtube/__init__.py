@@ -1,4 +1,4 @@
-from .api import LABEL
+from .client import LABEL
 from .capabilities import capabilities, validate
 from .oauth import YouTubeProvider
 from .publish import post_url, publish, schedule

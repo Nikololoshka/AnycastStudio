@@ -1,5 +1,5 @@
 from ..capabilities import Capabilities, Scheduling, ValidationResult
-from .api import LABEL
+from .client import LABEL
 from .video_options import MAX_CAPTION_LENGTH, PRIVATE, VideoOptions, utf16_length
 
 MAX_FILE_BYTES = 4 * 1024**3

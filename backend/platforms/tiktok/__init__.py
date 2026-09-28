@@ -1,4 +1,4 @@
-from .api import LABEL
+from .client import LABEL
 from .capabilities import capabilities, validate
 from .creator_info import CreatorInfo
 from .creator_info import query as creator_info

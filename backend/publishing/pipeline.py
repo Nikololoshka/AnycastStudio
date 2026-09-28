@@ -7,9 +7,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from media import storage
-from platforms.http import AUTHENTICATION, FILE, NETWORK, PLATFORM, UNKNOWN, VALIDATION, PlatformFailure
-from platforms.oauth import ProviderError
-from platforms.upload import NeedsFreshToken, UploadCancelled
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError, UploadCancelled
 from social import services as social_services
 
 from .models import PublicationTarget
@@ -43,15 +41,11 @@ def _fail(target: PublicationTarget, error: dict) -> None:
 
 
 def _error_of(exception: Exception) -> dict:
-    if isinstance(exception, PlatformFailure):
-        return {"type": exception.type, "message": exception.message, "details": exception.details}
-    if isinstance(exception, ProviderError):
-        return {"type": NETWORK if exception.transient else AUTHENTICATION, "message": exception.message}
-    if isinstance(exception, NeedsFreshToken):
-        return {"type": AUTHENTICATION, "message": str(exception)}
+    if isinstance(exception, PlatformError):
+        return exception.as_failure()
     if isinstance(exception, FileNotFoundError):
-        return {"type": FILE, "message": "The uploaded video is no longer on the server"}
-    return {"type": UNKNOWN, "message": str(exception) or exception.__class__.__name__}
+        return {"type": FailureType.FILE.value, "message": "The uploaded video is no longer on the server"}
+    return {"type": FailureType.UNKNOWN.value, "message": str(exception) or exception.__class__.__name__}
 
 
 def _claimable():
@@ -108,7 +102,7 @@ def run_target(target_id: int) -> str:
 def _validate(target: PublicationTarget) -> None:
     result = publisher_for(target.platform).validate(target)
     if not result.valid:
-        raise PlatformFailure(VALIDATION, "; ".join(result.errors), details=",".join(result.errors))
+        raise PlatformError(FailureType.VALIDATION, "; ".join(result.errors), details=",".join(result.errors))
 
     asset = target.publication.asset
     if not storage.absolute(asset.storage_path).exists():
@@ -230,7 +224,7 @@ def confirm_target(target_id: int) -> int | None:
         return None
 
     if time.time() - since >= CONFIRM_WITHIN_SECONDS:
-        _fail(target, {"type": PLATFORM, "message": "The platform did not confirm the publish in time; check it there"})
+        _fail(target, {"type": FailureType.PLATFORM.value, "message": "The platform did not confirm the publish in time; check it there"})
         return None
 
     _set(target, resume_state={**state, "confirming_since": since, "polls": polls + 1})

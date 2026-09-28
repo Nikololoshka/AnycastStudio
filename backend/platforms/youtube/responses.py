@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ..http import PlatformModel, Present
+from ..core.http import PlatformModel, Present
 
 
 class Thumbnail(PlatformModel):

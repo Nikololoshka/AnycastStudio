@@ -1,4 +1,4 @@
-from platforms.http import PlatformFailure
+from platforms.core.errors import PlatformError
 from platforms.youtube import ResumeState, VideoMetadata, upload
 
 from .base import CHUNK, CONTENT, SESSION_URI, VIDEO_ID, FakeResponse, PlatformTestCase, persisted
@@ -89,6 +89,6 @@ class OffsetScenarios(PlatformTestCase):
         self.http.side_effect = [session] + [persisted(0)] * 10
 
         # When / Then: it stops instead of looping forever
-        with self.assertRaises(PlatformFailure):
+        with self.assertRaises(PlatformError):
             self.upload_fresh()
         self.assertEqual(self.http.call_count, 1 + 3)

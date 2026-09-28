@@ -1,7 +1,7 @@
-from platforms.http import AUTHORIZATION, FILE, PLATFORM, RATE_LIMIT, PlatformFailure
+from platforms.core.errors import FailureType, PlatformError
 from platforms.upload import NeedsFreshToken
 from platforms.x import VideoOptions, create_post, failure_of, fetch_status, validate
-from platforms.x.api import API_ROOT
+from platforms.x.client import API_ROOT
 from platforms.x.status import status_of
 
 from .base import FakeResponse, PlatformTestCase
@@ -43,7 +43,7 @@ class XProcessingScenarios(PlatformTestCase):
 
         # Then: it is about the file, with X's words
         self.assertTrue(status.is_failed)
-        self.assertEqual((failure.type, failure.message), (FILE, "Bad codec"))
+        self.assertEqual((failure.type, failure.message), (FailureType.FILE, "Bad codec"))
 
     def test_a_rejected_token_asks_for_a_fresh_one(self):
         self.http.side_effect = [FakeResponse(401, {"title": "Unauthorized"})]
@@ -73,27 +73,27 @@ class XPostScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(503, {})] * 5
 
         # When / Then: the failure is reported after one attempt, so nothing is posted twice
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             create_post(TOKEN, "A video", MEDIA_ID, VideoOptions())
-        self.assertEqual(raised.exception.type, PLATFORM)
+        self.assertEqual(raised.exception.type, FailureType.PLATFORM)
         self.assertEqual(self.http.call_count, 1)
 
     def test_a_duplicate_post_is_a_refusal_with_xs_words(self):
         refusal = {"detail": "You are not allowed to create a Tweet with duplicate content.", "type": "about:blank", "status": 403}
         self.http.side_effect = [FakeResponse(403, refusal)]
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             create_post(TOKEN, "A video", MEDIA_ID, VideoOptions())
-        self.assertEqual(raised.exception.type, AUTHORIZATION)
+        self.assertEqual(raised.exception.type, FailureType.AUTHORIZATION)
         self.assertIn("duplicate content", raised.exception.message)
 
     def test_spent_credits_are_a_limit_that_is_not_retried(self):
         refusal = {"title": "Usage cap exceeded", "type": "https://api.x.com/2/problems/usage-capped", "status": 429}
         self.http.side_effect = [FakeResponse(429, refusal)] * 5
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             create_post(TOKEN, "A video", MEDIA_ID, VideoOptions())
-        self.assertEqual((raised.exception.type, raised.exception.details), (RATE_LIMIT, "usage-capped"))
+        self.assertEqual((raised.exception.type, raised.exception.details), (FailureType.RATE_LIMIT, "usage-capped"))
         self.assertFalse(raised.exception.retryable)
 
     def test_an_app_without_access_is_told_so(self):
@@ -105,9 +105,9 @@ class XPostScenarios(PlatformTestCase):
         }
         self.http.side_effect = [FakeResponse(403, refusal)]
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             create_post(TOKEN, "A video", MEDIA_ID, VideoOptions())
-        self.assertEqual((raised.exception.type, raised.exception.details), (AUTHORIZATION, "client-forbidden"))
+        self.assertEqual((raised.exception.type, raised.exception.details), (FailureType.AUTHORIZATION, "client-forbidden"))
 
 
 class XValidationScenarios(PlatformTestCase):

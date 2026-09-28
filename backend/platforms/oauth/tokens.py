@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from ..http import PlatformModel
+from ..core.http import PlatformModel
 
 
 @dataclass(frozen=True)

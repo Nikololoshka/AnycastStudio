@@ -1,6 +1,6 @@
-from ..http import FILE, PLATFORM, PlatformFailure
+from ..core.errors import FailureType, PlatformError
 from ..upload import fresh_token_on_rejection
-from .api import call
+from .client import call
 from .responses import ERROR, EXPIRED, ContainerStatus, Created, Permalink
 
 STATUS_FIELDS = "status_code,status,video_status"
@@ -12,10 +12,10 @@ def fetch_status(access_token: str, container_id: str, state=None) -> ContainerS
     )
 
 
-def failure_of(status: ContainerStatus) -> PlatformFailure:
+def failure_of(status: ContainerStatus) -> PlatformError:
     if status.status_code == EXPIRED:
-        return PlatformFailure(PLATFORM, "The Instagram upload expired before it was published", details=EXPIRED)
-    return PlatformFailure(FILE, "Instagram could not process the video", details=status.status[:500] or ERROR)
+        return PlatformError(FailureType.PLATFORM, "The Instagram upload expired before it was published", details=EXPIRED)
+    return PlatformError(FailureType.FILE, "Instagram could not process the video", details=status.status[:500] or ERROR)
 
 
 def publish(access_token: str, ig_user_id: str, container_id: str) -> str:

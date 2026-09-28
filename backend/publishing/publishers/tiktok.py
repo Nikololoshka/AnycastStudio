@@ -2,8 +2,7 @@ import logging
 
 from platforms import tiktok
 from platforms.capabilities import ValidationResult
-from platforms.http import VALIDATION, PlatformFailure
-from platforms.upload import NeedsFreshToken
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
 
 from ..models import PublicationTarget
 from .outcome import Published
@@ -29,7 +28,7 @@ def _url_of(post_ids: tuple[str, ...], access_token: str) -> str:
         return ""
     try:
         username = tiktok.creator_info(access_token).username
-    except (PlatformFailure, NeedsFreshToken) as error:
+    except (PlatformError, NeedsFreshToken) as error:
         logger.info("Could not learn the TikTok username for the post link: %s", error.__class__.__name__)
         return ""
     return tiktok.post_url(username, post_ids[0]) if username else ""
@@ -70,7 +69,7 @@ class TikTokPublisher(Publisher):
         creator = tiktok.creator_info(access_token)
         refusals = creator_refusals(creator, options, asset.duration_seconds)
         if refusals:
-            raise PlatformFailure(VALIDATION, "; ".join(refusals), details=",".join(refusals))
+            raise PlatformError(FailureType.VALIDATION, "; ".join(refusals), details=",".join(refusals))
 
         return tiktok.upload(
             path=self.file_of(target),

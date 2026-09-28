@@ -3,8 +3,7 @@ import time
 
 from platforms import x
 from platforms.capabilities import ValidationResult
-from platforms.http import NETWORK, PLATFORM, PlatformFailure
-from platforms.upload import NeedsFreshToken
+from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
 
 from ..models import PublicationTarget
 from .outcome import Published, awaiting_confirmation
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 Status = PublicationTarget.Status
 
 POSTING_STARTED = "posting_started"
-UNANSWERED = (NETWORK, PLATFORM)
+UNANSWERED = (FailureType.NETWORK, FailureType.PLATFORM)
 
 
 def _posting_started(target: PublicationTarget) -> float | None:
@@ -34,8 +33,8 @@ def _mark_posting(target: PublicationTarget) -> dict:
     return before
 
 
-def _maybe_posted(details: str = "") -> PlatformFailure:
-    return PlatformFailure(PLATFORM, "The post may have been created; check X before publishing again", details=details)
+def _maybe_posted(details: str = "") -> PlatformError:
+    return PlatformError(FailureType.PLATFORM, "The post may have been created; check X before publishing again", details=details)
 
 
 class XPublisher(Publisher):
@@ -78,7 +77,7 @@ class XPublisher(Publisher):
         except NeedsFreshToken:
             _set_resume_state(target, before)
             raise
-        except PlatformFailure as failure:
+        except PlatformError as failure:
             if failure.type not in UNANSWERED:
                 _set_resume_state(target, before)
                 raise

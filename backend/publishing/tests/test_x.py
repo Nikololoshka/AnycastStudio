@@ -4,8 +4,8 @@ from unittest import mock
 from django.utils import timezone
 
 from media.models import MediaAsset
-from platforms.http import AUTHENTICATION, AUTHORIZATION, FILE, PLATFORM, VALIDATION
-from platforms.x.api import API_ROOT
+from platforms.core.errors import FailureType
+from platforms.x.client import API_ROOT
 from publishing import pipeline
 from publishing.models import PublicationTarget
 from social.models import SocialAccount
@@ -119,7 +119,7 @@ class XPublishingScenarios(PublishingTestCase):
         # Then: it fails locally, and X was never asked
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], VALIDATION)
+        self.assertEqual(target.error["type"], FailureType.VALIDATION)
         self.assertIn("videoTooLong", target.error["details"])
         self.http.assert_not_called()
 
@@ -185,7 +185,7 @@ class XPublishingScenarios(PublishingTestCase):
 
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual((target.error["type"], target.error["message"]), (FILE, "Unsupported codec"))
+        self.assertEqual((target.error["type"], target.error["message"]), (FailureType.FILE, "Unsupported codec"))
         self.assertEqual(self.http.side_effect.posts, [])
 
     def test_a_refused_post_fails_and_is_not_retried(self):
@@ -200,7 +200,7 @@ class XPublishingScenarios(PublishingTestCase):
         target.refresh_from_db()
         self.assertIsNone(delay)
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], AUTHORIZATION)
+        self.assertEqual(target.error["type"], FailureType.AUTHORIZATION)
         self.assertIn("duplicate content", target.error["message"])
         self.assertEqual(len(self.http.side_effect.posts), 1)
 
@@ -263,7 +263,7 @@ class XPublishingScenarios(PublishingTestCase):
 
         target.refresh_from_db()
         self.account.refresh_from_db()
-        self.assertEqual(target.error["type"], AUTHENTICATION)
+        self.assertEqual(target.error["type"], FailureType.AUTHENTICATION)
         self.assertEqual(self.account.status, SocialAccount.Status.NEEDS_REAUTH)
 
     def test_a_video_never_processed_fails_after_the_deadline(self):
@@ -275,7 +275,7 @@ class XPublishingScenarios(PublishingTestCase):
 
         target.refresh_from_db()
         self.assertIsNone(delay)
-        self.assertEqual((target.status, target.error["type"]), (Status.FAILED, PLATFORM))
+        self.assertEqual((target.status, target.error["type"]), (Status.FAILED, FailureType.PLATFORM))
 
     def test_a_confirmation_delivered_again_after_completion_does_nothing(self):
         target = self.given_uploaded()

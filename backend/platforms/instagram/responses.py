@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import BeforeValidator
 
-from ..http import PlatformModel, Present
+from ..core.http import PlatformModel, Present
 
 FINISHED = "FINISHED"
 PUBLISHED = "PUBLISHED"

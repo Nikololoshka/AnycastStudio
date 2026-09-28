@@ -1,4 +1,4 @@
-from .api import bearer, send
+from .client import bearer, send
 from .video_options import VideoOptions
 
 VIDEOS_ENDPOINT = "https://www.googleapis.com/youtube/v3/videos"

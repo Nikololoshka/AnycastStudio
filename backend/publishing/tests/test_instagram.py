@@ -4,8 +4,8 @@ from unittest import mock
 from django.utils import timezone
 
 from media.models import MediaAsset
-from platforms.http import AUTHENTICATION, FILE, PLATFORM, VALIDATION
-from platforms.instagram.api import GRAPH_ROOT, RUPLOAD_ROOT
+from platforms.core.errors import FailureType
+from platforms.instagram.client import GRAPH_ROOT, RUPLOAD_ROOT
 from publishing import pipeline
 from publishing.models import PublicationTarget
 from social.models import SocialAccount
@@ -115,7 +115,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
         # Then: it fails locally, and Instagram was never asked
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], VALIDATION)
+        self.assertEqual(target.error["type"], FailureType.VALIDATION)
         self.assertIn("videoTooShort", target.error["details"])
         self.http.assert_not_called()
 
@@ -153,7 +153,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
 
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FILE)
+        self.assertEqual(target.error["type"], FailureType.FILE)
         self.assertEqual(target.error["details"], "Error: 2207026")
 
     def test_an_expired_container_fails(self):
@@ -204,7 +204,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
 
         target.refresh_from_db()
         self.assertIsNone(delay)
-        self.assertEqual((target.status, target.error["type"]), (Status.FAILED, PLATFORM))
+        self.assertEqual((target.status, target.error["type"]), (Status.FAILED, FailureType.PLATFORM))
 
     def test_a_rejected_token_asks_for_reconnection(self):
         # Given: the person revoked the app on Facebook; a Page token cannot be refreshed
@@ -217,7 +217,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
         # Then: the target fails for authentication, and the account asks to be reconnected
         target.refresh_from_db()
         self.account.refresh_from_db()
-        self.assertEqual(target.error["type"], AUTHENTICATION)
+        self.assertEqual(target.error["type"], FailureType.AUTHENTICATION)
         self.assertEqual(self.account.status, SocialAccount.Status.NEEDS_REAUTH)
 
     def test_a_confirmation_delivered_again_after_completion_does_nothing(self):

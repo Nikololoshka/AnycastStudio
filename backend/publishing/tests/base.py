@@ -114,10 +114,10 @@ class PublishingTestCase(TestCase):
         self.account = self.given_connected_account()
         self.asset = self.given_uploaded_asset()
 
-        patcher = mock.patch("platforms.http.transport.requests.request")
+        patcher = mock.patch("platforms.core.http.transport.requests.request")
         self.http = patcher.start()
         self.addCleanup(patcher.stop)
-        sleeper = mock.patch("platforms.http.retry.time.sleep")
+        sleeper = mock.patch("platforms.core.http.retry.time.sleep")
         sleeper.start()
         self.addCleanup(sleeper.stop)
 

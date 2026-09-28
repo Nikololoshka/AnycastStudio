@@ -1,6 +1,6 @@
 import requests
 
-from platforms.http import FILE, NETWORK, PLATFORM, PlatformFailure
+from platforms.core.errors import FailureType, PlatformError
 from platforms.instagram import (
     caption_of,
     failure_of,
@@ -9,7 +9,7 @@ from platforms.instagram import (
     validate,
     video_options_of,
 )
-from platforms.instagram.api import GRAPH_ROOT
+from platforms.instagram.client import GRAPH_ROOT
 from platforms.instagram.capabilities import MAX_FILE_BYTES
 from platforms.upload import NeedsFreshToken
 
@@ -37,7 +37,7 @@ class ContainerStatusScenarios(PlatformTestCase):
         failure = failure_of(status)
 
         self.assertTrue(status.is_dead)
-        self.assertEqual(failure.type, FILE)
+        self.assertEqual(failure.type, FailureType.FILE)
         self.assertEqual(failure.details, "Error: Media upload has failed with error code 2207026")
 
     def test_an_expired_container_fails_as_expired(self):
@@ -45,7 +45,7 @@ class ContainerStatusScenarios(PlatformTestCase):
 
         failure = failure_of(fetch_status(TOKEN, CONTAINER_ID))
 
-        self.assertEqual((failure.type, failure.details), (PLATFORM, "EXPIRED"))
+        self.assertEqual((failure.type, failure.details), (FailureType.PLATFORM, "EXPIRED"))
 
     def test_a_rejected_token_asks_for_a_fresh_one(self):
         self.http.side_effect = [FakeResponse(400, {"error": {"message": "expired", "code": 190}})]
@@ -68,7 +68,7 @@ class PublishScenarios(PlatformTestCase):
         self.http.side_effect = [FakeResponse(503, {})] * 3
 
         # When / Then: it fails once, and the caller decides
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             publish_container(TOKEN, "17841400000000001", CONTAINER_ID)
         self.assertTrue(raised.exception.retryable)
         self.assertEqual(self.http.call_count, 1)
@@ -76,15 +76,15 @@ class PublishScenarios(PlatformTestCase):
     def test_a_publish_without_an_id_is_a_failure(self):
         self.http.side_effect = [FakeResponse(200, {})]
 
-        with self.assertRaises(PlatformFailure):
+        with self.assertRaises(PlatformError):
             publish_container(TOKEN, "17841400000000001", CONTAINER_ID)
 
     def test_a_network_error_reports_only_its_class(self):
         self.http.side_effect = requests.ConnectionError(f"https://graph.facebook.com/?access_token={TOKEN}")
 
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             publish_container(TOKEN, "17841400000000001", CONTAINER_ID)
-        self.assertEqual(raised.exception.type, NETWORK)
+        self.assertEqual(raised.exception.type, FailureType.NETWORK)
         self.assertNotIn(TOKEN, raised.exception.message)
 
 

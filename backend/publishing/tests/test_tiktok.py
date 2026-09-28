@@ -4,7 +4,7 @@ from unittest import mock
 from django.utils import timezone
 
 from media.models import MediaAsset
-from platforms.http import AUTHENTICATION, FILE, PLATFORM, VALIDATION
+from platforms.core.errors import FailureType
 from publishing import pipeline, schedule, tasks
 from publishing.models import PublicationTarget
 from social.models import SocialAccount
@@ -150,7 +150,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         # Then: it fails locally, and TikTok was never asked
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], VALIDATION)
+        self.assertEqual(target.error["type"], FailureType.VALIDATION)
         self.assertIn("privacyRequired", target.error["details"])
         self.http.assert_not_called()
 
@@ -227,7 +227,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         # Then: the reason reaches the person
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FILE)
+        self.assertEqual(target.error["type"], FailureType.FILE)
         self.assertEqual(target.error["details"], "file_format_check_failed")
 
     def test_a_post_that_is_never_confirmed_fails_after_the_deadline(self):
@@ -243,7 +243,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         target.refresh_from_db()
         self.assertIsNone(delay)
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], PLATFORM)
+        self.assertEqual(target.error["type"], FailureType.PLATFORM)
 
     def test_an_expired_token_during_confirmation_is_refreshed_once(self):
         # Given: the token is refused while polling
@@ -333,7 +333,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         pipeline.confirm_target(target.pk)
 
         target.refresh_from_db()
-        self.assertEqual(target.error["type"], AUTHENTICATION)
+        self.assertEqual(target.error["type"], FailureType.AUTHENTICATION)
 
     def test_capabilities_are_served_for_tiktok(self):
         body = self.body(self.client.get("/api/platforms"))

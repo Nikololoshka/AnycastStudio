@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from platforms.http import FILE, PlatformFailure
+from platforms.core.errors import FailureType, PlatformError
 from platforms.upload import ResumableState, UploadCancelled, drive, read_piece
 
 from .base import CHUNK, CONTENT, PlatformTestCase
@@ -120,8 +120,8 @@ class DriveScenarios(PlatformTestCase):
         session = FakeSession(len(CONTENT) + CHUNK)
 
         # When: the upload reaches the missing bytes
-        with self.assertRaises(PlatformFailure) as raised:
+        with self.assertRaises(PlatformError) as raised:
             drive(session, path=self.given_file(), size=len(CONTENT) + CHUNK)
 
         # Then: the refusal names the file
-        self.assertEqual(raised.exception.type, FILE)
+        self.assertEqual(raised.exception.type, FailureType.FILE)

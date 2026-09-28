@@ -1,8 +1,8 @@
 from pydantic import Field
 
-from ..http import PlatformModel
+from ..core.http import PlatformModel
 from ..upload import fresh_token_on_rejection
-from .api import API_ROOT, call
+from .client import API_ROOT, call
 
 CREATOR_INFO_ENDPOINT = f"{API_ROOT}/post/publish/creator_info/query/"
 

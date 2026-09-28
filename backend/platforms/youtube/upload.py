@@ -4,9 +4,10 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from ..http import PLATFORM, PlatformFailure, parse
+from ..core.errors import FailureType, PlatformError
+from ..core.http import ResponseParser
 from ..upload import ResumableState, drive, fresh_token_on_rejection, read_piece
-from .api import LABEL, bearer, send
+from .client import LABEL, bearer, send
 from .responses import UploadedVideo
 
 UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/youtube/v3/videos"
@@ -71,7 +72,7 @@ def start_session(access_token: str, metadata: VideoMetadata, size: int, mime_ty
 
     location = response.headers.get("Location")
     if not location:
-        raise PlatformFailure(PLATFORM, "YouTube did not open an upload session")
+        raise PlatformError(FailureType.PLATFORM, "YouTube did not open an upload session")
     return location
 
 
@@ -99,7 +100,7 @@ def _send_piece(state: ResumeState, piece: bytes, size: int, mime_type: str):
 
 
 def _video_id(response, size: int) -> str:
-    video = parse(response, UploadedVideo, label=LABEL, refusal="YouTube accepted the file but returned no video id")
+    video = ResponseParser(LABEL).parse(response, UploadedVideo, refusal="YouTube accepted the file but returned no video id")
     logger.info("Uploaded %d bytes to YouTube as %s", size, video.id)
     return video.id
 
@@ -133,7 +134,7 @@ class Session:
         self.state.offset = persisted_offset(response)
         self.chunks_without_progress = self.chunks_without_progress + 1 if self.state.offset <= previous else 0
         if self.chunks_without_progress >= settings.UPLOAD_RETRY_ATTEMPTS:
-            raise PlatformFailure(PLATFORM, "YouTube stopped accepting the upload")
+            raise PlatformError(FailureType.PLATFORM, "YouTube stopped accepting the upload")
 
     def finish(self) -> str:
         return self.video_id or ""

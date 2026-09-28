@@ -4,10 +4,11 @@ from urllib.parse import urlencode
 from django.conf import settings
 from pydantic import BaseModel
 
-from .. import http
-from ..http import PlatformFailure, parse
+from config.wiring import container
+
+from ..core.errors import PlatformError, ProviderError
+from ..core.http import PlatformClient, ResponseParser
 from . import pkce
-from .errors import ProviderError
 from .redirect import callback_url
 from .tokens import TokenAnswer, TokenBundle
 
@@ -46,12 +47,12 @@ class OAuth2Provider:
         return self._setting(self.client_secret_setting)
 
     def transport(self, method: str, url: str, **kwargs):
-        return http.send(method, url, label=self.label, **kwargs)
+        return PlatformClient(container().config.http, label=self.label).send(method, url, **kwargs)
 
     def _send(self, method: str, url: str, attempts: int = OAUTH_ATTEMPTS, **kwargs):
         try:
             return self.transport(method, url, attempts=attempts, **kwargs)
-        except PlatformFailure as failure:
+        except PlatformError as failure:
             raise ProviderError(failure.message, transient=failure.retryable) from None
 
     def code_challenge(self, verifier: str) -> str:
@@ -79,15 +80,15 @@ class OAuth2Provider:
     def _answer(self, method: str, url: str, model: type[M], *, refusal: str | None = None, **kwargs) -> M:
         response = self._send(method, url, **kwargs)
         try:
-            return parse(response, model, label=self.label, refusal=refusal)
-        except PlatformFailure as failure:
+            return ResponseParser(self.label).parse(response, model, refusal=refusal)
+        except PlatformError as failure:
             raise ProviderError(failure.message) from None
 
     def _post_token(self, grant: dict) -> TokenBundle:
         response = self._send("POST", self.token_endpoint, **self.token_request(grant))
         try:
-            answer = parse(response, TokenAnswer, label=self.label)
-        except PlatformFailure as failure:
+            answer = ResponseParser(self.label).parse(response, TokenAnswer)
+        except PlatformError as failure:
             raise ProviderError(failure.message) from None
 
         if not answer.access_token:

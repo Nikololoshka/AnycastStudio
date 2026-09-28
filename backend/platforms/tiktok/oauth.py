@@ -1,6 +1,6 @@
-from ..http import PlatformFailure
+from ..core.errors import PlatformError
 from ..oauth import Identity, OAuth2Provider, ProviderError, pkce
-from .api import API_ROOT, data_of, send
+from .client import API_ROOT, data_of, send
 from .responses import UserData
 
 AUTH_ENDPOINT = "https://www.tiktok.com/v2/auth/authorize/"
@@ -35,7 +35,7 @@ class TikTokProvider(OAuth2Provider):
         )
         try:
             user = data_of(response, UserData, refusal="TikTok did not say which account signed in").user
-        except PlatformFailure as failure:
+        except PlatformError as failure:
             raise ProviderError(failure.message) from None
 
         return Identity(external_id=user.open_id, display_name=user.display_name, avatar_url=user.avatar_url)
