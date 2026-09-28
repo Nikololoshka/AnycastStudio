@@ -3,14 +3,11 @@ import logging
 from platforms import tiktok
 from platforms.core.capabilities import ValidationResult
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
+from platforms.core.publishing import Confirmation, NotReady, Published, PublishJob, TargetStatus
 
-from ..models import PublicationTarget
-from .outcome import Published
-from .publisher import Publisher
+from .publisher import AppPublisher
 
 logger = logging.getLogger(__name__)
-
-Status = PublicationTarget.Status
 
 
 def creator_refusals(creator: tiktok.CreatorInfo, options: tiktok.VideoOptions, duration_seconds) -> list[str]:
@@ -34,23 +31,21 @@ def _url_of(post_ids: tuple[str, ...], access_token: str) -> str:
     return tiktok.post_url(username, post_ids[0]) if username else ""
 
 
-class TikTokPublisher(Publisher):
+class TikTokPublisher(AppPublisher):
     platform = tiktok
 
-    def validate(self, target: PublicationTarget) -> ValidationResult:
-        asset = target.publication.asset
+    def validate(self, job: PublishJob) -> ValidationResult:
+        media = job.draft.media
         return tiktok.validate(
-            caption=self.caption(target),
-            options=tiktok.video_options_of(target.settings),
-            size_bytes=asset.size_bytes,
-            mime_type=asset.mime_type,
+            caption=job.draft.caption(),
+            options=tiktok.video_options_of(job.draft.settings),
+            size_bytes=media.size_bytes,
+            mime_type=media.mime_type,
         )
 
-    def _post_info(
-        self, target: PublicationTarget, options: tiktok.VideoOptions, creator: tiktok.CreatorInfo
-    ) -> tiktok.PostInfo:
+    def _post_info(self, job: PublishJob, options: tiktok.VideoOptions, creator: tiktok.CreatorInfo) -> tiktok.PostInfo:
         return tiktok.PostInfo(
-            title=self.caption(target),
+            title=job.draft.caption(),
             privacy_level=options.privacy_level or "",
             disable_comment=options.disable_comment or creator.comment_disabled,
             disable_duet=options.disable_duet or creator.duet_disabled,
@@ -61,31 +56,29 @@ class TikTokPublisher(Publisher):
             video_cover_timestamp_ms=options.cover_timestamp_ms,
         )
 
-    def upload(
-        self, target: PublicationTarget, access_token: str, resume: dict | None, on_progress, should_cancel
-    ) -> str:
-        asset = target.publication.asset
-        options = tiktok.video_options_of(target.settings)
+    def upload(self, job: PublishJob, access_token: str, on_progress, should_cancel) -> str:
+        media = job.draft.media
+        options = tiktok.video_options_of(job.draft.settings)
         creator = tiktok.creator_info(access_token)
-        refusals = creator_refusals(creator, options, asset.duration_seconds)
+        refusals = creator_refusals(creator, options, media.duration_seconds)
         if refusals:
             raise PlatformError(FailureType.VALIDATION, "; ".join(refusals), details=",".join(refusals))
 
         return tiktok.upload(
-            path=self.file_of(target),
-            size=asset.size_bytes,
-            mime_type=asset.mime_type,
-            post_info=self._post_info(target, options, creator),
+            path=job.video_path,
+            size=media.size_bytes,
+            mime_type=media.mime_type,
+            post_info=self._post_info(job, options, creator),
             access_token=access_token,
-            resume=tiktok.ResumeState.of(resume),
+            resume=tiktok.ResumeState.of(job.resume_state),
             on_progress=on_progress,
             should_cancel=should_cancel,
         )
 
-    def confirm(self, target: PublicationTarget, access_token: str) -> Published | None:
-        result = tiktok.fetch_status(access_token, target.uploaded_media_id)
+    def confirm(self, job: PublishJob, access_token: str) -> Confirmation:
+        result = tiktok.fetch_status(access_token, job.uploaded_media_id)
         if result.is_failed:
             raise tiktok.failure_of(result.fail_reason)
         if not result.is_complete:
-            return None
-        return Published(Status.COMPLETED, _url_of(result.post_ids, access_token))
+            return NotReady()
+        return Published(TargetStatus.COMPLETED, _url_of(result.post_ids, access_token))

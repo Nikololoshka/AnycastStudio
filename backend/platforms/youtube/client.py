@@ -1,5 +1,3 @@
-from config import wiring
-
 from ..core.http import PlatformClient
 
 LABEL = "YouTube"
@@ -14,6 +12,8 @@ class YouTubeClient(PlatformClient):
 
 
 def client() -> YouTubeClient:
+    from config import wiring
+
     return YouTubeClient(wiring.container().config.http)
 
 

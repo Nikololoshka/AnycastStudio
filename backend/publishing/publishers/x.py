@@ -3,96 +3,80 @@ import time
 
 from platforms import x
 from platforms.core.capabilities import ValidationResult
-from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
+from platforms.core.errors import FailureType, MaybePublished, NeedsFreshToken, PlatformError
+from platforms.core.publishing import Confirmation, NotReady, Published, PublishJob, TargetStatus
 
-from ..models import PublicationTarget
-from .outcome import Published, awaiting_confirmation
-from .publisher import Publisher
+from ..repositories import DjangoTargetRepository
+from .publisher import AppPublisher
 
 logger = logging.getLogger(__name__)
-
-Status = PublicationTarget.Status
 
 POSTING_STARTED = "posting_started"
 UNANSWERED = (FailureType.NETWORK, FailureType.PLATFORM)
 
 
-def _posting_started(target: PublicationTarget) -> float | None:
-    state = target.resume_state or {}
-    return state.get(POSTING_STARTED)
+def _posting_started(job: PublishJob) -> float | None:
+    return (job.resume_state or {}).get(POSTING_STARTED)
 
 
-def _set_resume_state(target: PublicationTarget, state: dict) -> None:
-    PublicationTarget.objects.filter(pk=target.pk).update(resume_state=state)
-    target.resume_state = state
-
-
-def _mark_posting(target: PublicationTarget) -> dict:
-    before = dict(target.resume_state or {})
-    _set_resume_state(target, {**before, POSTING_STARTED: time.time()})
-    return before
-
-
-def _maybe_posted(details: str = "") -> PlatformError:
-    return PlatformError(FailureType.PLATFORM, "The post may have been created; check X before publishing again", details=details)
-
-
-class XPublisher(Publisher):
+class XPublisher(AppPublisher):
     platform = x
 
-    def validate(self, target: PublicationTarget) -> ValidationResult:
-        asset = target.publication.asset
+    def __init__(self):
+        self._targets = DjangoTargetRepository()
+
+    def validate(self, job: PublishJob) -> ValidationResult:
+        media = job.draft.media
         return x.validate(
-            caption=self.caption(target),
-            size_bytes=asset.size_bytes,
-            mime_type=asset.mime_type,
-            duration_seconds=asset.duration_seconds,
+            caption=job.draft.caption(),
+            size_bytes=media.size_bytes,
+            mime_type=media.mime_type,
+            duration_seconds=media.duration_seconds,
         )
 
-    def upload(
-        self, target: PublicationTarget, access_token: str, resume: dict | None, on_progress, should_cancel
-    ) -> str:
-        asset = target.publication.asset
+    def upload(self, job: PublishJob, access_token: str, on_progress, should_cancel) -> str:
+        media = job.draft.media
         return x.upload(
-            path=self.file_of(target),
-            size=asset.size_bytes,
-            mime_type=asset.mime_type,
+            path=job.video_path,
+            size=media.size_bytes,
+            mime_type=media.mime_type,
             access_token=access_token,
-            resume=x.ResumeState.of(resume),
+            resume=x.ResumeState.of(job.resume_state),
             on_progress=on_progress,
             should_cancel=should_cancel,
         )
 
-    def publish(self, target: PublicationTarget, media_id: str, access_token: str) -> Published:
-        started = _posting_started(target)
+    def publish(self, job: PublishJob, media_id: str, access_token: str) -> Published:
+        started = _posting_started(job)
         if started is None:
-            return awaiting_confirmation()
-        return awaiting_confirmation(**{POSTING_STARTED: started})
+            return Published.awaiting_confirmation()
+        return Published.awaiting_confirmation(**{POSTING_STARTED: started})
 
-    def _post(self, target: PublicationTarget, access_token: str) -> str:
-        before = _mark_posting(target)
-        options = x.video_options_of(target.settings)
+    def _post(self, job: PublishJob, access_token: str) -> str:
+        before = dict(job.resume_state or {})
+        self._targets.save_resume_state(job.target_id, {**before, POSTING_STARTED: time.time()})
+        options = x.video_options_of(job.draft.settings)
         try:
-            return x.create_post(access_token, self.caption(target), target.uploaded_media_id, options)
+            return x.create_post(access_token, job.draft.caption(), job.uploaded_media_id, options)
         except NeedsFreshToken:
-            _set_resume_state(target, before)
+            self._targets.save_resume_state(job.target_id, before)
             raise
         except PlatformError as failure:
             if failure.type not in UNANSWERED:
-                _set_resume_state(target, before)
+                self._targets.save_resume_state(job.target_id, before)
                 raise
-            raise _maybe_posted(failure.details) from None
+            raise MaybePublished(self.label, failure.details) from None
 
-    def confirm(self, target: PublicationTarget, access_token: str) -> Published | None:
-        if _posting_started(target) is not None:
-            raise _maybe_posted()
+    def confirm(self, job: PublishJob, access_token: str) -> Confirmation:
+        if _posting_started(job) is not None:
+            raise MaybePublished(self.label)
 
-        status = x.fetch_status(access_token, target.uploaded_media_id)
+        status = x.fetch_status(access_token, job.uploaded_media_id)
         if status.is_failed:
             raise x.failure_of(status)
         if not status.is_ready:
-            return None
+            return NotReady()
 
-        post_id = self._post(target, access_token)
-        logger.info("Target %s: X post %s created", target.pk, post_id)
-        return Published(Status.COMPLETED, x.post_url(post_id))
+        post_id = self._post(job, access_token)
+        logger.info("Target %s: X post %s created", job.target_id, post_id)
+        return Published(TargetStatus.COMPLETED, x.post_url(post_id))

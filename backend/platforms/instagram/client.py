@@ -2,8 +2,6 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from config import wiring
-
 from ..core.errors import FailureType, PlatformError
 from ..core.http import FailureClassifier, PlatformClient, ResponseParser
 from .responses import ErrorAnswer, GraphError
@@ -81,6 +79,8 @@ class InstagramClient(PlatformClient):
 
 
 def client() -> InstagramClient:
+    from config import wiring
+
     return InstagramClient(wiring.container().config.http)
 
 

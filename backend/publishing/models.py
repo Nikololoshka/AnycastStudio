@@ -2,6 +2,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from platforms.core.publishing import TargetStatus
+
 
 class Publication(models.Model):
     user = models.ForeignKey(
@@ -25,19 +27,10 @@ class Publication(models.Model):
 
 
 class PublicationTarget(models.Model):
-    class Status(models.TextChoices):
-        QUEUED = "queued"
-        VALIDATING = "validating"
-        UPLOADING = "uploading"
-        PROCESSING = "processing"
-        PUBLISHING = "publishing"
-        SCHEDULED = "scheduled"
-        COMPLETED = "completed"
-        FAILED = "failed"
-        CANCELLED = "cancelled"
+    Status = models.TextChoices("Status", [(status.name, status.value) for status in TargetStatus])
 
-    RUNNING = (Status.VALIDATING, Status.UPLOADING, Status.PROCESSING, Status.PUBLISHING)
-    ACTIVE = (Status.QUEUED, *RUNNING)
+    RUNNING = TargetStatus.running()
+    ACTIVE = TargetStatus.active()
 
     publication = models.ForeignKey(
         Publication, on_delete=models.CASCADE, related_name="targets"

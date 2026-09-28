@@ -2,8 +2,6 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from config import wiring
-
 from ..core.errors import FailureType, PlatformError
 from ..core.http import FailureClassifier, PlatformClient, ResponseParser
 from .responses import Envelope
@@ -53,6 +51,8 @@ class TikTokClient(PlatformClient):
 
 
 def client() -> TikTokClient:
+    from config import wiring
+
     return TikTokClient(wiring.container().config.http)
 
 

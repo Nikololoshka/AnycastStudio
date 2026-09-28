@@ -2,8 +2,6 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from config import wiring
-
 from ..core.errors import FailureType, PlatformError
 from ..core.http import FailureClassifier, PlatformClient, ResponseParser
 from .responses import Data, Problem, ProblemAnswer
@@ -60,6 +58,8 @@ class XClient(PlatformClient):
 
 
 def client() -> XClient:
+    from config import wiring
+
     return XClient(wiring.container().config.http)
 
 

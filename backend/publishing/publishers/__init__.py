@@ -1,11 +1,10 @@
 from .instagram import InstagramPublisher
-from .outcome import Published
-from .publisher import Publisher
+from .publisher import AppPublisher
 from .tiktok import TikTokPublisher
 from .x import XPublisher
 from .youtube import YouTubePublisher
 
-PUBLISHERS: dict[str, Publisher] = {
+PUBLISHERS: dict[str, AppPublisher] = {
     "youtube": YouTubePublisher(),
     "tiktok": TikTokPublisher(),
     "instagram": InstagramPublisher(),
@@ -13,8 +12,8 @@ PUBLISHERS: dict[str, Publisher] = {
 }
 
 
-def publisher_for(platform: str) -> Publisher:
+def publisher_for(platform: str) -> AppPublisher:
     return PUBLISHERS[platform]
 
 
-__all__ = ["PUBLISHERS", "Published", "Publisher", "publisher_for"]
+__all__ = ["PUBLISHERS", "AppPublisher", "publisher_for"]

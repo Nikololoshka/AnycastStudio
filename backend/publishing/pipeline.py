@@ -10,8 +10,11 @@ from media import storage
 from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError, UploadCancelled
 from social import services as social_services
 
+from platforms.core.publishing import NotReady, Published
+
 from .models import PublicationTarget
-from .publishers import Published, publisher_for
+from .publishers import publisher_for
+from .repositories import DjangoTargetRepository
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +71,10 @@ def claim(target_id: int) -> PublicationTarget | None:
     ).get(pk=target_id)
 
 
+def _job(target: PublicationTarget):
+    return DjangoTargetRepository.job_from(target)
+
+
 def _cancel_requested(target: PublicationTarget) -> bool:
     return PublicationTarget.objects.filter(pk=target.pk, cancel_requested=True).exists()
 
@@ -100,7 +107,7 @@ def run_target(target_id: int) -> str:
 
 
 def _validate(target: PublicationTarget) -> None:
-    result = publisher_for(target.platform).validate(target)
+    result = publisher_for(target.platform).validate(_job(target))
     if not result.valid:
         raise PlatformError(FailureType.VALIDATION, "; ".join(result.errors), details=",".join(result.errors))
 
@@ -133,9 +140,8 @@ def _upload(target: PublicationTarget) -> str:
 
     def send(access_token: str, resume: dict | None) -> str:
         return publisher.upload(
-            target,
+            _job(target).resumed_from(resume),
             access_token,
-            resume,
             on_progress=_progress_recorder(target),
             should_cancel=lambda: _cancel_requested(target),
         )
@@ -162,7 +168,7 @@ def _publish(target: PublicationTarget, media_id: str) -> str:
     _set(target, status=Status.PUBLISHING)
 
     token = social_services.get_valid_access_token(target.social_account)
-    published = publisher_for(target.platform).publish(target, media_id, token)
+    published = publisher_for(target.platform).publish(_job(target), media_id, token)
     _record(target, published)
     return published.status
 
@@ -177,7 +183,7 @@ def _record(target: PublicationTarget, published: Published) -> None:
 
 def _claim_confirmation(target_id: int) -> PublicationTarget | None:
     target = (
-        PublicationTarget.objects.select_related("publication", "social_account")
+        PublicationTarget.objects.select_related("publication", "publication__asset", "social_account")
         .filter(pk=target_id, status=Status.PROCESSING)
         .first()
     )
@@ -195,11 +201,13 @@ def _claim_confirmation(target_id: int) -> PublicationTarget | None:
 
 def _ask_for_confirmation(target: PublicationTarget) -> Published | None:
     publisher = publisher_for(target.platform)
+    job = _job(target)
     token = social_services.get_valid_access_token(target.social_account)
     try:
-        return publisher.confirm(target, token)
+        confirmation = publisher.confirm(job, token)
     except NeedsFreshToken:
-        return publisher.confirm(target, social_services.refresh_access_token(target.social_account))
+        confirmation = publisher.confirm(job, social_services.refresh_access_token(target.social_account))
+    return None if isinstance(confirmation, NotReady) else confirmation
 
 
 def confirm_target(target_id: int) -> int | None:
