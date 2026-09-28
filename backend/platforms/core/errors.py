@@ -61,3 +61,34 @@ class MaybePublished(PlatformError):
             f"The post may have been created; check {label} before publishing again",
             details=details,
         )
+
+
+class DomainError(Exception):
+    def __init__(self, **fields):
+        super().__init__(fields.get("message", self.__class__.__name__))
+        self.fields = fields
+
+
+class NotFound(DomainError):
+    def __init__(self, message: str = ""):
+        super().__init__(**({"message": message} if message else {}))
+
+
+class Invalid(DomainError):
+    def __init__(self, field: str, message: str):
+        super().__init__(errors=[{"field": field, "message": message}])
+
+
+class Conflict(DomainError):
+    def __init__(self, message: str, **fields):
+        super().__init__(message=message, **fields)
+
+
+class LimitReached(DomainError):
+    def __init__(self, message: str, limit: int):
+        super().__init__(message=message, limit=limit)
+
+
+class AccountNeedsReauth(DomainError):
+    def __init__(self, platform: str):
+        super().__init__(message="account_needs_reauth", platform=platform)

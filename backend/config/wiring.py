@@ -6,12 +6,22 @@ from django.core.signals import setting_changed
 from platforms.core.auth import OAuth2Provider
 from platforms.core.config import HttpConfig, OAuthCredentials, PlatformConfig, UploadConfig
 from platforms.core.platform import Platform, PlatformCatalog
-from platforms.core.ports import AccessTokens, Clock, SystemClock, TargetRepository, TaskQueue
+from platforms.core.ports import (
+    AccessTokens,
+    AccountRepository,
+    Clock,
+    PublicationRepository,
+    SystemClock,
+    TargetRepository,
+    TaskQueue,
+    UnitOfWork,
+)
 from platforms.core.publishing.commit import CommitGuard
 from platforms.core.publishing.confirmation import ConfirmationPoller
 from platforms.core.publishing.dispatcher import DeferredDispatcher
 from platforms.core.publishing.failures import FailureMapper
 from platforms.core.publishing.pipeline import PublicationPipeline
+from platforms.core.publishing.service import PublicationService
 from platforms.core.publishing.writer import TargetWriter
 from platforms.instagram import InstagramProvider
 from platforms.tiktok import TikTokProvider
@@ -78,6 +88,24 @@ class Container:
         return DjangoTargetRepository()
 
     @cached_property
+    def publication_rows(self) -> PublicationRepository:
+        from publishing.repositories import DjangoPublicationRepository
+
+        return DjangoPublicationRepository()
+
+    @cached_property
+    def accounts(self) -> AccountRepository:
+        from social.repositories import DjangoAccountRepository
+
+        return DjangoAccountRepository()
+
+    @cached_property
+    def unit_of_work(self) -> UnitOfWork:
+        from common.transactions import DjangoUnitOfWork
+
+        return DjangoUnitOfWork()
+
+    @cached_property
     def tokens(self) -> AccessTokens:
         from social.tokens import DjangoAccessTokens
 
@@ -102,6 +130,18 @@ class Container:
         commits = CommitGuard(self.writer, self.tokens)
         return ConfirmationPoller(
             self.targets, self.catalog, self.tokens, self.queue, self.writer, FailureMapper(), commits
+        )
+
+    @cached_property
+    def publications(self) -> PublicationService:
+        return PublicationService(
+            self.publication_rows,
+            self.targets,
+            self.accounts,
+            self.catalog,
+            self.queue,
+            self.unit_of_work,
+            self.clock,
         )
 
     @cached_property

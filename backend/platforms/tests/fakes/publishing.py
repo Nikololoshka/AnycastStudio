@@ -1,12 +1,22 @@
 from collections.abc import Iterable
+from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from platforms.core.auth.account import AccountRecord
 from platforms.core.capabilities import Capabilities, Scheduling, ValidationResult, Validator
-from platforms.core.errors import NeedsFreshToken
+from platforms.core.errors import NeedsFreshToken, NotFound
 from platforms.core.platform import Platform
-from platforms.core.ports import AccessTokens, Clock, TargetRepository, TaskQueue
+from platforms.core.ports import (
+    AccessTokens,
+    AccountRepository,
+    Clock,
+    PublicationRepository,
+    TargetRepository,
+    TaskQueue,
+    UnitOfWork,
+)
 from platforms.core.publishing import (
     Confirmation,
     MediaInfo,
@@ -17,6 +27,7 @@ from platforms.core.publishing import (
     PublishJob,
     TargetStatus,
 )
+from platforms.core.publishing.request import CreatedPublication, CreatedTarget, NewPublication
 from platforms.registry import PlatformRegistry
 
 START = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
@@ -97,6 +108,25 @@ class FakeTargets(TargetRepository):
 
     def take_stalled_confirmations(self, now: datetime, stalled_before: datetime) -> list[int]:
         return []
+
+    def ensure_owned(self, owner_id: int, target_id: int) -> None:
+        if target_id not in self.rows:
+            raise NotFound()
+
+    def status_of(self, target_id: int) -> TargetStatus:
+        return self.rows[target_id].status
+
+    def request_cancel(self, target_id: int, now: datetime) -> None:
+        row = self.rows[target_id]
+        row.cancel_requested = True
+        if row.status == TargetStatus.QUEUED:
+            row.status = TargetStatus.CANCELLED
+
+    def reset_for_retry(self, target_id: int) -> None:
+        row = self.rows[target_id]
+        row.status = TargetStatus.QUEUED
+        row.cancel_requested = False
+        row.last_activity_at = None
 
 
 class FakeQueue(TaskQueue):
@@ -193,3 +223,45 @@ def fake_job(video_path: Path, target_id: int = 1, **overrides) -> PublishJob:
         video_path=video_path,
     )
     return replace(job, **overrides)
+
+
+class FakeAccounts(AccountRepository):
+    def __init__(self, *accounts: AccountRecord):
+        self.accounts = {account.id: account for account in accounts}
+
+    def owned_accounts(self, owner_id: int) -> dict[int, AccountRecord]:
+        return dict(self.accounts)
+
+
+class FakePublications(PublicationRepository):
+    def __init__(self, limit: int = 5, created: int = 0):
+        self.limit = limit
+        self.created = created
+        self.rows: list[NewPublication] = []
+
+    def asset_ready(self, owner_id: int, asset_id: int) -> bool:
+        return asset_id == 1
+
+    def daily_limit(self, owner_id: int) -> int:
+        return self.limit
+
+    def created_since(self, owner_id: int, since: datetime) -> int:
+        return self.created
+
+    def create(self, publication: NewPublication) -> CreatedPublication:
+        self.rows.append(publication)
+        targets = tuple(CreatedTarget(index + 1, target.platform) for index, target in enumerate(publication.targets))
+        return CreatedPublication(len(self.rows), publication.publish_at, targets)
+
+
+class FakeUnitOfWork(UnitOfWork):
+    def __init__(self):
+        self.committed: list = []
+
+    @contextmanager
+    def atomic(self):
+        yield
+
+    def on_commit(self, action) -> None:
+        self.committed.append(action)
+        action()
