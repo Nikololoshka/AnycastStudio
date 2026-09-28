@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -182,7 +183,7 @@ class ConfirmationScenarios(ScenarioBase):
     def test_a_window_start_stored_as_a_timestamp_is_still_understood(self):
         # Given: a target that started confirming before the times were stored as text
         row = self.given_processing()
-        row.job = row.job.resumed_from({"confirming_since": self.clock.now().timestamp(), "polls": 3})
+        row.job = replace(row.job, resume_state={"confirming_since": self.clock.now().timestamp(), "polls": 3})
         self.clock.advance(timedelta(seconds=ConfirmationPoller.CONFIRM_WITHIN_SECONDS + 1))
 
         # When / Then: its window has run out as well

@@ -111,7 +111,9 @@ class DjangoOAuthSessionRepository(OAuthSessionRepository):
         return deleted
 
     def create(self, owner_id: int, platform: str, state: str, code_verifier: str) -> OAuthSessionRecord:
-        session = OAuthSession.objects.create(user_id=owner_id, platform=platform, state=state, code_verifier=code_verifier)
+        session = OAuthSession.objects.create(
+            user_id=owner_id, platform=platform, state=state, code_verifier=code_verifier
+        )
         return self._record(session)
 
     def claim(self, platform: str, state: str, created_after: datetime) -> OAuthSessionRecord | None:

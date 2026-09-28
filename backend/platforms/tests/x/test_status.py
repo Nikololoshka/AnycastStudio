@@ -2,7 +2,8 @@ from platforms.core.errors import FailureType, NeedsFreshToken, PlatformError
 from platforms.core.publishing import MediaInfo, PublicationDraft
 from platforms.x.client import API_ROOT, XClient
 from platforms.x.options import XOptions, XValidator
-from platforms.x.publish import MediaStatusApi, PostApi
+from platforms.x.publish import MediaStatusApi, PostApi, ProcessingStatus
+from platforms.x.publish.status import MediaStatusAnswer
 
 from ..base import TEST_CONFIG, FakeResponse, PlatformTestCase
 
@@ -15,8 +16,8 @@ def fetch_status(access_token: str, media_id: str):
     return MediaStatusApi(XClient(TEST_CONFIG.http)).fetch(access_token, media_id)
 
 
-def status_of(body: dict):
-    return MediaStatusApi(XClient(TEST_CONFIG.http)).status_of(body)
+def status_of(body: dict) -> ProcessingStatus:
+    return ProcessingStatus.of(MediaStatusAnswer.model_validate(body))
 
 
 def create_post(access_token: str, text: str, media_id: str, options: XOptions) -> str:

@@ -96,7 +96,9 @@ class DjangoTargetRepository(TargetRepository):
     def take_stalled_confirmations(self, now: datetime, stalled_before: datetime) -> list[int]:
         stalled = Q(status=TargetStatus.PROCESSING, last_activity_at__lt=stalled_before)
         candidates = PublicationTarget.objects.filter(stalled).values_list("pk", flat=True)
-        return [pk for pk in list(candidates) if PublicationTarget.objects.filter(stalled, pk=pk).update(last_activity_at=now)]
+        return [
+            pk for pk in list(candidates) if PublicationTarget.objects.filter(stalled, pk=pk).update(last_activity_at=now)
+        ]
 
     def ensure_owned(self, owner_id: int, target_id: int) -> None:
         if not PublicationTarget.objects.filter(publication__user_id=owner_id, pk=target_id).exists():

@@ -68,6 +68,3 @@ class MediaStatusApi:
             lambda: self._client.call("GET", "media/upload", access_token, params=params)
         )
         return ProcessingStatus.of(self._client.parse(response, MediaStatusAnswer))
-
-    def status_of(self, body: dict) -> ProcessingStatus:
-        return ProcessingStatus.of(self._client.parse_body(body, MediaStatusAnswer))

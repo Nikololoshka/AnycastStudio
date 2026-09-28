@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -35,6 +35,3 @@ class PublishJob:
     publish_at: datetime | None = None
     uploaded_media_id: str = ""
     resume_state: dict | None = None
-
-    def resumed_from(self, state: dict | None) -> "PublishJob":
-        return replace(self, resume_state=state)
