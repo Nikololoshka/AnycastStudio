@@ -1,9 +1,10 @@
 from urllib.parse import parse_qs, urlparse
 
-from platforms.core.auth import Pkce
-from platforms.x.auth.provider import TOKEN_ENDPOINT, USER_INFO_ENDPOINT
+from platforms2.core import Pkce
+from platforms2.x.core import XEndpoints
 from social.models import OAuthSession
-from social.tests.base import FakeResponse, SocialTestCase
+from platforms2.tests.fakes.http import FakeAnswer
+from social.tests.base import SocialTestCase
 
 CONNECT_URL = "/api/social/x/connect"
 CALLBACK_URL = "/api/social/x/callback"
@@ -42,7 +43,7 @@ class XConnectScenarios(SocialTestCase):
         self.sign_in()
         state = self.started_state()
         verifier = OAuthSession.objects.get().code_verifier
-        self.http.side_effect = [FakeResponse(payload=TOKEN), FakeResponse(payload=USER)]
+        self.given_answers(FakeAnswer(200, TOKEN), FakeAnswer(200, USER))
 
         # When: X redirects back
         response = self.client.get(CALLBACK_URL, {"state": state, "code": "the-code"})
@@ -53,15 +54,15 @@ class XConnectScenarios(SocialTestCase):
         self.assertEqual((account.platform, account.external_id, account.display_name), ("x", "2244994945", "a_creator"))
         self.assertEqual(account.refresh_token, "x.refresh-DO-NOT-LEAK")
         self.assertIsNotNone(account.token_expires_at)
-        token_call, identity_call = self.http.call_args_list
-        self.assertEqual(token_call.args[1], TOKEN_ENDPOINT)
-        self.assertEqual(token_call.kwargs["data"]["code_verifier"], verifier)
-        self.assertEqual(identity_call.args[1], USER_INFO_ENDPOINT)
+        token_call, identity_call = self.http.sent
+        self.assertEqual(token_call.url, XEndpoints.TOKEN)
+        self.assertEqual(token_call.data["code_verifier"], verifier)
+        self.assertEqual(identity_call.url, XEndpoints.ME)
 
     def test_the_tokens_are_not_sent_to_the_browser(self):
         self.sign_in()
         state = self.started_state()
-        self.http.side_effect = [FakeResponse(payload=TOKEN), FakeResponse(payload=USER)]
+        self.given_answers(FakeAnswer(200, TOKEN), FakeAnswer(200, USER))
         self.client.get(CALLBACK_URL, {"state": state, "code": "the-code"})
 
         content = self.client.get("/api/social/accounts").content.decode()

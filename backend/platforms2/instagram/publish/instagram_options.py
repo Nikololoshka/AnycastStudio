@@ -16,6 +16,9 @@ class InstagramOptions:
             cover_frame_seconds=cls._seconds(raw.get("coverFrameSeconds")),
         )
 
+    def as_json(self) -> dict:
+        return {"shareToFeed": self.share_to_feed, "coverFrameSeconds": self.cover_frame_seconds}
+
     @property
     def thumb_offset_ms(self) -> int:
         return round(self.cover_frame_seconds * 1000)

@@ -3,29 +3,31 @@ from unittest import mock
 
 from django.utils import timezone
 
-from config.wiring import container
 from media.models import MediaAsset
-from platforms.core.errors import FailureType
-from platforms.core.publishing.confirmation import ConfirmationPoller
-from platforms.core.publishing.pipeline import PublicationPipeline
-from platforms.x.client import API_ROOT
+from platforms2.core import PlatformFailure
+from platforms2.core.usecases.publications import CommitGuard, ConfirmationPoller, StaleTargetSweeper
+from platforms2.tests.fakes.http import FakeAnswer
+from platforms2.x.core import XEndpoints
+from publishing import tasks
 from publishing.models import PublicationTarget
 from social.models import SocialAccount
 
-from .base import CONTENT, FakeResponse, PublishingTestCase
+from .base import CONTENT, PublishingTestCase
 
 Status = PublicationTarget.Status
 
 MEDIA_ID = "1880000000000000001"
 POST_ID = "1990000000000000001"
 POST_URL = f"https://x.com/i/web/status/{POST_ID}"
-MEDIA_ROOT = f"{API_ROOT}/media/upload"
+API_ROOT = XEndpoints.API_ROOT
+MEDIA_ROOT = XEndpoints.MEDIA_UPLOAD
+DEADLINE_SECONDS = ConfirmationPoller.CONFIRM_WITHIN.total_seconds()
 
 
 class XDouble:
     def __init__(self, states=None, post_answer=None):
         self.states = list(states or ["succeeded"])
-        self.post_answer = post_answer or FakeResponse(201, {"data": {"id": POST_ID, "text": "A video"}})
+        self.post_answer = post_answer or FakeAnswer(201, {"data": {"id": POST_ID, "text": "A video"}})
         self.initialized: list[dict] = []
         self.received = 0
         self.finalized = 0
@@ -38,18 +40,18 @@ class XDouble:
     def __call__(self, method, url, **kwargs):
         if url == f"{MEDIA_ROOT}/initialize":
             self.initialized.append(kwargs["json"])
-            return FakeResponse(200, {"data": {"id": MEDIA_ID}})
+            return FakeAnswer(200, {"data": {"id": MEDIA_ID}})
         if url == f"{MEDIA_ROOT}/{MEDIA_ID}/append":
-            self.received += len(kwargs["files"]["media"][1])
-            return FakeResponse(200, {})
+            self.received += sum(len(value) for options, _, value in kwargs["data"]._fields if options["name"] == "media")
+            return FakeAnswer(200, {})
         if url == f"{MEDIA_ROOT}/{MEDIA_ID}/finalize":
             self.finalized += 1
-            return FakeResponse(200, {"data": {"id": MEDIA_ID, "processing_info": {"state": "pending"}}})
+            return FakeAnswer(200, {"data": {"id": MEDIA_ID, "processing_info": {"state": "pending"}}})
         if url == MEDIA_ROOT and method == "GET":
             self.status_calls += 1
             state = self.next_state()
             error = {"error": {"name": "InvalidMedia", "message": "Unsupported codec"}} if state == "failed" else {}
-            return FakeResponse(200, {"data": {"id": MEDIA_ID, "processing_info": {"state": state, **error}}})
+            return FakeAnswer(200, {"data": {"id": MEDIA_ID, "processing_info": {"state": state, **error}}})
         if url == f"{API_ROOT}/tweets":
             self.posts.append(kwargs["json"])
             return self.post_answer
@@ -75,7 +77,7 @@ class XPublishingScenarios(PublishingTestCase):
 
     def given_x(self, **kwargs) -> XDouble:
         double = XDouble(**kwargs)
-        self.http.side_effect = double
+        self.http.responder = double
         return double
 
     def given_target(self, **settings) -> PublicationTarget:
@@ -85,13 +87,13 @@ class XPublishingScenarios(PublishingTestCase):
     def given_uploaded(self, **double) -> PublicationTarget:
         self.given_x(**double)
         target = self.given_target()
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
         target.refresh_from_db()
         return target
 
     def confirm_again(self, target: PublicationTarget):
         PublicationTarget.objects.filter(pk=target.pk).update(last_activity_at=timezone.now())
-        return container().confirmations.confirm(target.pk)
+        return self.confirm_target(target.pk)
 
     def test_an_upload_leaves_the_target_waiting_for_x(self):
         # Given: X accepts the video
@@ -99,7 +101,7 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_target()
 
         # When: the worker runs it
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         # Then: the file went up, and nothing is posted until X has processed it
         target.refresh_from_db()
@@ -116,14 +118,14 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_target()
 
         # When: the worker runs it
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
 
         # Then: it fails locally, and X was never asked
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FailureType.VALIDATION)
+        self.assertEqual(target.error["failure"], PlatformFailure.INVALID)
         self.assertIn("videoTooLong", target.error["details"])
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
 
     def test_text_longer_than_a_post_is_refused_before_any_call(self):
         self.given_x()
@@ -133,11 +135,11 @@ class XPublishingScenarios(PublishingTestCase):
         )
         target = self.only_target()
 
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
 
         target.refresh_from_db()
         self.assertIn("captionTooLong", target.error["details"])
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
 
     def test_a_processed_video_is_posted_and_completes_with_its_link(self):
         # Given: an uploaded video that X has finished processing
@@ -147,11 +149,11 @@ class XPublishingScenarios(PublishingTestCase):
         )
 
         # When: the confirmation runs
-        delay = container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         # Then: one post, with the caption, the video and the chosen options
         target.refresh_from_db()
-        double = self.http.side_effect
+        double = self.http.responder
         self.assertIsNone(delay)
         self.assertEqual(target.status, Status.COMPLETED)
         self.assertEqual(target.published_url, POST_URL)
@@ -172,66 +174,75 @@ class XPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(states=["in_progress"])
 
         # When: the confirmation runs
-        delay = container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         # Then: it asks again later and posts nothing
         target.refresh_from_db()
         self.assertEqual(delay, ConfirmationPoller.POLL_DELAYS_SECONDS[1])
         self.assertEqual(target.status, Status.PROCESSING)
-        self.assertEqual(self.http.side_effect.posts, [])
+        self.assertEqual(self.http.responder.posts, [])
 
     def test_a_video_x_could_not_process_fails_with_its_reason(self):
         target = self.given_uploaded(states=["failed"])
 
-        container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual((target.error["type"], target.error["message"]), (FailureType.FILE, "Unsupported codec"))
-        self.assertEqual(self.http.side_effect.posts, [])
+        self.assertEqual((target.error["failure"], target.error["message"]), (PlatformFailure.FILE_REJECTED, "Unsupported codec"))
+        self.assertEqual(self.http.responder.posts, [])
 
     def test_a_refused_post_fails_and_is_not_retried(self):
         # Given: X refuses the post, a decision that does not change on repetition
-        refused = FakeResponse(403, {"detail": "You are not allowed to create a Tweet with duplicate content.", "status": 403})
+        refused = FakeAnswer(403, {"detail": "You are not allowed to create a Tweet with duplicate content.", "status": 403})
         target = self.given_uploaded(post_answer=refused)
 
         # When: the confirmation runs
-        delay = container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         # Then: it fails with X's words, after one attempt
         target.refresh_from_db()
         self.assertIsNone(delay)
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FailureType.AUTHORIZATION)
+        self.assertEqual(target.error["failure"], PlatformFailure.REFUSED)
         self.assertIn("duplicate content", target.error["message"])
-        self.assertEqual(len(self.http.side_effect.posts), 1)
+        self.assertEqual(len(self.http.responder.posts), 1)
 
-    def test_a_post_x_did_not_answer_is_never_sent_again(self):
+    def test_a_post_x_did_not_answer_is_reported_as_maybe_posted(self):
         # Given: the post request got no answer, so it may exist on X
-        target = self.given_uploaded(post_answer=FakeResponse(503, {}))
+        target = self.given_uploaded(post_answer=FakeAnswer(503, {}))
 
-        # When: the confirmation runs, and the person retries the failed target
-        container().confirmations.confirm(target.pk)
-        target.refresh_from_db()
-        failed = (target.status, target.error["message"])
-        PublicationTarget.objects.filter(pk=target.pk).update(status=Status.QUEUED)
-        container().pipeline.run(target.pk)
-        self.confirm_again(target)
+        # When: the confirmation runs
+        self.confirm_target(target.pk)
 
-        # Then: both times it fails asking the person to check X, and only one post was ever sent
+        # Then: it fails asking the person to check X, after a single post, and the mark stays
         target.refresh_from_db()
-        self.assertEqual(failed[0], Status.FAILED)
-        self.assertIn("check X", failed[1])
         self.assertEqual(target.status, Status.FAILED)
+        self.assertEqual(target.error["failure"], PlatformFailure.UNCONFIRMED)
         self.assertIn("check X", target.error["message"])
-        self.assertEqual(len(self.http.side_effect.posts), 1)
+        self.assertIn(CommitGuard.COMMIT_STARTED, target.confirmation_state)
+        self.assertEqual(len(self.http.responder.posts), 1)
+
+    def test_a_confirmation_that_died_mid_post_does_not_post_again(self):
+        # Given: a worker died while the post was in flight, leaving the mark behind
+        target = self.given_uploaded()
+        state = {**target.confirmation_state, CommitGuard.COMMIT_STARTED: timezone.now().isoformat()}
+        PublicationTarget.objects.filter(pk=target.pk).update(confirmation_state=state)
+
+        # When: the confirmation is delivered again
+        self.confirm_target(target.pk)
+
+        # Then: nothing is posted, and the person is asked to check X
+        target.refresh_from_db()
+        self.assertEqual(target.error["failure"], PlatformFailure.UNCONFIRMED)
+        self.assertEqual(self.http.responder.posts, [])
 
     def test_a_rejected_token_is_refreshed_and_the_post_is_sent_once(self):
         # Given: the token is rejected at the post, and X issues a fresh one
         target = self.given_uploaded()
-        double = self.http.side_effect
-        answers = [FakeResponse(401, {"title": "Unauthorized"}), FakeResponse(201, {"data": {"id": POST_ID}})]
-        tokens = FakeResponse(200, {"access_token": "x.fresh", "refresh_token": "x.rotated", "expires_in": 7200})
+        double = self.http.responder
+        answers = [FakeAnswer(401, {"title": "Unauthorized"}), FakeAnswer(201, {"data": {"id": POST_ID}})]
+        tokens = FakeAnswer(200, {"access_token": "x.fresh", "refresh_token": "x.rotated", "expires_in": 7200})
 
         def route(method, url, **kwargs):
             if url.endswith("/oauth2/token"):
@@ -241,10 +252,10 @@ class XPublishingScenarios(PublishingTestCase):
                 return answers.pop(0)
             return double(method, url, **kwargs)
 
-        self.http.side_effect = route
+        self.http.responder = route
 
         # When: the confirmation runs
-        container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         # Then: the refused attempt did not count as maybe posted, and the second completed it
         target.refresh_from_db()
@@ -256,67 +267,50 @@ class XPublishingScenarios(PublishingTestCase):
 
     def test_a_revoked_connection_asks_for_reconnection(self):
         target = self.given_uploaded()
-        self.http.side_effect = [
-            FakeResponse(401, {"title": "Unauthorized"}),
-            FakeResponse(400, {"error": "invalid_request", "error_description": "Value passed for the token was invalid."}),
-        ]
+        self.given_answers(
+            FakeAnswer(401, {"title": "Unauthorized"}),
+            FakeAnswer(400, {"error": "invalid_request", "error_description": "Value passed for the token was invalid."}),
+        )
 
-        container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.account.refresh_from_db()
-        self.assertEqual(target.error["type"], FailureType.AUTHENTICATION)
+        self.assertEqual(target.error["failure"], PlatformFailure.GRANT_REVOKED)
         self.assertEqual(self.account.status, SocialAccount.Status.NEEDS_REAUTH)
 
     def test_a_video_never_processed_fails_after_the_deadline(self):
         target = self.given_uploaded(states=["in_progress"])
-        started = time.time() - ConfirmationPoller.CONFIRM_WITHIN_SECONDS - 1
-        PublicationTarget.objects.filter(pk=target.pk).update(resume_state={"confirming_since": started, "polls": 9})
+        started = time.time() - DEADLINE_SECONDS - 1
+        PublicationTarget.objects.filter(pk=target.pk).update(confirmation_state={"confirming_since": started, "polls": 9})
 
-        delay = container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.assertIsNone(delay)
-        self.assertEqual((target.status, target.error["type"]), (Status.FAILED, FailureType.PLATFORM))
+        self.assertEqual((target.status, target.error["failure"]), (Status.FAILED, PlatformFailure.UNCONFIRMED))
 
     def test_a_confirmation_delivered_again_after_completion_does_nothing(self):
         target = self.given_uploaded()
-        container().confirmations.confirm(target.pk)
-        calls = self.http.call_count
+        self.confirm_target(target.pk)
+        calls = len(self.http.sent)
 
-        delay = container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.assertIsNone(delay)
-        self.assertEqual(self.http.call_count, calls)
+        self.assertEqual(len(self.http.sent), calls)
         self.assertEqual(target.status, Status.COMPLETED)
 
-    def test_the_claim_for_abandoned_work_leaves_a_target_being_confirmed_alone(self):
+    def test_the_sweep_for_abandoned_work_leaves_a_target_being_confirmed_alone(self):
         target = self.given_uploaded()
         PublicationTarget.objects.filter(pk=target.pk).update(
-            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2
+            last_activity_at=timezone.now() - StaleTargetSweeper.ABANDONED_AFTER * 2
         )
 
-        self.assertIsNone(container().pipeline.claim(target.pk))
-
-    def test_a_worker_killed_mid_upload_resumes_the_same_media(self):
-        # Given: a target whose upload stopped after the first segment
-        double = self.given_x(states=["in_progress"])
-        target = self.given_target()
-        PublicationTarget.objects.filter(pk=target.pk).update(
-            status=Status.UPLOADING,
-            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2,
-            resume_state={"media_id": MEDIA_ID, "segment_bytes": 1024, "next_segment": 1, "created_at": time.time() - 60},
-        )
-
-        # When: the worker picks it up again
-        container().pipeline.run(target.pk)
-
-        # Then: no new upload, only the rest of the file
+        self.assertEqual(tasks.sweep_abandoned_targets(), 0)
         target.refresh_from_db()
         self.assertEqual(target.status, Status.PROCESSING)
-        self.assertEqual(double.initialized, [])
-        self.assertEqual(double.received, len(CONTENT) - 1024)
 
     def test_capabilities_are_served_for_x(self):
         body = self.body(self.client.get("/api/platforms"))

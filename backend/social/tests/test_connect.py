@@ -5,7 +5,7 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 
-from platforms.core.auth import Pkce
+from platforms2.core import Pkce
 from social.models import OAuthSession
 from social.tests.base import CONNECT_URL, SocialTestCase
 
@@ -145,8 +145,7 @@ class ConfigurationScenarios(SocialTestCase):
 
         response = self.client.post(CONNECT_URL)
 
-        # Then: the person is told, and no half-started session is left pending
+        # Then: the person is told, and no half-started session is left behind
         self.assertEqual(response.status_code, 500)
-        self.assertEqual(
-            OAuthSession.objects.get().status, OAuthSession.Status.ERROR
-        )
+        self.assertEqual(self.body(response)["message"], "YouTube is not configured")
+        self.assertFalse(OAuthSession.objects.exists())

@@ -3,16 +3,19 @@ from unittest import mock
 
 from django.utils import timezone
 
-from config import wiring
 from media.models import MediaAsset
-from platforms.core.errors import FailureType
-from platforms.core.publishing.confirmation import ConfirmationPoller
-from platforms.core.publishing.pipeline import PublicationPipeline
-from platforms.instagram.client import GRAPH_ROOT, RUPLOAD_ROOT
+from platforms2.core import PlatformFailure
+from platforms2.core.usecases.publications import ConfirmationPoller, StaleTargetSweeper
+from platforms2.instagram.core import InstagramEndpoints
+from platforms2.tests.fakes.http import FakeAnswer
+from publishing import tasks
 from publishing.models import PublicationTarget
 from social.models import SocialAccount
 
-from .base import CONTENT, FakeResponse, PublishingTestCase
+from .base import CONTENT, PublishingTestCase
+
+GRAPH_ROOT = InstagramEndpoints.GRAPH_ROOT
+RUPLOAD_ROOT = InstagramEndpoints.RUPLOAD_ROOT
 
 Status = PublicationTarget.Status
 
@@ -26,7 +29,7 @@ class InstagramDouble:
     def __init__(self, size: int, statuses=None, publish_answer=None):
         self.size = size
         self.statuses = list(statuses or ["FINISHED"])
-        self.publish_answer = publish_answer or FakeResponse(200, {"id": MEDIA_ID})
+        self.publish_answer = publish_answer or FakeAnswer(200, {"id": MEDIA_ID})
         self.containers: list[dict] = []
         self.received = 0
         self.status_calls = 0
@@ -38,18 +41,18 @@ class InstagramDouble:
     def __call__(self, method, url, **kwargs):
         if url == f"{GRAPH_ROOT}/{IG_USER_ID}/media":
             self.containers.append(kwargs["data"])
-            return FakeResponse(200, {"id": CONTAINER_ID})
+            return FakeAnswer(200, {"id": CONTAINER_ID})
         if url.startswith(f"{RUPLOAD_ROOT}/"):
             self.received += len(kwargs["data"])
-            return FakeResponse(200, {"success": True})
+            return FakeAnswer(200, {"success": True})
         if url == f"{GRAPH_ROOT}/{CONTAINER_ID}":
             self.status_calls += 1
-            return FakeResponse(200, {"status_code": self.next_status(), "status": "Error: 2207026"})
+            return FakeAnswer(200, {"status_code": self.next_status(), "status": "Error: 2207026"})
         if url == f"{GRAPH_ROOT}/{IG_USER_ID}/media_publish":
             self.publishes += 1
             return self.publish_answer
         if url == f"{GRAPH_ROOT}/{MEDIA_ID}":
-            return FakeResponse(200, {"permalink": PERMALINK})
+            return FakeAnswer(200, {"permalink": PERMALINK})
         raise AssertionError(f"unexpected call to {method} {url}")
 
 
@@ -70,7 +73,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
 
     def given_instagram(self, **kwargs) -> InstagramDouble:
         double = InstagramDouble(size=len(CONTENT), **kwargs)
-        self.http.side_effect = double
+        self.http.responder = double
         return double
 
     def given_target(self, **settings) -> PublicationTarget:
@@ -82,7 +85,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
     def given_uploaded(self, **double) -> PublicationTarget:
         self.given_instagram(**double)
         target = self.given_target()
-        wiring.container().pipeline.run(target.pk)
+        self.run_target(target.pk)
         target.refresh_from_db()
         return target
 
@@ -92,7 +95,7 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_target(shareToFeed=False, coverFrameSeconds=2)
 
         # When: the worker runs it
-        result = wiring.container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         # Then: the file went up, and nothing is published until Instagram has processed it
         target.refresh_from_db()
@@ -112,154 +115,138 @@ class InstagramPublishingScenarios(PublishingTestCase):
         target = self.given_target()
 
         # When: the worker runs it
-        wiring.container().pipeline.run(target.pk)
+        self.run_target(target.pk)
 
         # Then: it fails locally, and Instagram was never asked
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FailureType.VALIDATION)
+        self.assertEqual(target.error["failure"], PlatformFailure.INVALID)
         self.assertIn("videoTooShort", target.error["details"])
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
 
     def test_a_processed_reel_is_published_and_completes_with_its_link(self):
         # Given: an uploaded reel that Instagram has finished processing
         target = self.given_uploaded(statuses=["FINISHED"])
 
         # When: the confirmation runs
-        delay = wiring.container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         # Then: it was published once, with the post's address
         target.refresh_from_db()
         self.assertIsNone(delay)
         self.assertEqual(target.status, Status.COMPLETED)
         self.assertEqual(target.published_url, PERMALINK)
-        self.assertEqual(self.http.side_effect.publishes, 1)
+        self.assertEqual(self.http.responder.publishes, 1)
 
     def test_a_reel_still_processing_is_not_published_yet(self):
         # Given: Instagram is still processing the video
         target = self.given_uploaded(statuses=["IN_PROGRESS"])
 
         # When: the confirmation runs
-        delay = wiring.container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         # Then: it asks again later and publishes nothing
         target.refresh_from_db()
         self.assertEqual(delay, ConfirmationPoller.POLL_DELAYS_SECONDS[1])
         self.assertEqual(target.status, Status.PROCESSING)
-        self.assertEqual(self.http.side_effect.publishes, 0)
+        self.assertEqual(self.http.responder.publishes, 0)
 
     def test_a_reel_instagram_could_not_process_fails_with_its_reason(self):
         target = self.given_uploaded(statuses=["ERROR"])
 
-        wiring.container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FailureType.FILE)
+        self.assertEqual(target.error["failure"], PlatformFailure.FILE_REJECTED)
         self.assertEqual(target.error["details"], "Error: 2207026")
 
     def test_an_expired_container_fails(self):
         target = self.given_uploaded(statuses=["EXPIRED"])
 
-        wiring.container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.assertEqual((target.status, target.error["details"]), (Status.FAILED, "EXPIRED"))
 
     def test_a_lost_answer_to_publish_is_asked_about_again_rather_than_published_twice(self):
         # Given: the publish call is lost, but Instagram published the reel anyway
-        target = self.given_uploaded(statuses=["FINISHED", "PUBLISHED"], publish_answer=FakeResponse(503, {}))
+        target = self.given_uploaded(statuses=["FINISHED", "PUBLISHED"], publish_answer=FakeAnswer(503, {}))
 
         # When: two confirmations run
-        first = wiring.container().confirmations.confirm(target.pk)
+        first = self.confirm_target(target.pk)
         PublicationTarget.objects.filter(pk=target.pk).update(last_activity_at=timezone.now())
-        second = wiring.container().confirmations.confirm(target.pk)
+        second = self.confirm_target(target.pk)
 
         # Then: the second sees it published, and publish was sent only once
         target.refresh_from_db()
         self.assertEqual(first, ConfirmationPoller.POLL_DELAYS_SECONDS[1])
         self.assertIsNone(second)
         self.assertEqual(target.status, Status.COMPLETED)
-        self.assertEqual(self.http.side_effect.publishes, 1)
+        self.assertEqual(self.http.responder.publishes, 1)
 
     def test_a_refused_publish_fails_and_is_not_retried(self):
         # Given: Instagram refuses to publish, a decision that does not change on repetition
-        refused = FakeResponse(400, {"error": {"message": "Daily limit reached", "code": 9, "error_subcode": 2207042}})
+        refused = FakeAnswer(400, {"error": {"message": "Daily limit reached", "code": 9, "error_subcode": 2207042}})
         target = self.given_uploaded(publish_answer=refused)
 
         # When: the confirmation runs
-        delay = wiring.container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
-        # Then: it fails with Instagram's code
+        # Then: it fails with Instagram's words
         target.refresh_from_db()
         self.assertIsNone(delay)
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["details"], "9/2207042")
-        self.assertEqual(self.http.side_effect.publishes, 1)
+        self.assertEqual(target.error["failure"], PlatformFailure.REFUSED)
+        self.assertIn("Daily limit reached", target.error["message"])
+        self.assertEqual(self.http.responder.publishes, 1)
 
     def test_a_reel_never_processed_fails_after_the_deadline(self):
         target = self.given_uploaded(statuses=["IN_PROGRESS"])
-        started = time.time() - ConfirmationPoller.CONFIRM_WITHIN_SECONDS - 1
-        PublicationTarget.objects.filter(pk=target.pk).update(resume_state={"confirming_since": started, "polls": 9})
+        started = time.time() - ConfirmationPoller.CONFIRM_WITHIN.total_seconds() - 1
+        PublicationTarget.objects.filter(pk=target.pk).update(confirmation_state={"confirming_since": started, "polls": 9})
 
-        delay = wiring.container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.assertIsNone(delay)
-        self.assertEqual((target.status, target.error["type"]), (Status.FAILED, FailureType.PLATFORM))
+        self.assertEqual((target.status, target.error["failure"]), (Status.FAILED, PlatformFailure.UNCONFIRMED))
 
     def test_a_rejected_token_asks_for_reconnection(self):
         # Given: the person revoked the app on Facebook; a Page token cannot be refreshed
         target = self.given_uploaded()
-        self.http.side_effect = [FakeResponse(400, {"error": {"message": "Session invalidated", "code": 190}})]
+        self.given_answers(FakeAnswer(400, {"error": {"message": "Session invalidated", "code": 190}}))
 
         # When: the confirmation runs
-        wiring.container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         # Then: the target fails for authentication, and the account asks to be reconnected
         target.refresh_from_db()
         self.account.refresh_from_db()
-        self.assertEqual(target.error["type"], FailureType.AUTHENTICATION)
+        self.assertEqual(target.error["failure"], PlatformFailure.GRANT_REVOKED)
         self.assertEqual(self.account.status, SocialAccount.Status.NEEDS_REAUTH)
 
     def test_a_confirmation_delivered_again_after_completion_does_nothing(self):
         target = self.given_uploaded()
-        wiring.container().confirmations.confirm(target.pk)
-        calls = self.http.call_count
+        self.confirm_target(target.pk)
+        calls = len(self.http.sent)
 
-        delay = wiring.container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.assertIsNone(delay)
-        self.assertEqual(self.http.call_count, calls)
+        self.assertEqual(len(self.http.sent), calls)
         self.assertEqual(target.status, Status.COMPLETED)
 
-    def test_the_claim_for_abandoned_work_leaves_a_target_being_confirmed_alone(self):
+    def test_the_sweep_for_abandoned_work_leaves_a_target_being_confirmed_alone(self):
         target = self.given_uploaded()
         PublicationTarget.objects.filter(pk=target.pk).update(
-            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2
+            last_activity_at=timezone.now() - StaleTargetSweeper.ABANDONED_AFTER * 2
         )
 
-        self.assertIsNone(wiring.container().pipeline.claim(target.pk))
-
-    def test_a_worker_killed_mid_upload_resumes_in_the_same_container(self):
-        # Given: a target whose upload stopped after the first kilobyte
-        double = self.given_instagram(statuses=["IN_PROGRESS"])
-        target = self.given_target()
-        PublicationTarget.objects.filter(pk=target.pk).update(
-            status=Status.UPLOADING,
-            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2,
-            resume_state={"container_id": CONTAINER_ID, "offset": 1024, "created_at": time.time() - 60},
-        )
-
-        # When: the worker picks it up again
-        wiring.container().pipeline.run(target.pk)
-
-        # Then: no new container, only the rest of the file
+        self.assertEqual(tasks.sweep_abandoned_targets(), 0)
         target.refresh_from_db()
         self.assertEqual(target.status, Status.PROCESSING)
-        self.assertEqual(double.containers, [])
-        self.assertEqual(double.received, len(CONTENT) - 1024)
 
     def test_capabilities_are_served_for_instagram(self):
         body = self.body(self.client.get("/api/platforms"))

@@ -1,12 +1,14 @@
 from unittest import mock
 
-from django.db import connection
+from django.db import connections
 from django.utils import timezone
 
 from accounts.models import User
-from config.wiring import container
 from media.models import MediaAsset
-from platforms.core.errors import ProviderError
+import aiohttp
+
+from platforms2.core import PlatformError
+from platforms2.tests.fakes.http import FakeAnswer
 from publishing.models import Publication, PublicationTarget
 from social.models import SocialAccount
 from social.tests.base import (
@@ -14,7 +16,7 @@ from social.tests.base import (
     ACCOUNTS_URL,
     CODE,
     REFRESH_TOKEN,
-    FakeResponse,
+    
     SocialTestCase,
 )
 
@@ -82,7 +84,7 @@ class DisconnectScenarios(SocialTestCase):
 
     def test_disconnecting_forgets_the_tokens(self):
         account = self.connect()
-        self.http.side_effect = [FakeResponse(200, {})]
+        self.given_answers(FakeAnswer(200, {}))
 
         response = self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
@@ -91,7 +93,7 @@ class DisconnectScenarios(SocialTestCase):
 
     def test_a_disconnected_account_is_no_longer_listed(self):
         account = self.connect()
-        self.http.side_effect = [FakeResponse(200, {})]
+        self.given_answers(FakeAnswer(200, {}))
         self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
         body = self.body(self.client.get(ACCOUNTS_URL))
@@ -107,7 +109,7 @@ class DisconnectScenarios(SocialTestCase):
         )
         publication = Publication.objects.create(user=self.user, asset=asset, title="A clip")
         PublicationTarget.objects.create(publication=publication, platform="youtube", social_account=account)
-        self.http.side_effect = [FakeResponse(200, {})]
+        self.given_answers(FakeAnswer(200, {}))
 
         # When: the person disconnects it
         response = self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
@@ -119,7 +121,7 @@ class DisconnectScenarios(SocialTestCase):
 
     def test_reconnecting_a_disconnected_channel_brings_it_back(self):
         account = self.connect()
-        self.http.side_effect = [FakeResponse(200, {})]
+        self.given_answers(FakeAnswer(200, {}))
         self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
         self.given_platform_responds()
@@ -131,56 +133,56 @@ class DisconnectScenarios(SocialTestCase):
 
     def test_revoking_is_tried_once(self):
         account = self.connect()
-        self.http.reset_mock()
-        self.http.side_effect = [FakeResponse(503, {})] * 3
+        self.http.forget()
+        self.given_answers(*[FakeAnswer(503, {})] * 3)
 
         self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
-        self.assertEqual(self.http.call_count, 1)
+        self.assertEqual(len(self.http.sent), 1)
         self.assert_disconnected(account)
 
     def test_disconnecting_asks_the_platform_to_revoke(self):
         account = self.connect()
-        self.http.side_effect = [FakeResponse(200, {})]
+        self.given_answers(FakeAnswer(200, {}))
 
         self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
-        revoke_call = self.http.call_args_list[-1]
-        self.assertIn("revoke", revoke_call.args[1])
-        self.assertEqual(revoke_call.kwargs["data"], {"token": REFRESH_TOKEN})
+        revoke_call = self.http.sent[-1]
+        self.assertIn("revoke", revoke_call.url)
+        self.assertEqual(revoke_call.data, {"token": REFRESH_TOKEN})
 
     def test_an_account_without_a_refresh_token_is_still_revoked(self):
         # Given: a connected account that holds only an access token
         account = self.connect()
         SocialAccount.objects.filter(pk=account.pk).update(refresh_token="")
-        self.http.side_effect = [FakeResponse(200, {})]
+        self.given_answers(FakeAnswer(200, {}))
 
         # When: the person disconnects it
         self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
         # Then: the platform is asked to revoke the access token
-        revoke_call = self.http.call_args_list[-1]
-        self.assertIn("revoke", revoke_call.args[1])
-        self.assertEqual(revoke_call.kwargs["data"], {"token": ACCESS_TOKEN})
+        revoke_call = self.http.sent[-1]
+        self.assertIn("revoke", revoke_call.url)
+        self.assertEqual(revoke_call.data, {"token": ACCESS_TOKEN})
         self.assert_disconnected(account)
 
     def test_an_account_without_tokens_is_not_revoked(self):
         # Given: an account whose tokens are already gone
         account = self.connect()
         SocialAccount.objects.filter(pk=account.pk).update(access_token="", refresh_token="")
-        self.http.reset_mock(side_effect=True)
+        self.http.forget()
 
         # When: the person disconnects it
         self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
         # Then: nothing is sent to the platform
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
         self.assert_disconnected(account)
 
     def test_the_account_goes_even_if_the_platform_refuses_to_revoke(self):
         # Given: revoking fails, which is Google's business, not the person's
         account = self.connect()
-        self.http.side_effect = ProviderError("Google request failed: ConnectionError")
+        self.given_answers(aiohttp.ClientConnectionError("Cannot connect"))
 
         response = self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
@@ -218,21 +220,21 @@ class TokenRefreshScenarios(SocialTestCase):
 
     def test_a_token_that_is_still_good_is_used_as_is(self):
         account = self.given_connected_account()
-        self.http.reset_mock(side_effect=True)
+        self.http.forget()
 
-        token = container().token_service.valid(account.pk)
+        token = self.valid_token(account.pk)
 
         self.assertEqual(token, ACCESS_TOKEN)
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
 
     def test_a_token_near_expiry_is_refreshed_before_it_is_used(self):
         # Given: the token expires inside the refresh margin
         account = self.given_connected_account(token_expires_at=timezone.now())
-        self.http.side_effect = [
-            FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
-        ]
+        self.given_answers(
+            FakeAnswer(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
+        )
 
-        token = container().token_service.valid(account.pk)
+        token = self.valid_token(account.pk)
 
         self.assertEqual(token, NEW_ACCESS_TOKEN)
 
@@ -240,19 +242,19 @@ class TokenRefreshScenarios(SocialTestCase):
         # Google does not return the refresh token when refreshing. Dropping it
         # would turn a long-lived connection into a one-hour one.
         account = self.given_connected_account(token_expires_at=timezone.now())
-        self.http.side_effect = [
-            FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
-        ]
+        self.given_answers(
+            FakeAnswer(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
+        )
 
-        container().token_service.valid(account.pk)
+        self.valid_token(account.pk)
 
         account.refresh_from_db()
         self.assertEqual(account.refresh_token, REFRESH_TOKEN)
 
     def test_a_rotated_refresh_token_replaces_the_stored_one(self):
         account = self.given_connected_account(token_expires_at=timezone.now())
-        self.http.side_effect = [
-            FakeResponse(
+        self.given_answers(
+            FakeAnswer(
                 200,
                 {
                     "access_token": NEW_ACCESS_TOKEN,
@@ -260,9 +262,9 @@ class TokenRefreshScenarios(SocialTestCase):
                     "expires_in": 3600,
                 },
             )
-        ]
+        )
 
-        container().token_service.valid(account.pk)
+        self.valid_token(account.pk)
 
         account.refresh_from_db()
         self.assertEqual(account.refresh_token, "1//rotated-refresh-token")
@@ -270,10 +272,10 @@ class TokenRefreshScenarios(SocialTestCase):
     def test_a_refused_refresh_marks_the_account_for_reconnection(self):
         # Given: the person revoked our access in their Google settings
         account = self.given_connected_account(token_expires_at=timezone.now())
-        self.http.side_effect = [FakeResponse(400, {"error": "invalid_grant"})]
+        self.given_answers(FakeAnswer(400, {"error": "invalid_grant"}))
 
-        with self.assertRaises(ProviderError):
-            container().token_service.valid(account.pk)
+        with self.assertRaises(PlatformError):
+            self.valid_token(account.pk)
 
         account.refresh_from_db()
         self.assertEqual(account.status, SocialAccount.Status.NEEDS_REAUTH)
@@ -282,8 +284,8 @@ class TokenRefreshScenarios(SocialTestCase):
     def test_an_account_without_a_refresh_token_asks_to_be_reconnected(self):
         account = self.given_connected_account(token_expires_at=timezone.now(), refresh_token="")
 
-        with self.assertRaises(ProviderError):
-            container().token_service.valid(account.pk)
+        with self.assertRaises(PlatformError):
+            self.valid_token(account.pk)
 
         account.refresh_from_db()
         self.assertEqual(account.status, SocialAccount.Status.NEEDS_REAUTH)
@@ -299,48 +301,49 @@ class TokenRefreshScenarios(SocialTestCase):
     def test_the_second_caller_of_a_concurrent_refresh_does_not_refresh_again(self):
         # Given: an expiring token, refreshed by whoever gets the row lock first
         account = self.given_connected_account(token_expires_at=timezone.now())
-        self.http.side_effect = [
-            FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
-        ]
-        container().token_service.valid(account.pk)
-        self.http.reset_mock(side_effect=True)
+        self.given_answers(
+            FakeAnswer(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
+        )
+        self.valid_token(account.pk)
+        self.http.forget()
 
         # When: a second caller arrives holding the stale copy of the row
-        token = container().token_service.valid(account.pk)
+        token = self.valid_token(account.pk)
 
         # Then: it sees the fresh token and does not call Google again. On a
         # platform that rotates refresh tokens, a second call would burn one.
         self.assertEqual(token, NEW_ACCESS_TOKEN)
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
 
 
     def test_a_forced_refresh_asks_google_even_when_the_token_looks_good(self):
         # Given: a token our clock thinks is valid for another hour, which Google has refused
         account = self.given_connected_account(token_expires_at=timezone.now() + timezone.timedelta(hours=1))
-        self.http.reset_mock()
-        self.http.side_effect = [FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})]
+        self.http.forget()
+        self.given_answers(FakeAnswer(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600}))
 
         # When: the upload asks for a fresh one
-        token = container().token_service.refresh(account.pk)
+        token = self.refreshed_token(account.pk)
 
         # Then: Google was asked, and the new token is stored
         self.assertEqual(token, NEW_ACCESS_TOKEN)
-        self.assertEqual(self.http.call_count, 1)
+        self.assertEqual(len(self.http.sent), 1)
 
     def test_the_refresh_does_not_hold_a_transaction_open(self):
         # Given: an expiring token, and a way to see the transaction depth during the call
         account = self.given_connected_account(token_expires_at=timezone.now())
-        depth_outside = len(connection.atomic_blocks)
+        database = connections["default"]
+        depth_outside = len(database.atomic_blocks)
         depth_during_call = []
 
-        def google(*args, **kwargs):
-            depth_during_call.append(len(connection.atomic_blocks))
-            return FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
+        def google():
+            depth_during_call.append(len(database.atomic_blocks))
+            return FakeAnswer(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})
 
-        self.http.side_effect = google
+        self.given_answers(google)
 
         # When: the token is refreshed
-        container().token_service.valid(account.pk)
+        self.valid_token(account.pk)
 
         # Then: Google was called outside any transaction of ours
         self.assertEqual(depth_during_call, [depth_outside])
@@ -348,11 +351,11 @@ class TokenRefreshScenarios(SocialTestCase):
     def test_a_google_outage_does_not_ask_for_reconnection(self):
         # Given: Google keeps answering 503
         account = self.given_connected_account(token_expires_at=timezone.now())
-        self.http.side_effect = [FakeResponse(503, {})] * 3
+        self.given_answers(*[FakeAnswer(503, {})] * 3)
 
         # When: the refresh gives up
-        with self.assertRaises(ProviderError):
-            container().token_service.valid(account.pk)
+        with self.assertRaises(PlatformError):
+            self.valid_token(account.pk)
 
         # Then: the account stays active, because nothing was refused
         account.refresh_from_db()
@@ -361,10 +364,10 @@ class TokenRefreshScenarios(SocialTestCase):
     def test_the_periodic_task_refreshes_what_expires_within_the_hour(self):
         # Given: a token that is still valid for forty minutes
         account = self.given_connected_account(token_expires_at=timezone.now() + timezone.timedelta(minutes=40))
-        self.http.side_effect = [FakeResponse(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600})]
+        self.given_answers(FakeAnswer(200, {"access_token": NEW_ACCESS_TOKEN, "expires_in": 3600}))
 
         # When: the periodic task runs
-        refreshed = container().token_service.refresh_expiring()
+        refreshed = self.refresh_expiring()
 
         # Then: it refreshed it ahead of time, and says so
         self.assertEqual(refreshed, 1)

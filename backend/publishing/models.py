@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from platforms.core.publishing import TargetStatus
+from platforms2.core.publications import TargetStatus
 
 
 class Publication(models.Model):
@@ -48,7 +48,7 @@ class PublicationTarget(models.Model):
     total_bytes = models.BigIntegerField(default=0)
 
     uploaded_media_id = models.CharField(max_length=128, blank=True)
-    resume_state = models.JSONField(null=True, blank=True)
+    confirmation_state = models.JSONField(null=True, blank=True)
 
     published_url = models.URLField(blank=True, max_length=500)
     error = models.JSONField(null=True, blank=True)

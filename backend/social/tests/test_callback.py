@@ -1,11 +1,12 @@
 import logging
 
-import requests
+import aiohttp
 from django.conf import settings
 from django.db import connection
 from django.utils import timezone
 
 from accounts.models import User
+from platforms2.tests.fakes.http import FakeAnswer
 from social.models import OAuthSession, SocialAccount
 from social.tests.base import (
     ACCESS_TOKEN,
@@ -14,7 +15,6 @@ from social.tests.base import (
     CLIENT_SECRET,
     CODE,
     REFRESH_TOKEN,
-    FakeResponse,
     SocialTestCase,
 )
 
@@ -47,9 +47,9 @@ class CallbackScenarios(SocialTestCase):
         self.callback(state=state, code=CODE)
 
         # Then: the exchange proved possession of the verifier
-        token_call = self.http.call_args_list[0]
-        self.assertEqual(token_call.kwargs["data"]["code_verifier"], verifier)
-        self.assertEqual(token_call.kwargs["data"]["grant_type"], "authorization_code")
+        token_call = self.http.sent[0]
+        self.assertEqual(token_call.data["code_verifier"], verifier)
+        self.assertEqual(token_call.data["grant_type"], "authorization_code")
 
     def test_tokens_are_encrypted_at_rest(self):
         self.sign_in()
@@ -174,7 +174,7 @@ class CallbackScenarios(SocialTestCase):
     def test_a_rejected_exchange_is_reported_as_failed(self):
         self.sign_in()
         state = self.given_started_connection()
-        self.http.side_effect = [FakeResponse(400, {"error": "invalid_grant"})]
+        self.given_answers(FakeAnswer(400, {"error": "invalid_grant"}))
 
         response = self.callback(state=state, code=CODE)
 
@@ -184,7 +184,7 @@ class CallbackScenarios(SocialTestCase):
     def test_a_non_json_response_is_reported_as_failed(self):
         self.sign_in()
         state = self.given_started_connection()
-        self.http.side_effect = [FakeResponse(200, None, text="<html>error</html>")]
+        self.given_answers(FakeAnswer(200, "<html>error</html>"))
 
         response = self.callback(state=state, code=CODE)
 
@@ -226,12 +226,12 @@ class LeakScenarios(SocialTestCase):
             self.assertNotIn(secret, haystack)
 
     def test_a_network_failure_does_not_report_the_request_url(self):
-        # The requests exception text contains the URL, and the token request
+        # The aiohttp exception text contains the URL, and the token request
         # body carries client_secret, so only the exception class may be reported.
         self.sign_in()
         state = self.given_started_connection()
-        self.http.side_effect = requests.ConnectionError(
-            "failed to post https://oauth2.googleapis.com/token?secret=" + CLIENT_SECRET
+        self.given_answers(
+            aiohttp.ClientConnectionError("failed to post https://oauth2.googleapis.com/token?secret=" + CLIENT_SECRET)
         )
 
         with self.assertLogs(level=logging.DEBUG) as logs:

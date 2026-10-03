@@ -1,11 +1,11 @@
 from django.core.cache import cache
 
-from platforms.core.ports import Cache
+from platforms2.core.ports import Cache
 
 
 class DjangoCache(Cache):
-    def get(self, key: str):
-        return cache.get(key)
+    async def get(self, key: str):
+        return await cache.aget(key)
 
-    def set(self, key: str, value, seconds: int) -> None:
-        cache.set(key, value, seconds)
+    async def set(self, key: str, value, seconds: int) -> None:
+        await cache.aset(key, value, seconds)

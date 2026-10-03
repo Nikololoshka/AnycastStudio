@@ -6,5 +6,9 @@ from config.wiring import container
 @require_get
 @require_auth
 def publishing_platforms(request):
-    catalog = container().catalog
-    return api_response("ok", platforms={platform.name: platform.capabilities.as_json() for platform in catalog.all()})
+    platforms = container().run(_capabilities)
+    return api_response("ok", platforms=platforms)
+
+
+async def _capabilities(services) -> dict:
+    return {platform.platform_type.value: platform.capabilities.as_json() for platform in services.catalog.all()}

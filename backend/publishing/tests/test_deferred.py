@@ -2,8 +2,9 @@ from unittest import mock
 
 from django.utils import timezone
 
-from platforms.core.publishing.dispatcher import DeferredDispatcher
-from platforms.registry import PlatformRegistry
+from platforms2 import PlatformCatalog
+from platforms2.core import PlatformType
+from platforms2.core.usecases.publications import DeferredDispatcher
 from publishing import tasks
 from publishing.models import Publication, PublicationTarget
 
@@ -20,7 +21,7 @@ class DeferredStartScenarios(PublishingTestCase):
         self.addCleanup(patcher.stop)
 
     def given_platform_without_native_scheduling(self):
-        patcher = mock.patch.object(PlatformRegistry, "deferring_upload", return_value=("youtube",))
+        patcher = mock.patch.object(PlatformCatalog, "deferring_upload", return_value=(PlatformType.YOUTUBE,))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -117,8 +118,7 @@ class DeferredStartScenarios(PublishingTestCase):
         PublicationTarget.objects.filter(pk=target.pk).update(status=Status.FAILED)
 
         # When: it is retried
-        with self.captureOnCommitCallbacks(execute=True):
-            self.client.post(f"/api/targets/{target.pk}/retry")
+        self.client.post(f"/api/targets/{target.pk}/retry")
 
         # Then: it is queued but not handed to the worker
         target.refresh_from_db()

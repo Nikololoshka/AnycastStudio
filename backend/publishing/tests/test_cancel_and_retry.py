@@ -45,12 +45,11 @@ class CancelAndRetryScenarios(PublishingTestCase):
 
     def test_retrying_a_failed_target_queues_it_again(self):
         PublicationTarget.objects.filter(pk=self.target.pk).update(
-            status=Status.FAILED, error={"type": "network", "message": "lost"}
+            status=Status.FAILED, error={"failure": "network", "message": "lost", "details": ""}
         )
         self.dispatch.reset_mock()
 
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(self.url("retry"))
+        response = self.client.post(self.url("retry"))
 
         self.assertEqual(response.status_code, 200)
         self.target.refresh_from_db()
@@ -58,18 +57,18 @@ class CancelAndRetryScenarios(PublishingTestCase):
         self.assertIsNone(self.target.error)
         self.dispatch.assert_called_once()
 
-    def test_a_retry_keeps_what_already_reached_the_platform(self):
+    def test_a_retry_starts_the_publish_from_scratch(self):
         PublicationTarget.objects.filter(pk=self.target.pk).update(
             status=Status.FAILED,
             uploaded_media_id="vid_abc123",
-            resume_state={"session_uri": "https://upload/x", "offset": 4096},
+            confirmation_state={"commit_started": "2026-01-01T12:00:00+00:00", "polls": 3},
         )
 
         self.client.post(self.url("retry"))
 
         self.target.refresh_from_db()
-        self.assertEqual(self.target.uploaded_media_id, "vid_abc123")
-        self.assertEqual(self.target.resume_state["offset"], 4096)
+        self.assertEqual(self.target.uploaded_media_id, "")
+        self.assertIsNone(self.target.confirmation_state)
 
     def test_retrying_a_running_target_is_refused(self):
         PublicationTarget.objects.filter(pk=self.target.pk).update(status=Status.UPLOADING)

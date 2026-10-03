@@ -1,8 +1,9 @@
 from urllib.parse import parse_qs, urlparse
 
-from platforms.instagram.client import GRAPH_ROOT
+from platforms2.instagram.core import InstagramEndpoints
 from social.models import OAuthSession, SocialAccount
-from social.tests.base import ACCOUNTS_URL, FakeResponse, SocialTestCase
+from platforms2.tests.fakes.http import FakeAnswer
+from social.tests.base import ACCOUNTS_URL, SocialTestCase
 
 CONNECT_URL = "/api/social/instagram/connect"
 CALLBACK_URL = "/api/social/instagram/callback"
@@ -16,12 +17,12 @@ IDENTITY = {
 }
 
 
-def connected_responses(pages) -> list[FakeResponse]:
+def connected_responses(pages) -> list[FakeAnswer]:
     return [
-        FakeResponse(payload={"access_token": "EAAG.short"}),
-        FakeResponse(payload={"access_token": "EAAG.long"}),
-        FakeResponse(payload={"data": pages}),
-        FakeResponse(payload=IDENTITY),
+        FakeAnswer(200, {"access_token": "EAAG.short"}),
+        FakeAnswer(200, {"access_token": "EAAG.long"}),
+        FakeAnswer(200, {"data": pages}),
+        FakeAnswer(200, IDENTITY),
     ]
 
 
@@ -46,7 +47,7 @@ class InstagramConnectScenarios(SocialTestCase):
         # Given: a connection was started and Facebook lists a Page with an Instagram account
         self.sign_in()
         state = self.started_state()
-        self.http.side_effect = connected_responses([PAGE])
+        self.given_answers(*connected_responses([PAGE]))
 
         # When: Facebook redirects back
         response = self.client.get(CALLBACK_URL, {"state": state, "code": "the-code"})
@@ -63,7 +64,7 @@ class InstagramConnectScenarios(SocialTestCase):
     def test_a_person_without_a_linked_instagram_account_is_told_it_failed(self):
         self.sign_in()
         state = self.started_state()
-        self.http.side_effect = connected_responses([{"id": "999", "access_token": "EAAG.other"}])
+        self.given_answers(*connected_responses([{"id": "999", "access_token": "EAAG.other"}]))
 
         response = self.client.get(CALLBACK_URL, {"state": state, "code": "the-code"})
 
@@ -73,7 +74,7 @@ class InstagramConnectScenarios(SocialTestCase):
     def test_the_page_token_is_never_sent_to_the_browser(self):
         self.sign_in()
         state = self.started_state()
-        self.http.side_effect = connected_responses([PAGE])
+        self.given_answers(*connected_responses([PAGE]))
         self.client.get(CALLBACK_URL, {"state": state, "code": "the-code"})
 
         content = self.client.get(ACCOUNTS_URL).content.decode()
@@ -84,21 +85,21 @@ class InstagramConnectScenarios(SocialTestCase):
         # Given: a connected Instagram account, which holds no refresh token
         self.sign_in()
         state = self.started_state()
-        self.http.side_effect = connected_responses([PAGE])
+        self.given_answers(*connected_responses([PAGE]))
         self.client.get(CALLBACK_URL, {"state": state, "code": "the-code"})
         account = self.only_account()
-        self.http.side_effect = [
-            FakeResponse(payload={"data": {"user_id": "555"}}),
-            FakeResponse(payload={"success": True}),
-        ]
+        self.given_answers(
+            FakeAnswer(200, {"data": {"user_id": "555"}}),
+            FakeAnswer(200, {"success": True}),
+        )
 
         # When: the person disconnects it
         response = self.client.delete(f"{ACCOUNTS_URL}/{account.pk}")
 
         # Then: Facebook is asked to drop the app's permissions, and the token is gone
         self.assertEqual(response.status_code, 200)
-        method, url = self.http.call_args_list[-1].args[:2]
-        self.assertEqual((method, url), ("DELETE", f"{GRAPH_ROOT}/555/permissions"))
+        revoke = self.http.sent[-1]
+        self.assertEqual((revoke.method, revoke.url), ("DELETE", InstagramEndpoints.permissions("555")))
         account.refresh_from_db()
         self.assertEqual(account.status, SocialAccount.Status.REVOKED)
         self.assertEqual(account.access_token, "")

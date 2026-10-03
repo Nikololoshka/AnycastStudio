@@ -30,11 +30,11 @@ def social_callback(request, platform: str):
     if _arrived_off_the_app_origin(request):
         return _on_to_the_app_origin(request)
 
-    outcome = container().connect_flow.complete(
-        platform,
-        state=request.GET.get("state", ""),
-        code=request.GET.get("code"),
-        refused=bool(request.GET.get("error")),
-        requester_id=_requester_of(request),
+    state = request.GET.get("state", "")
+    code = request.GET.get("code")
+    refused = bool(request.GET.get("error"))
+    requester_id = _requester_of(request)
+    outcome = container().run(
+        lambda services: services.connect_flow.complete(platform, state, code, refused, requester_id)
     )
     return back_to_app(platform, outcome)

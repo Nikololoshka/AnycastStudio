@@ -33,6 +33,19 @@ class TikTokOptions:
             cover_frame_seconds=cls._seconds(raw.get("coverFrameSeconds")),
         )
 
+    def as_json(self) -> dict:
+        return {
+            "privacyLevel": self.privacy_level,
+            "disableComment": self.disable_comment,
+            "disableDuet": self.disable_duet,
+            "disableStitch": self.disable_stitch,
+            "discloseContent": self.disclose_content,
+            "brandOrganic": self.brand_organic,
+            "brandContent": self.brand_content,
+            "isAigc": self.is_aigc,
+            "coverFrameSeconds": self.cover_frame_seconds,
+        }
+
     @property
     def is_private(self) -> bool:
         return self.privacy_level == self.PRIVATE

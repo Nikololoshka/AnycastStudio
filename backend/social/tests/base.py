@@ -5,6 +5,8 @@ from django.core.cache import cache
 from django.test import TestCase
 
 from accounts.models import User
+from config.wiring import Container, container
+from platforms2.tests.fakes.http import FakeAnswer, FakeSession
 from social.models import SocialAccount
 
 CONNECT_URL = "/api/social/youtube/connect"
@@ -41,35 +43,36 @@ CHANNEL_RESPONSE = {
 }
 
 
-class FakeResponse:
-    def __init__(self, status_code=200, payload=None, text=""):
-        self.status_code = status_code
-        self._payload = payload
-        self.text = text
-
-    def json(self):
-        if self._payload is None:
-            raise ValueError("not json")
-        return self._payload
-
-
 class SocialTestCase(TestCase):
     def setUp(self):
         cache.clear()
         self.user = User.objects.create_user(EMAIL, PASSWORD)
-        patcher = mock.patch("platforms.core.http.transport.requests.request")
-        self.http = patcher.start()
+        self.http = FakeSession()
+        patcher = mock.patch.object(Container, "open_session", return_value=self.http)
+        patcher.start()
         self.addCleanup(patcher.stop)
-        sleeper = mock.patch("platforms.core.http.retry.time.sleep")
+        sleeper = mock.patch("platforms2.core.http.retry_policy.asyncio.sleep", new=mock.AsyncMock())
         sleeper.start()
         self.addCleanup(sleeper.stop)
         self.given_platform_responds()
 
+    def given_answers(self, *answers) -> None:
+        self.http.answer_only(*answers)
+
     def given_platform_responds(self, token=None, channel=None):
-        self.http.side_effect = [
-            FakeResponse(payload=token if token is not None else TOKEN_RESPONSE),
-            FakeResponse(payload=channel if channel is not None else CHANNEL_RESPONSE),
-        ]
+        self.given_answers(
+            FakeAnswer(200, token if token is not None else TOKEN_RESPONSE),
+            FakeAnswer(200, channel if channel is not None else CHANNEL_RESPONSE),
+        )
+
+    def valid_token(self, account_id: int) -> str:
+        return container().run(lambda services: services.tokens.valid(account_id))
+
+    def refreshed_token(self, account_id: int) -> str:
+        return container().run(lambda services: services.tokens.refresh(account_id))
+
+    def refresh_expiring(self) -> int:
+        return container().run(lambda services: services.tokens.refresh_expiring())
 
     def sign_in(self):
         self.client.force_login(self.user)

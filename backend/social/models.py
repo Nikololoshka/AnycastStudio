@@ -3,8 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from common.encryption import EncryptedTextField
-from platforms.core.auth.account import AccountStatus
-from platforms.core.auth.session import OAuthSessionStatus
+from platforms2.core.accounts import AccountStatus, OAuthSessionStatus
 
 
 class SocialAccount(models.Model):

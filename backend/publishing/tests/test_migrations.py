@@ -7,10 +7,10 @@ from publishing.models import PublicationTarget
 
 from .base import PublishingTestCase
 
-commit_marker = import_module("publishing.migrations.0003_commit_marker")
+platform_failures = import_module("publishing.migrations.0004_confirmation_state_and_failures")
 
 
-class CommitMarkerMigrationScenarios(PublishingTestCase):
+class PlatformFailureMigrationScenarios(PublishingTestCase):
     def setUp(self):
         super().setUp()
         patcher = mock.patch("publishing.tasks.run_target.delay")
@@ -18,20 +18,40 @@ class CommitMarkerMigrationScenarios(PublishingTestCase):
         self.addCleanup(patcher.stop)
         self.create_publication()
 
-    def test_a_post_that_may_exist_keeps_its_protection_under_the_new_name(self):
-        # Given: a target stored while the old X publisher marked a post in flight
-        PublicationTarget.objects.update(resume_state={"posting_started": 1_700_000_000.0, "polls": 2})
+    def test_a_stored_failure_is_told_in_the_platform_vocabulary(self):
+        # Given: a target that failed before the failures were renamed
+        PublicationTarget.objects.update(
+            status="failed", error={"type": "validation", "message": "titleTooLong", "details": "titleTooLong"}
+        )
 
         # When: the migration runs
-        commit_marker.rename_commit_marker(apps, None)
+        platform_failures.adopt_platform_failures(apps, None)
 
-        # Then: the mark is under the name the pipeline checks, and nothing else changed
-        state = PublicationTarget.objects.get().resume_state
-        self.assertEqual(state, {"commit_started": "2023-11-14T22:13:20+00:00", "polls": 2})
+        # Then: the failure has its new name and keeps its words
+        self.assertEqual(
+            PublicationTarget.objects.get().error,
+            {"failure": "invalid", "message": "titleTooLong", "details": "titleTooLong"},
+        )
 
-    def test_a_target_without_the_old_mark_is_left_alone(self):
-        PublicationTarget.objects.update(resume_state={"session_uri": "https://upload.example/1", "offset": 10})
+    def test_a_post_that_may_exist_stays_a_warning(self):
+        message = "The post may have been created; check X before publishing again"
+        PublicationTarget.objects.update(status="failed", error={"type": "platform", "message": message})
 
-        commit_marker.rename_commit_marker(apps, None)
+        platform_failures.adopt_platform_failures(apps, None)
 
-        self.assertEqual(PublicationTarget.objects.get().resume_state, {"session_uri": "https://upload.example/1", "offset": 10})
+        self.assertEqual(PublicationTarget.objects.get().error["failure"], "unconfirmed")
+
+    def test_a_target_waiting_for_the_platform_keeps_its_confirmation_state(self):
+        state = {"confirming_since": "2026-01-01T12:00:00+00:00", "polls": 2, "commit_started": "x"}
+        PublicationTarget.objects.update(status="processing", confirmation_state=state)
+
+        platform_failures.adopt_platform_failures(apps, None)
+
+        self.assertEqual(PublicationTarget.objects.get().confirmation_state, state)
+
+    def test_an_upload_resume_point_is_dropped(self):
+        PublicationTarget.objects.update(status="uploading", confirmation_state={"session_uri": "https://u/1"})
+
+        platform_failures.adopt_platform_failures(apps, None)
+
+        self.assertIsNone(PublicationTarget.objects.get().confirmation_state)

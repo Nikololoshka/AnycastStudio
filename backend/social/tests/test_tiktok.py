@@ -3,9 +3,10 @@ from urllib.parse import parse_qs, urlparse
 from django.utils import timezone
 
 from accounts.models import User
-from platforms.core.auth import Pkce
+from platforms2.core import Pkce
 from social.models import OAuthSession, SocialAccount
-from social.tests.base import FakeResponse, SocialTestCase
+from platforms2.tests.fakes.http import FakeAnswer
+from social.tests.base import SocialTestCase
 
 CONNECT_URL = "/api/social/tiktok/connect"
 CALLBACK_URL = "/api/social/tiktok/callback"
@@ -47,7 +48,7 @@ class TikTokConnectScenarios(SocialTestCase):
         self.sign_in()
         auth_url = self.body(self.client.post(CONNECT_URL))["authUrl"]
         state = parse_qs(urlparse(auth_url).query)["state"][0]
-        self.http.side_effect = [FakeResponse(payload=TOKEN), FakeResponse(payload=USER)]
+        self.given_answers(FakeAnswer(200, TOKEN), FakeAnswer(200, USER))
 
         # When: TikTok redirects back
         response = self.client.get(CALLBACK_URL, {"state": state, "code": "the-code"})
@@ -81,7 +82,7 @@ class CreatorInfoScenarios(SocialTestCase):
 
     def test_the_creator_info_is_served_without_tokens(self):
         # Given: TikTok answers the query
-        self.http.side_effect = [FakeResponse(payload=CREATOR)]
+        self.given_answers(FakeAnswer(200, CREATOR))
 
         # When: the composer asks for it
         response = self.client.get(self.url(self.account))
@@ -94,12 +95,12 @@ class CreatorInfoScenarios(SocialTestCase):
         self.assertNotIn("act.token", response.content.decode())
 
     def test_the_answer_is_cached_so_tiktoks_limit_is_not_spent(self):
-        self.http.side_effect = [FakeResponse(payload=CREATOR)]
+        self.given_answers(FakeAnswer(200, CREATOR))
 
         self.client.get(self.url(self.account))
         self.client.get(self.url(self.account))
 
-        self.assertEqual(self.http.call_count, 1)
+        self.assertEqual(len(self.http.sent), 1)
 
     def test_another_persons_account_is_not_found(self):
         # Given: somebody else's TikTok account
@@ -108,7 +109,7 @@ class CreatorInfoScenarios(SocialTestCase):
 
         # When / Then: it answers as if it did not exist
         self.assertEqual(self.client.get(self.url(theirs)).status_code, 404)
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
 
     def test_an_account_of_another_platform_is_not_found(self):
         youtube = self.given_account(self.user, "youtube")
@@ -124,7 +125,7 @@ class CreatorInfoScenarios(SocialTestCase):
         self.assertEqual(self.body(response)["message"], "account_needs_reauth")
 
     def test_a_tiktok_outage_is_not_a_reason_to_reconnect(self):
-        self.http.side_effect = [FakeResponse(503, {})] * 5
+        self.given_answers(*[FakeAnswer(503, {})] * 5)
 
         response = self.client.get(self.url(self.account))
 

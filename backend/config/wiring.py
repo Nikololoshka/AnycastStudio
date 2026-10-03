@@ -1,16 +1,15 @@
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from functools import cache, cached_property
 
+import aiohttp
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.core.signals import setting_changed
 
-from platforms.core.auth.account_service import AccountService
-from platforms.core.auth.connect_flow import ConnectFlow
-from platforms.core.auth.token_service import TokenService
-from platforms.core.config import HttpConfig, OAuthCredentials, PlatformConfig, UploadConfig
-from platforms.core.platform import PlatformCatalog
-from platforms.core.ports import (
-    AccessTokens,
+from platforms2 import PlatformCatalog, PlatformConfigs
+from platforms2.core.ports import (
     AccountRepository,
     Cache,
     Clock,
@@ -19,54 +18,103 @@ from platforms.core.ports import (
     SystemClock,
     TargetRepository,
     TaskQueue,
-    UnitOfWork,
 )
-from platforms.core.publishing.commit import CommitGuard
-from platforms.core.publishing.confirmation import ConfirmationPoller
-from platforms.core.publishing.dispatcher import DeferredDispatcher
-from platforms.core.publishing.failures import FailureMapper
-from platforms.core.publishing.pipeline import PublicationPipeline
-from platforms.core.publishing.service import PublicationService
-from platforms.core.publishing.writer import TargetWriter
-from platforms.registry import PlatformRegistry
-from platforms.tiktok.account import CreatorInfoApi, CreatorInfoService
-from platforms.tiktok.client import TikTokClient
+from platforms2.core.usecases.accounts import AccountService, ConnectFlow, TokenService
+from platforms2.core.usecases.publications import (
+    CommitGuard,
+    ConfirmationPoller,
+    DeferredDispatcher,
+    PublicationPipeline,
+    PublicationService,
+    StaleTargetSweeper,
+    TargetWriter,
+)
+from platforms2.instagram import InstagramConfig
+from platforms2.tiktok import TikTokConfig
+from platforms2.tiktok.core import TikTokHttp
+from platforms2.tiktok.creator import CreatorInfoService, TikTokCreatorInfo
+from platforms2.x import XConfig
+from platforms2.youtube import YouTubeConfig
 
-CREDENTIAL_SETTINGS = {
-    "youtube": ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET"),
-    "tiktok": ("TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"),
-    "instagram": ("INSTAGRAM_CLIENT_ID", "INSTAGRAM_CLIENT_SECRET"),
-    "x": ("X_CLIENT_ID", "X_CLIENT_SECRET"),
-}
+CALLBACK_PATH = "/api/social/{platform}/callback"
+X_MAX_SEGMENT_BYTES = 4 * 1024**2
 
 
-def _credentials(id_name: str, secret_name: str) -> OAuthCredentials:
-    return OAuthCredentials(
-        client_id_name=id_name,
-        client_secret_name=secret_name,
-        client_id=getattr(settings, id_name, ""),
-        client_secret=getattr(settings, secret_name, ""),
-    )
+class Services:
+    def __init__(self, container: "Container", session: aiohttp.ClientSession):
+        clock = container.clock
+        self.catalog = PlatformCatalog(container.platform_configs, session)
+        self.tokens = TokenService(container.accounts, self.catalog, clock)
+        self.account_service = AccountService(container.accounts, self.catalog, clock)
+        self.connect_flow = ConnectFlow(
+            container.oauth_sessions,
+            self.account_service,
+            self.catalog,
+            clock,
+            timedelta(seconds=settings.OAUTH_SESSION_TTL),
+        )
+        writer = TargetWriter(container.targets, clock)
+        self.pipeline = PublicationPipeline(container.targets, self.catalog, self.tokens, container.queue, writer)
+        self.confirmations = ConfirmationPoller(
+            container.targets,
+            self.catalog,
+            self.tokens,
+            container.queue,
+            writer,
+            CommitGuard(writer, self.tokens, self.catalog),
+        )
+        self.publications = PublicationService(
+            container.publication_rows, container.targets, container.accounts, self.catalog, container.queue, clock
+        )
+        self.dispatcher = DeferredDispatcher(container.targets, self.catalog, container.queue, writer)
+        self.sweeper = StaleTargetSweeper(container.targets, clock)
+        self.creator_info = CreatorInfoService(TikTokCreatorInfo(TikTokHttp(session)), self.tokens, container.cache)
 
 
 class Container:
     @cached_property
-    def config(self) -> PlatformConfig:
-        return PlatformConfig(
-            http=HttpConfig(timeout=settings.HTTP_TIMEOUT, attempts=settings.UPLOAD_RETRY_ATTEMPTS),
-            upload=UploadConfig(chunk_bytes=settings.PLATFORM_CHUNK_BYTES, stall_limit=settings.UPLOAD_RETRY_ATTEMPTS),
-            redirect_origin=settings.PUBLIC_REDIRECT_ORIGIN,
-            oauth_session_ttl_seconds=settings.OAUTH_SESSION_TTL,
-            credentials={name: _credentials(*names) for name, names in CREDENTIAL_SETTINGS.items()},
+    def platform_configs(self) -> PlatformConfigs:
+        chunk_bytes = settings.PLATFORM_CHUNK_BYTES
+        retries = settings.UPLOAD_RETRY_ATTEMPTS
+        return PlatformConfigs(
+            youtube=YouTubeConfig(
+                client_id=settings.YOUTUBE_CLIENT_ID,
+                client_secret=settings.YOUTUBE_CLIENT_SECRET,
+                redirect_uri=self._callback_url("youtube"),
+                chunk_bytes=chunk_bytes,
+                retries=retries,
+                http_timeout=settings.HTTP_TIMEOUT,
+            ),
+            tiktok=TikTokConfig(
+                client_key=settings.TIKTOK_CLIENT_KEY,
+                client_secret=settings.TIKTOK_CLIENT_SECRET,
+                redirect_uri=self._callback_url("tiktok"),
+                chunk_bytes=chunk_bytes,
+                retries=retries,
+            ),
+            instagram=InstagramConfig(
+                client_id=settings.INSTAGRAM_CLIENT_ID,
+                client_secret=settings.INSTAGRAM_CLIENT_SECRET,
+                redirect_uri=self._callback_url("instagram"),
+                chunk_bytes=chunk_bytes,
+                retries=retries,
+            ),
+            x=XConfig(
+                client_id=settings.X_CLIENT_ID,
+                client_secret=settings.X_CLIENT_SECRET,
+                redirect_uri=self._callback_url("x"),
+                segment_bytes=min(chunk_bytes, X_MAX_SEGMENT_BYTES),
+                retries=retries,
+            ),
         )
+
+    @staticmethod
+    def _callback_url(platform: str) -> str:
+        return f"{settings.PUBLIC_REDIRECT_ORIGIN}{CALLBACK_PATH.format(platform=platform)}"
 
     @cached_property
     def clock(self) -> Clock:
         return SystemClock()
-
-    @cached_property
-    def catalog(self) -> PlatformCatalog:
-        return PlatformRegistry.build(self.config, self.clock)
 
     @cached_property
     def targets(self) -> TargetRepository:
@@ -87,33 +135,10 @@ class Container:
         return DjangoAccountRepository()
 
     @cached_property
-    def unit_of_work(self) -> UnitOfWork:
-        from common.transactions import DjangoUnitOfWork
-
-        return DjangoUnitOfWork()
-
-    @cached_property
     def oauth_sessions(self) -> OAuthSessionRepository:
         from social.repositories import DjangoOAuthSessionRepository
 
         return DjangoOAuthSessionRepository()
-
-    @cached_property
-    def token_service(self) -> TokenService:
-        return TokenService(self.accounts, self.catalog, self.clock)
-
-    @cached_property
-    def tokens(self) -> AccessTokens:
-        return self.token_service
-
-    @cached_property
-    def account_service(self) -> AccountService:
-        return AccountService(self.accounts, self.catalog, self.clock)
-
-    @cached_property
-    def connect_flow(self) -> ConnectFlow:
-        ttl = timedelta(seconds=self.config.oauth_session_ttl_seconds)
-        return ConnectFlow(self.oauth_sessions, self.account_service, self.catalog, self.clock, ttl)
 
     @cached_property
     def queue(self) -> TaskQueue:
@@ -122,45 +147,26 @@ class Container:
         return CeleryTaskQueue()
 
     @cached_property
-    def writer(self) -> TargetWriter:
-        return TargetWriter(self.targets, self.clock)
-
-    @cached_property
-    def pipeline(self) -> PublicationPipeline:
-        return PublicationPipeline(self.targets, self.catalog, self.tokens, self.queue, self.writer, FailureMapper())
-
-    @cached_property
-    def confirmations(self) -> ConfirmationPoller:
-        commits = CommitGuard(self.writer, self.tokens)
-        return ConfirmationPoller(
-            self.targets, self.catalog, self.tokens, self.queue, self.writer, FailureMapper(), commits
-        )
-
-    @cached_property
-    def publications(self) -> PublicationService:
-        return PublicationService(
-            self.publication_rows,
-            self.targets,
-            self.accounts,
-            self.catalog,
-            self.queue,
-            self.unit_of_work,
-            self.clock,
-        )
-
-    @cached_property
     def cache(self) -> Cache:
         from common.caching import DjangoCache
 
         return DjangoCache()
 
-    @cached_property
-    def creator_info(self) -> CreatorInfoService:
-        return CreatorInfoService(CreatorInfoApi(TikTokClient(self.config.http)), self.tokens, self.cache)
+    def open_session(self) -> aiohttp.ClientSession:
+        timeout = aiohttp.ClientTimeout(sock_connect=settings.HTTP_TIMEOUT, sock_read=settings.HTTP_TIMEOUT)
+        return aiohttp.ClientSession(timeout=timeout)
 
-    @cached_property
-    def dispatcher(self) -> DeferredDispatcher:
-        return DeferredDispatcher(self.targets, self.catalog, self.queue, self.writer)
+    @asynccontextmanager
+    async def services(self) -> AsyncIterator[Services]:
+        async with self.open_session() as session:
+            yield Services(self, session)
+
+    def run[T](self, work: Callable[[Services], Awaitable[T]]) -> T:
+        async def scoped() -> T:
+            async with self.services() as services:
+                return await work(services)
+
+        return async_to_sync(scoped)()
 
 
 @cache

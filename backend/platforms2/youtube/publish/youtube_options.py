@@ -35,6 +35,19 @@ class YouTubeOptions:
             hashtags_in_description=cls._flag(raw, "hashtagsInDescription", default.hashtags_in_description),
         )
 
+    def as_json(self) -> dict:
+        return {
+            "privacyStatus": self.privacy_status,
+            "categoryId": self.category_id,
+            "license": self.license,
+            "madeForKids": self.made_for_kids,
+            "notifySubscribers": self.notify_subscribers,
+            "containsSyntheticMedia": self.contains_synthetic_media,
+            "embeddable": self.embeddable,
+            "publicStatsViewable": self.public_stats_viewable,
+            "hashtagsInDescription": self.hashtags_in_description,
+        }
+
     def description_with(self, description: str, hashtags: tuple[str, ...]) -> str:
         if not self.hashtags_in_description or not hashtags:
             return description

@@ -1,8 +1,10 @@
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
+from platforms2.core import PlatformType
+
 
 class TargetSchema(BaseModel):
-    platform: str = Field(max_length=32)
+    platform: PlatformType
     socialAccountId: int
     settings: dict = Field(default_factory=dict)
 

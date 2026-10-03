@@ -23,6 +23,14 @@ class XOptions:
             super_followers_only=raw.get("superFollowersOnly") is True,
         )
 
+    def as_json(self) -> dict:
+        return {
+            "replyAudience": self.reply_audience,
+            "madeWithAi": self.made_with_ai,
+            "paidPartnership": self.paid_partnership,
+            "superFollowersOnly": self.super_followers_only,
+        }
+
     def as_post_fields(self) -> dict:
         fields: dict = {}
         if self.reply_audience != self.EVERYONE:

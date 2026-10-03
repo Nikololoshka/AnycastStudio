@@ -36,7 +36,7 @@ class RedirectOriginScenarios(SocialTestCase):
         self.assertEqual(f"{location.scheme}://{location.netloc}", "http://testserver")
         self.assertEqual(location.path, CALLBACK_URL)
         self.assertEqual(parse_qs(location.query), {"state": [state], "code": [CODE]})
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
         self.assertEqual(OAuthSession.objects.get().status, OAuthSession.Status.PENDING)
 
     def test_the_forwarded_callback_connects_the_account_with_the_same_redirect_uri(self):
@@ -49,5 +49,5 @@ class RedirectOriginScenarios(SocialTestCase):
 
         # Then: the account is connected, and the exchange named the redirect the platform saw
         self.assertIn("result=connected", response["Location"])
-        exchange = self.http.call_args_list[0].kwargs["data"]
+        exchange = self.http.sent[0].data
         self.assertEqual(exchange["redirect_uri"], f"{TUNNEL_ORIGIN}/api/social/youtube/callback")

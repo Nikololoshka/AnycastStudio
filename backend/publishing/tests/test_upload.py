@@ -1,15 +1,17 @@
 from unittest import mock
 
+from asgiref.sync import sync_to_async
 from django.utils import timezone
 
-from config.wiring import container
 from media import storage
-from platforms.core.errors import ProviderError
-from platforms.core.publishing.pipeline import PublicationPipeline
+from platforms2.core import PlatformError, PlatformFailure
+from platforms2.core.usecases.accounts import TokenService
+from platforms2.core.usecases.publications import StaleTargetSweeper
+from publishing import tasks
 from publishing.models import PublicationTarget
 from publishing.repositories import DjangoTargetRepository
 
-from .base import CHUNK, CONTENT, SESSION_URI, VIDEO_ID, FakeResponse, PublishingTestCase
+from .base import CHUNK, CONTENT, VIDEO_ID, PublishingTestCase
 
 Status = PublicationTarget.Status
 
@@ -25,91 +27,55 @@ class UploadScenarios(PublishingTestCase):
         google = self.given_google()
 
         # When: the worker runs it
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         # Then: the whole file arrived, in pieces, and the video is live
         self.assertEqual(result, Status.COMPLETED)
         self.assertEqual(b"".join(google.chunks), CONTENT)
+        self.assertEqual(len(google.chunks), len(CONTENT) // CHUNK)
         target.refresh_from_db()
         self.assertEqual(target.uploaded_media_id, VIDEO_ID)
         self.assertEqual(target.published_url, f"https://youtu.be/{VIDEO_ID}")
         self.assertEqual(target.progress, 100)
+        self.assertEqual(google.tokens[0], "ya29.token")
 
     def test_the_content_range_header_describes_each_piece(self):
         target = self.given_target()
         google = self.given_google()
 
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
 
         self.assertEqual(google.ranges[0], f"bytes 0-{CHUNK - 1}/{len(CONTENT)}")
         self.assertEqual(
             google.ranges[-1], f"bytes {len(CONTENT) - CHUNK}-{len(CONTENT) - 1}/{len(CONTENT)}"
         )
 
-    def test_the_resume_point_is_recorded_while_the_upload_runs(self):
+    def test_progress_is_recorded_while_the_upload_runs(self):
         # Given: a target whose progress is watched as it goes
         target = self.given_target()
         self.given_google()
-        seen: list[dict] = []
-        original = DjangoTargetRepository.update
+        seen: list[int] = []
 
+        @sync_to_async
         def spy(repository, target_id, **fields):
-            if fields.get("resume_state"):
-                seen.append(fields["resume_state"])
-            original(repository, target_id, **fields)
+            if "progress" in fields:
+                seen.append(fields["progress"])
+            PublicationTarget.objects.filter(pk=target_id).update(**fields)
 
         with mock.patch.object(DjangoTargetRepository, "update", spy):
-            container().pipeline.run(target.pk)
+            self.run_target(target.pk)
 
-        # Then: every chunk left a point a restarted worker could continue from
-        self.assertTrue(seen)
-        self.assertEqual(seen[0]["session_uri"], SESSION_URI)
-        self.assertEqual(seen[-1]["offset"], len(CONTENT))
-
-    def test_a_restarted_worker_continues_instead_of_sending_the_file_again(self):
-        # Given: a target that already sent half the file before dying
-        target = self.given_target()
-        half = len(CONTENT) // 2
-        PublicationTarget.objects.filter(pk=target.pk).update(
-            status=Status.QUEUED,
-            resume_state={"session_uri": SESSION_URI, "offset": half},
-        )
-        google = self.given_google()
-        google.received = half
-
-        container().pipeline.run(target.pk)
-
-        # Then: only the remainder went, and no new session was opened
-        self.assertEqual(b"".join(google.chunks), CONTENT[half:])
-        self.assertEqual(google.session_calls, 0)
-
-    def test_googles_offset_wins_over_our_arithmetic(self):
-        # Given: a platform that confirms less than we sent, which is what a
-        # partially written chunk looks like
-        target = self.given_target()
-        google = self.given_google()
-        real_call = google.__call__
-
-        def short_confirm(method, url, **kwargs):
-            response = real_call(method, url, **kwargs)
-            if url == SESSION_URI and response.status_code == 308:
-                google.received -= 1
-                response.headers["Range"] = f"bytes=0-{google.received - 1}"
-            return response
-
-        self.http.side_effect = short_confirm
-
-        container().pipeline.run(target.pk)
-
-        target.refresh_from_db()
-        self.assertEqual(target.status, Status.COMPLETED)
+        # Then: the bar moved on whole percents up to the end
+        self.assertEqual(seen[0], 0)
+        self.assertEqual(seen[-1], 100)
+        self.assertEqual(seen, sorted(seen))
 
     def test_a_transient_failure_is_retried(self):
         # Given: the platform fails once in the middle with a 500
         target = self.given_target()
         google = self.given_google(fail_at=CHUNK * 2)
 
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         self.assertEqual(result, Status.COMPLETED)
         self.assertEqual(b"".join(google.chunks), CONTENT)
@@ -117,51 +83,48 @@ class UploadScenarios(PublishingTestCase):
     def test_a_rejected_upload_is_not_retried(self):
         # Given: the platform rejects the file outright
         target = self.given_target()
-        self.given_google(
-            fail_at=0, failure=FakeResponse(400, {"error": {"message": "bad file"}})
-        )
+        google = self.given_google(fail_at=0, failure=(400, {"error": {"code": 400, "message": "bad file"}}))
 
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
-        # Then: it fails as a validation error. Repeating it would burn quota
+        # Then: it fails with the platform's words. Repeating it would burn quota
         # for a file the platform has already decided about.
         self.assertEqual(result, Status.FAILED)
         target.refresh_from_db()
-        self.assertEqual(target.error["type"], "validation")
+        self.assertEqual(target.error["failure"], PlatformFailure.REFUSED)
+        self.assertIn("bad file", target.error["message"])
+        self.assertEqual(len(google.ranges), 1)
 
-    def test_an_expired_token_is_refreshed_and_the_upload_continues(self):
+    def test_an_expired_token_is_refreshed_and_the_upload_starts_again(self):
         # Given: Google answers 401 partway through
         target = self.given_target()
-        google = self.given_google(
-            fail_at=CHUNK * 2, failure=FakeResponse(401, {"error": {"message": "expired"}})
-        )
+        google = self.given_google(fail_at=CHUNK * 2, failure=(401, {"error": {"code": 401, "message": "expired"}}))
 
         # When: the upload runs with a token our clock still thinks is good
         with (
-            mock.patch(
-                "platforms.core.auth.token_service.TokenService.valid", return_value="stale-token"
-            ),
-            mock.patch(
-                "platforms.core.auth.token_service.TokenService.refresh", return_value="fresh-token"
-            ) as refresh,
+            mock.patch.object(TokenService, "valid", new=mock.AsyncMock(return_value="stale-token")),
+            mock.patch.object(TokenService, "refresh", new=mock.AsyncMock(return_value="fresh-token")) as refresh,
         ):
-            result = container().pipeline.run(target.pk)
+            result = self.run_target(target.pk)
 
-        # Then: the token was refreshed for real, not re-read, and the rest of the file went up
+        # Then: the token was refreshed for real, and a new upload carried the whole file
         self.assertEqual(result, Status.COMPLETED)
-        refresh.assert_called_once()
-        self.assertEqual(b"".join(google.chunks), CONTENT)
+        refresh.assert_awaited_once()
+        self.assertEqual(google.tokens[:2], ["stale-token", "fresh-token"])
+        self.assertEqual(google.session_calls, 2)
+        self.assertEqual(google.received, len(CONTENT))
 
     def test_a_missing_file_fails_before_anything_is_sent(self):
         target = self.given_target()
         storage.absolute(self.asset.storage_path).unlink()
-        self.given_google()
+        google = self.given_google()
 
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         self.assertEqual(result, Status.FAILED)
         target.refresh_from_db()
-        self.assertEqual(target.error["type"], "file")
+        self.assertEqual(target.error["failure"], PlatformFailure.MEDIA_MISSING)
+        self.assertEqual(google.session_calls, 0)
 
     def test_a_video_without_a_title_is_refused_by_validation(self):
         target = self.given_target()
@@ -169,11 +132,11 @@ class UploadScenarios(PublishingTestCase):
         target.publication.save()
         self.given_google()
 
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         self.assertEqual(result, Status.FAILED)
         target.refresh_from_db()
-        self.assertEqual(target.error["type"], "validation")
+        self.assertEqual(target.error["failure"], PlatformFailure.INVALID)
         self.assertIn("titleRequired", target.error["details"])
 
     def test_a_target_already_taken_is_left_alone(self):
@@ -183,62 +146,62 @@ class UploadScenarios(PublishingTestCase):
             status=Status.UPLOADING, last_activity_at=timezone.now()
         )
 
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         self.assertIsNone(result)
 
-    def test_a_target_whose_worker_died_is_taken_over_and_resumed(self):
-        # Given: a target stuck uploading halfway, untouched for longer than a worker would be
+    def test_a_target_whose_worker_died_is_failed_and_asks_to_publish_again(self):
+        # Given: a target stuck uploading, untouched for longer than a worker would be
         target = self.given_target()
-        half = len(CONTENT) // 2
         PublicationTarget.objects.filter(pk=target.pk).update(
             status=Status.UPLOADING,
-            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2,
-            resume_state={"session_uri": SESSION_URI, "offset": half},
+            last_activity_at=timezone.now() - StaleTargetSweeper.ABANDONED_AFTER * 2,
         )
-        google = self.given_google()
-        google.received = half
 
-        # When: the task is delivered again
-        result = container().pipeline.run(target.pk)
+        # When: the task is delivered again, and the sweep runs
+        self.assertIsNone(self.run_target(target.pk))
+        swept = tasks.sweep_abandoned_targets()
 
-        # Then: it finishes, sending only what Google did not have
-        self.assertEqual(result, Status.COMPLETED)
-        self.assertEqual(b"".join(google.chunks), CONTENT[half:])
+        # Then: it failed with a reason the person can act on
+        self.assertEqual(swept, 1)
+        target.refresh_from_db()
+        self.assertEqual(target.status, Status.FAILED)
+        self.assertIn("publish again", target.error["message"])
+        self.assertIsNotNone(target.finished_at)
 
     def test_a_passing_refresh_failure_is_reported_as_a_network_problem(self):
         # Given: the token cannot be refreshed because Google is unreachable
         target = self.given_target()
-        with mock.patch(
-            "platforms.core.auth.token_service.TokenService.valid",
-            side_effect=ProviderError("Google request failed: ConnectionError", transient=True),
-        ):
+        unreachable = PlatformError(PlatformFailure.NETWORK, "YouTube request failed: ClientConnectionError")
+        with mock.patch.object(TokenService, "valid", new=mock.AsyncMock(side_effect=unreachable)):
             # When: the target runs
-            result = container().pipeline.run(target.pk)
+            result = self.run_target(target.pk)
 
         # Then: it fails as network, so the person is not told to reconnect
         self.assertEqual(result, Status.FAILED)
         target.refresh_from_db()
-        self.assertEqual(target.error["type"], "network")
+        self.assertEqual(target.error["failure"], PlatformFailure.NETWORK)
 
-    def test_a_cancelled_target_stops_between_chunks(self):
+    def test_a_cancelled_target_stops_before_the_upload(self):
         target = self.given_target()
-        self.given_google()
+        google = self.given_google()
         PublicationTarget.objects.filter(pk=target.pk).update(cancel_requested=True)
 
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         self.assertEqual(result, Status.CANCELLED)
+        self.assertEqual(google.session_calls, 0)
 
-    def test_a_retry_after_the_bytes_landed_does_not_upload_again(self):
-        # Given: a target that uploaded but failed while publishing
+    def test_a_retry_after_the_bytes_landed_uploads_from_the_start(self):
+        # Given: a target that uploaded but failed while publishing, and was retried
         target = self.given_target()
-        PublicationTarget.objects.filter(pk=target.pk).update(
-            status=Status.QUEUED, uploaded_media_id=VIDEO_ID
-        )
+        PublicationTarget.objects.filter(pk=target.pk).update(status=Status.FAILED, uploaded_media_id=VIDEO_ID)
+        self.client.post(f"/api/targets/{target.pk}/retry")
         google = self.given_google()
 
-        result = container().pipeline.run(target.pk)
+        # When: the worker runs it
+        result = self.run_target(target.pk)
 
+        # Then: the whole file went up again in a new upload
         self.assertEqual(result, Status.COMPLETED)
-        self.assertEqual(google.chunks, [])
+        self.assertEqual(b"".join(google.chunks), CONTENT)

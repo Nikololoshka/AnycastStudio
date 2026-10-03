@@ -3,8 +3,8 @@ from common.rate_limit import rate_limit
 from common.request_body import validate
 from common.responses import api_response, domain_errors
 from config.wiring import container
-from platforms.core.errors import NotFound
-from platforms.core.publishing.request import NewPublication, NewTarget
+from platforms2.core.domain import NotFound
+from platforms2.core.publications import NewPublication, NewTarget
 
 from ..models import Publication
 from .schemas import CreatePublicationSchema
@@ -32,7 +32,8 @@ def _new_publication(request, data: CreatePublicationSchema) -> NewPublication:
 
 
 def _owned_target(request, pk: int) -> int:
-    container().targets.ensure_owned(request.user.pk, pk)
+    owner_id = request.user.pk
+    container().run(lambda services: container().targets.ensure_owned(owner_id, pk))
     return pk
 
 
@@ -47,7 +48,8 @@ def _publication_of_target(request, target_id: int) -> dict:
 @validate(CreatePublicationSchema)
 @domain_errors
 def publishing_create(request, data: CreatePublicationSchema):
-    publication_id = container().publications.create(_new_publication(request, data))
+    publication = _new_publication(request, data)
+    publication_id = container().run(lambda services: services.publications.create(publication))
     return api_response("ok", publication=_publication_json(request.user, publication_id))
 
 
@@ -73,7 +75,7 @@ def publishing_publication(request, pk: int):
 @domain_errors
 def publishing_cancel_target(request, pk: int):
     target_id = _owned_target(request, pk)
-    container().publications.cancel(target_id)
+    container().run(lambda services: services.publications.cancel(target_id))
     return api_response("ok", publication=_publication_of_target(request, target_id))
 
 
@@ -82,5 +84,5 @@ def publishing_cancel_target(request, pk: int):
 @domain_errors
 def publishing_retry_target(request, pk: int):
     target_id = _owned_target(request, pk)
-    container().publications.retry(target_id)
+    container().run(lambda services: services.publications.retry(target_id))
     return api_response("ok", publication=_publication_of_target(request, target_id))

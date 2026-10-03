@@ -5,15 +5,15 @@ from django.utils import timezone
 
 from config.wiring import container
 from media.models import MediaAsset
-from platforms.core.errors import FailureType
-from platforms.core.publishing.confirmation import ConfirmationPoller
-from platforms.core.publishing.dispatcher import DeferredDispatcher
-from platforms.core.publishing.pipeline import PublicationPipeline
+from platforms2.core import PlatformFailure
+from platforms2.core.usecases.accounts import TokenService
+from platforms2.core.usecases.publications import ConfirmationPoller, DeferredDispatcher, StaleTargetSweeper
+from platforms2.tests.fakes.http import FakeAnswer
 from publishing import tasks
 from publishing.models import PublicationTarget
 from social.models import SocialAccount
 
-from .base import CONTENT, FakeResponse, PublishingTestCase
+from .base import CONTENT, PublishingTestCase
 
 Status = PublicationTarget.Status
 
@@ -22,8 +22,8 @@ UPLOAD_URL = "https://open-upload.tiktokapis.com/video/?upload_id=1"
 PRIVATE_ONLY = ["SELF_ONLY", "FOLLOWER_OF_CREATOR"]
 
 
-def envelope(data: dict) -> FakeResponse:
-    return FakeResponse(200, {"data": data, "error": {"code": "ok", "message": "", "log_id": "log"}})
+def envelope(data: dict) -> FakeAnswer:
+    return FakeAnswer(200, {"data": data, "error": {"code": "ok", "message": "", "log_id": "log"}})
 
 
 class TikTokDouble:
@@ -55,7 +55,7 @@ class TikTokDouble:
             return envelope({"publish_id": PUBLISH_ID, "upload_url": UPLOAD_URL})
         if url == UPLOAD_URL:
             self.received += len(kwargs["data"])
-            return FakeResponse(201 if self.received >= self.size else 206)
+            return FakeAnswer(201 if self.received >= self.size else 206)
         if url.endswith("/post/publish/status/fetch/"):
             self.status_calls += 1
             current = self.statuses.pop(0) if len(self.statuses) > 1 else self.statuses[0]
@@ -82,7 +82,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
 
     def given_tiktok(self, **kwargs) -> TikTokDouble:
         double = TikTokDouble(size=len(CONTENT), **kwargs)
-        self.http.side_effect = double
+        self.http.responder = double
         return double
 
     def given_target(self, **settings) -> PublicationTarget:
@@ -100,7 +100,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
     def given_uploaded(self, **double) -> PublicationTarget:
         self.given_tiktok(**double)
         target = self.given_target()
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
         target.refresh_from_db()
         return target
 
@@ -110,7 +110,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         target = self.given_target(disableDuet=True)
 
         # When: the worker runs it
-        result = container().pipeline.run(target.pk)
+        result = self.run_target(target.pk)
 
         # Then: the file went up, and the target waits for TikTok to confirm rather than claiming success
         target.refresh_from_db()
@@ -138,7 +138,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         target = self.given_target(disableComment=False)
 
         # When: the post is uploaded
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
 
         # Then: comments are disabled on the post too
         self.assertTrue(double.inits[0]["post_info"]["disable_comment"])
@@ -149,14 +149,14 @@ class TikTokPublishingScenarios(PublishingTestCase):
         target = self.given_target(privacyLevel=None)
 
         # When: the worker runs it
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
 
         # Then: it fails locally, and TikTok was never asked
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FailureType.VALIDATION)
+        self.assertEqual(target.error["failure"], PlatformFailure.INVALID)
         self.assertIn("privacyRequired", target.error["details"])
-        self.http.assert_not_called()
+        self.assertEqual(self.http.sent, [])
 
     def test_a_privacy_level_the_creator_does_not_offer_is_refused_before_uploading(self):
         # Given: an unaudited app, which can only post privately
@@ -164,7 +164,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         target = self.given_target(privacyLevel="PUBLIC_TO_EVERYONE")
 
         # When: the worker runs it
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
 
         # Then: nothing was uploaded
         target.refresh_from_db()
@@ -176,7 +176,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         double = self.given_tiktok(max_duration=10)
         target = self.given_target()
 
-        container().pipeline.run(target.pk)
+        self.run_target(target.pk)
 
         target.refresh_from_db()
         self.assertIn("videoTooLong", target.error["details"])
@@ -189,7 +189,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         )
 
         # When: the confirmation runs
-        delay = container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         # Then: the target is done, with the post's address
         target.refresh_from_db()
@@ -201,7 +201,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
     def test_a_private_post_completes_without_a_link(self):
         target = self.given_uploaded(statuses=[{"status": "PUBLISH_COMPLETE"}])
 
-        container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         target.refresh_from_db()
         self.assertEqual(target.status, Status.COMPLETED)
@@ -212,9 +212,9 @@ class TikTokPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(statuses=[{"status": "PROCESSING_UPLOAD"}])
 
         # When: two confirmations run
-        first = container().confirmations.confirm(target.pk)
+        first = self.confirm_target(target.pk)
         PublicationTarget.objects.filter(pk=target.pk).update(last_activity_at=timezone.now())
-        second = container().confirmations.confirm(target.pk)
+        second = self.confirm_target(target.pk)
 
         # Then: each asks for the next, longer wait
         self.assertEqual((first, second), ConfirmationPoller.POLL_DELAYS_SECONDS[1:3])
@@ -226,61 +226,59 @@ class TikTokPublishingScenarios(PublishingTestCase):
         target = self.given_uploaded(statuses=[{"status": "FAILED", "fail_reason": "file_format_check_failed"}])
 
         # When: the confirmation runs
-        container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         # Then: the reason reaches the person
         target.refresh_from_db()
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FailureType.FILE)
+        self.assertEqual(target.error["failure"], PlatformFailure.FILE_REJECTED)
         self.assertEqual(target.error["details"], "file_format_check_failed")
 
     def test_a_post_that_is_never_confirmed_fails_after_the_deadline(self):
         # Given: TikTok has been processing for longer than we wait
         target = self.given_uploaded(statuses=[{"status": "PROCESSING_UPLOAD"}])
-        started = time.time() - ConfirmationPoller.CONFIRM_WITHIN_SECONDS - 1
-        PublicationTarget.objects.filter(pk=target.pk).update(resume_state={"confirming_since": started, "polls": 9})
+        started = time.time() - ConfirmationPoller.CONFIRM_WITHIN.total_seconds() - 1
+        PublicationTarget.objects.filter(pk=target.pk).update(confirmation_state={"confirming_since": started, "polls": 9})
 
         # When: the confirmation runs
-        delay = container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         # Then: the person is told to check TikTok, and it is not retried
         target.refresh_from_db()
         self.assertIsNone(delay)
         self.assertEqual(target.status, Status.FAILED)
-        self.assertEqual(target.error["type"], FailureType.PLATFORM)
+        self.assertEqual(target.error["failure"], PlatformFailure.UNCONFIRMED)
 
     def test_an_expired_token_during_confirmation_is_refreshed_once(self):
         # Given: the token is refused while polling
         target = self.given_uploaded()
-        self.http.side_effect = [
-            FakeResponse(401, {"error": {"code": "access_token_invalid", "message": "expired"}}),
+        self.given_answers(
+            FakeAnswer(401, {"error": {"code": "access_token_invalid", "message": "expired"}}),
             envelope({"status": "PUBLISH_COMPLETE"}),
-        ]
+        )
 
         # When: the confirmation runs
-        with mock.patch(
-            "platforms.core.auth.token_service.TokenService.refresh", return_value="act.fresh"
-        ) as refresh:
-            container().confirmations.confirm(target.pk)
+        with mock.patch.object(TokenService, "refresh", new=mock.AsyncMock(return_value="act.fresh")) as refresh:
+            self.confirm_target(target.pk)
 
         # Then: it refreshed and completed
-        refresh.assert_called_once()
+        refresh.assert_awaited_once()
         target.refresh_from_db()
         self.assertEqual(target.status, Status.COMPLETED)
 
     def test_a_confirmation_delivered_again_after_completion_does_nothing(self):
         # Given: a post already confirmed
         target = self.given_uploaded()
-        container().confirmations.confirm(target.pk)
-        calls = self.http.side_effect.status_calls
+        self.confirm_target(target.pk)
+        calls = self.http.responder.status_calls
 
         # When: the same confirmation message is delivered again
-        delay = container().confirmations.confirm(target.pk)
+        delay = self.confirm_target(target.pk)
 
         # Then: TikTok is not asked again and the target stays completed
         target.refresh_from_db()
         self.assertIsNone(delay)
-        self.assertEqual(self.http.side_effect.status_calls, calls)
+        self.assertEqual(self.http.responder.status_calls, calls)
         self.assertEqual(target.status, Status.COMPLETED)
 
     def test_a_target_being_confirmed_cannot_be_cancelled(self):
@@ -293,15 +291,16 @@ class TikTokPublishingScenarios(PublishingTestCase):
         # Then: it is refused, since TikTok cannot take it back
         self.assertEqual(response.status_code, 409)
 
-    def test_the_claim_for_abandoned_work_leaves_a_target_being_confirmed_alone(self):
+    def test_the_sweep_for_abandoned_work_leaves_a_target_being_confirmed_alone(self):
         # Given: a target waiting for TikTok, silent for longer than the abandonment window
         target = self.given_uploaded()
         PublicationTarget.objects.filter(pk=target.pk).update(
-            last_activity_at=timezone.now() - PublicationPipeline.ABANDONED_AFTER * 2
+            last_activity_at=timezone.now() - StaleTargetSweeper.ABANDONED_AFTER * 2
         )
 
-        # When / Then: the upload claim does not take it, so nothing is uploaded twice
-        self.assertIsNone(container().pipeline.claim(target.pk))
+        # When / Then: neither the upload nor the sweep takes it, so nothing is uploaded twice
+        self.assertIsNone(self.run_target(target.pk))
+        self.assertEqual(tasks.sweep_abandoned_targets(), 0)
 
     def test_the_sweep_resumes_a_confirmation_whose_chain_was_lost(self):
         # Given: a target nobody has asked about for too long
@@ -334,10 +333,10 @@ class TikTokPublishingScenarios(PublishingTestCase):
     def test_a_revoked_authorisation_asks_for_reconnection(self):
         target = self.given_uploaded(statuses=[{"status": "FAILED", "fail_reason": "auth_removed"}])
 
-        container().confirmations.confirm(target.pk)
+        self.confirm_target(target.pk)
 
         target.refresh_from_db()
-        self.assertEqual(target.error["type"], FailureType.AUTHENTICATION)
+        self.assertEqual(target.error["failure"], PlatformFailure.GRANT_REVOKED)
 
     def test_capabilities_are_served_for_tiktok(self):
         body = self.body(self.client.get("/api/platforms"))
@@ -345,4 +344,10 @@ class TikTokPublishingScenarios(PublishingTestCase):
         self.assertEqual(body["platforms"]["tiktok"]["scheduling"], "deferredUpload")
 
     def test_only_the_platforms_without_native_scheduling_wait_for_the_publish_time(self):
-        self.assertEqual(container().catalog.deferring_upload(), ("tiktok", "instagram", "x"))
+        deferring = container().run(self.deferring_upload)
+
+        self.assertEqual(deferring, ("tiktok", "instagram", "x"))
+
+    @staticmethod
+    async def deferring_upload(services) -> tuple:
+        return services.catalog.deferring_upload()

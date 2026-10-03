@@ -3,13 +3,18 @@ import shutil
 import tempfile
 from unittest import mock
 
+import httplib2
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from googleapiclient.discovery import build
 
 from accounts.models import User
+from config.wiring import Container, container
 from media import storage
 from media.models import MediaAsset
+from platforms2.tests.fakes.http import FakeSession
+from platforms2.youtube.publish.youtube_api import YouTubeApi
 from publishing.models import Publication, PublicationTarget
 from social.models import SocialAccount
 
@@ -25,68 +30,54 @@ VIDEO_ID = "vid_abc123"
 SESSION_URI = "https://upload.googleapis.com/session/abc"
 
 
-class FakeResponse:
-    def __init__(self, status_code=200, payload=None, headers=None):
-        self.status_code = status_code
-        self._payload = payload if payload is not None else {}
-        self.headers = headers or {}
-
-    def json(self):
-        if self._payload is None:
-            raise ValueError("not json")
-        return self._payload
-
-
 class GoogleDouble:
-
-    def __init__(self, size: int, fail_at: int | None = None, failure=None):
+    def __init__(self, size: int, fail_at: int | None = None, failure=None, fail_always: bool = False):
         self.size = size
         self.received = 0
         self.chunks: list[bytes] = []
         self.ranges: list[str] = []
+        self.inserted: list[dict] = []
         self.published: list[dict] = []
+        self.tokens: list[str] = []
         self.fail_at = fail_at
-        self.failure = failure or FakeResponse(500, {"error": {"message": "boom"}})
+        self.fail_always = fail_always
+        self.failure = failure or (500, {"error": {"code": 500, "message": "boom"}})
         self.session_calls = 0
-        self.progress_queries = 0
 
-    def progress(self) -> "FakeResponse":
-        if self.received >= self.size:
-            return FakeResponse(200, {"id": VIDEO_ID})
-        if self.received == 0:
-            return FakeResponse(308, {})
-        return FakeResponse(308, {}, {"Range": f"bytes=0-{self.received - 1}"})
+    def videos(self, api: YouTubeApi, access_token: str):
+        self.tokens.append(access_token)
+        return build("youtube", "v3", http=self, static_discovery=True, cache_discovery=False).videos()
 
-    def __call__(self, method, url, **kwargs):
-        if "upload/youtube" in url:
+    def request(self, uri, method="GET", body=None, headers=None, redirections=1, connection_type=None):
+        if self.fail_always:
+            return self._answer(*self.failure)
+
+        if "upload/youtube" in uri:
             self.session_calls += 1
-            return FakeResponse(200, {}, {"Location": SESSION_URI})
+            self.received = 0
+            self.inserted.append(json.loads(body))
+            return httplib2.Response({"status": "200", "location": SESSION_URI}), b""
 
-        if url == SESSION_URI and kwargs["headers"]["Content-Range"].startswith("bytes */"):
-            self.progress_queries += 1
-            return self.progress()
-        if url == SESSION_URI:
-            body = kwargs.get("data") or b""
-            self.ranges.append(kwargs["headers"]["Content-Range"])
-
+        if uri == SESSION_URI:
+            self.ranges.append(headers["Content-Range"])
             if self.fail_at is not None and self.received == self.fail_at:
                 self.fail_at = None
-                return self.failure
-
+                return self._answer(*self.failure)
             self.chunks.append(body)
             self.received += len(body)
-
             if self.received >= self.size:
-                return FakeResponse(200, {"id": VIDEO_ID})
-            return FakeResponse(
-                308, {}, {"Range": f"bytes=0-{self.received - 1}"}
-            )
+                return self._answer(200, {"id": VIDEO_ID})
+            return httplib2.Response({"status": "308", "range": f"bytes=0-{self.received - 1}"}), b""
 
-        if "youtube/v3/videos" in url:
-            self.published.append(kwargs.get("json") or {})
-            return FakeResponse(200, {"id": VIDEO_ID})
+        if "youtube/v3/videos" in uri:
+            self.published.append(json.loads(body))
+            return self._answer(200, {"id": VIDEO_ID})
 
-        raise AssertionError(f"unexpected call to {url}")
+        raise AssertionError(f"unexpected call to {uri}")
+
+    @staticmethod
+    def _answer(status: int, payload: dict):
+        return httplib2.Response({"status": str(status)}), json.dumps(payload).encode()
 
 
 class PublishingTestCase(TestCase):
@@ -114,12 +105,15 @@ class PublishingTestCase(TestCase):
         self.account = self.given_connected_account()
         self.asset = self.given_uploaded_asset()
 
-        patcher = mock.patch("platforms.core.http.transport.requests.request")
-        self.http = patcher.start()
+        self.http = FakeSession()
+        self.patch(mock.patch.object(Container, "open_session", return_value=self.http))
+        self.patch(mock.patch("platforms2.core.http.retry_policy.asyncio.sleep", new=mock.AsyncMock()))
+        self.patch(mock.patch("googleapiclient.http.time.sleep"))
+
+    def patch(self, patcher):
+        started = patcher.start()
         self.addCleanup(patcher.stop)
-        sleeper = mock.patch("platforms.core.http.retry.time.sleep")
-        sleeper.start()
-        self.addCleanup(sleeper.stop)
+        return started
 
     def given_connected_account(self) -> SocialAccount:
         return SocialAccount.objects.create(
@@ -150,8 +144,17 @@ class PublishingTestCase(TestCase):
 
     def given_google(self, **kwargs) -> GoogleDouble:
         double = GoogleDouble(size=self.asset.size_bytes, **kwargs)
-        self.http.side_effect = double
+        self.patch(mock.patch.object(YouTubeApi, "videos", new=lambda api, token: double.videos(api, token)))
         return double
+
+    def given_answers(self, *answers) -> None:
+        self.http.answer_only(*answers)
+
+    def run_target(self, target_id: int):
+        return container().run(lambda services: services.pipeline.run(target_id))
+
+    def confirm_target(self, target_id: int):
+        return container().run(lambda services: services.confirmations.confirm(target_id))
 
     def body(self, response) -> dict:
         return json.loads(response.content)
@@ -171,10 +174,7 @@ class PublishingTestCase(TestCase):
             ],
         }
         payload.update(overrides)
-        with self.captureOnCommitCallbacks(execute=True):
-            return self.client.post(
-                CREATE_URL, data=json.dumps(payload), content_type="application/json"
-            )
+        return self.client.post(CREATE_URL, data=json.dumps(payload), content_type="application/json")
 
     def only_target(self) -> PublicationTarget:
         return PublicationTarget.objects.get()

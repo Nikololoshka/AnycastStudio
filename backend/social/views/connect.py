@@ -9,4 +9,6 @@ from config.wiring import container
 @rate_limit("connect")
 @domain_errors
 def social_connect(request, platform: str):
-    return api_response("ok", authUrl=container().connect_flow.start(request.user.pk, platform))
+    owner_id = request.user.pk
+    auth_url = container().run(lambda services: services.connect_flow.start(owner_id, platform))
+    return api_response("ok", authUrl=auth_url)

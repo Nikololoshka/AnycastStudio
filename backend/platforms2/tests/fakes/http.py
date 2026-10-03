@@ -52,16 +52,39 @@ class FakeExchange:
 class FakeSession:
     def __init__(self):
         self.sent: list[SentRequest] = []
+        self.responder = None
         self._answers: deque = deque()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc_info) -> bool:
+        return False
+
+    async def close(self) -> None:
+        pass
 
     def answer(self, *answers) -> None:
         self._answers.extend(answers)
 
+    def answer_only(self, *answers) -> None:
+        self.responder = None
+        self._answers.clear()
+        self._answers.extend(answers)
+
+    def forget(self) -> None:
+        self.sent.clear()
+        self.responder = None
+        self._answers.clear()
+
     def request(self, method: str, url: str, **kwargs) -> FakeExchange:
         self.sent.append(SentRequest(method, url, kwargs))
+        if not self._answers and self.responder is not None:
+            return FakeExchange(self.responder(method, url, **kwargs))
         if not self._answers:
             raise AssertionError(f"Nothing was prepared to answer {method} {url}")
-        return FakeExchange(self._answers.popleft())
+        outcome = self._answers.popleft()
+        return FakeExchange(outcome() if callable(outcome) else outcome)
 
     @property
     def last(self) -> SentRequest:

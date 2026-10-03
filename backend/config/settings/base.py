@@ -161,6 +161,7 @@ CELERY_BEAT_SCHEDULE = {
     "sweep-unused-assets": {"task": "media.sweep_unused_assets", "schedule": 3600.0},
     "refresh-expiring-tokens": {"task": "social.refresh_expiring_tokens", "schedule": 1800.0},
     "dispatch-due-targets": {"task": "publishing.dispatch_due_targets", "schedule": 60.0},
+    "sweep-abandoned-targets": {"task": "publishing.sweep_abandoned_targets", "schedule": 300.0},
 }
 
 CELERY_TASK_ALWAYS_EAGER = False

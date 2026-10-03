@@ -1,10 +1,10 @@
 import re
 from pathlib import Path
 
-from platforms.instagram.options import InstagramOptions
-from platforms.tiktok.options import TikTokOptions
-from platforms.x.options import XOptions
-from platforms.youtube.options import YouTubeOptions
+from platforms2.instagram.publish.instagram_options import InstagramOptions
+from platforms2.tiktok.publish.tiktok_options import TikTokOptions
+from platforms2.x.publish.x_options import XOptions
+from platforms2.youtube.publish.youtube_options import YouTubeOptions
 
 from .base import PublishingTestCase
 
