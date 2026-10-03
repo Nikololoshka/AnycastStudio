@@ -1,6 +1,6 @@
-import asyncio
 import logging
 from collections.abc import AsyncGenerator
+from functools import partial
 from typing import override
 
 from platforms2.core import (
@@ -13,6 +13,7 @@ from platforms2.core import (
     PublishInteractor,
     PublishJob,
     PublishOutcome,
+    RetryPolicy,
     UploadProgress,
     VideoFile,
 )
@@ -32,11 +33,11 @@ logger = logging.getLogger(__name__)
 
 class TikTokPublishInteractor(PublishInteractor):
     LAST_CHUNK_STATUS = 201
-    MAX_BACKOFF_SECONDS = 30
 
     def __init__(self, config: TikTokConfig, http: TikTokHttp):
         self._config = config
         self._http = http
+        self._retry = RetryPolicy(config.retries)
 
     @override
     async def upload(self, job: PublishJob, access_token: str) -> AsyncGenerator[UploadProgress]:
@@ -50,7 +51,7 @@ class TikTokPublishInteractor(PublishInteractor):
             first, last = plan.bounds_of(index)
             is_last = index == plan.total_chunks - 1
             piece = await video.piece(first, last - first + 1)
-            await self._send_chunk(upload.upload_url, piece, first, last, job, is_last)
+            await self._retry.run(partial(self._send_chunk, upload.upload_url, piece, first, last, job, is_last))
             yield UploadProgress(last + 1, size, media_id=upload.publish_id if is_last else None)
 
     @override
@@ -99,18 +100,9 @@ class TikTokPublishInteractor(PublishInteractor):
         self, upload_url: str, piece: bytes, first: int, last: int, job: PublishJob, is_last: bool
     ) -> None:
         headers = {"Content-Type": job.media.mime_type, "Content-Range": f"bytes {first}-{last}/{job.media.size_bytes}"}
-        for attempt in range(self._config.retries + 1):
-            try:
-                response = await self._http.request("PUT", upload_url, headers=headers, data=piece)
-            except PlatformError as error:
-                failure = error
-            else:
-                if response.ok and (not is_last or response.status == self.LAST_CHUNK_STATUS):
-                    return
-                failure = PlatformError(response.failure(), f"TikTok refused the chunk: {response.refusal()}")
-            if not failure.transient or attempt == self._config.retries:
-                raise failure
-            await asyncio.sleep(min(2**attempt, self.MAX_BACKOFF_SECONDS))
+        response = await self._http.request("PUT", upload_url, headers=headers, data=piece)
+        if not response.ok or (is_last and response.status != self.LAST_CHUNK_STATUS):
+            raise PlatformError(response.failure(), f"TikTok refused the chunk: {response.refusal()}")
 
     async def _url_of(self, post_ids: tuple[int, ...], access_token: str) -> str:
         if not post_ids:

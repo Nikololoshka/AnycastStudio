@@ -36,5 +36,8 @@ class InstagramResponse(PlatformResponse):
         return f"HTTP {self.status}"
 
     def _graph_error(self) -> dict:
-        error = self.body.get("error")
-        return error if isinstance(error, dict) else {}
+        for key in ("error", "debug_info"):
+            error = self.body.get(key)
+            if isinstance(error, dict) and error:
+                return error
+        return {}

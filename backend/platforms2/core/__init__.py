@@ -1,5 +1,5 @@
 from .auth import AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce
-from .http import PlatformHttp, PlatformResponse
+from .http import PlatformHttp, PlatformResponse, RetryPolicy
 from .platform import Platform
 from .platform_capabilities import PlatformCapabilities
 from .platform_error import PlatformError
@@ -44,6 +44,7 @@ __all__ = [
     "PublishOutcome",
     "Published",
     "ReadyToCommit",
+    "RetryPolicy",
     "Scheduled",
     "UploadProgress",
     "VideoFile",

@@ -12,3 +12,5 @@ class InstagramConfig:
         "pages_show_list",
         "pages_read_engagement",
     )
+    chunk_bytes: int = 8 * 1024**2
+    retries: int = 5

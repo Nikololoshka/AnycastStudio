@@ -9,6 +9,7 @@ from .instagram_capabilities import InstagramCapabilities
 from .instagram_config import InstagramConfig
 from .instagram_http import InstagramHttp
 from .instagram_validator import InstagramValidator
+from .publish import InstagramPublishInteractor
 
 
 class InstagramPlatform(Platform):
@@ -19,6 +20,7 @@ class InstagramPlatform(Platform):
         self.capabilities = InstagramCapabilities()
         self.validator = InstagramValidator()
         self._authorization = InstagramAuthorizationInteractor(config, http)
+        self._publishing = InstagramPublishInteractor(config, http)
 
     @override
     def get_authorization_interactor(self) -> AuthorizationInteractor:
@@ -26,4 +28,4 @@ class InstagramPlatform(Platform):
 
     @override
     def get_publish_interactor(self) -> PublishInteractor:
-        raise NotImplementedError("Instagram publishing is not ported to platforms2 yet")
+        return self._publishing
