@@ -2,7 +2,7 @@ from typing import override
 
 import aiohttp
 
-from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
+from platforms2.core import AuthorizationInteractor, Platform, PlatformType, PublishInteractor
 
 from .auth import InstagramAuthorizationInteractor
 from .core import InstagramConfig, InstagramHttp
@@ -12,6 +12,7 @@ from .publish import InstagramPublishInteractor
 
 
 class InstagramPlatform(Platform):
+    platform_type = PlatformType.INSTAGRAM
 
     def __init__(self, config: InstagramConfig, session: aiohttp.ClientSession):
         http = InstagramHttp(session)

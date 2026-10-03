@@ -2,7 +2,7 @@ from typing import override
 
 import aiohttp
 
-from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
+from platforms2.core import AuthorizationInteractor, Platform, PlatformType, PublishInteractor
 
 from .auth import YouTubeAuthorizationInteractor
 from .core import GoogleHttp, YouTubeConfig
@@ -12,6 +12,7 @@ from .youtube_validator import YouTubeValidator
 
 
 class YouTubePlatform(Platform):
+    platform_type = PlatformType.YOUTUBE
 
     def __init__(self, config: YouTubeConfig, session: aiohttp.ClientSession):
         http = GoogleHttp(session)

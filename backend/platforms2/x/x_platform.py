@@ -2,7 +2,7 @@ from typing import override
 
 import aiohttp
 
-from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
+from platforms2.core import AuthorizationInteractor, Platform, PlatformType, PublishInteractor
 
 from .auth import XAuthorizationInteractor
 from .core import XConfig, XHttp
@@ -12,6 +12,7 @@ from .x_validator import XValidator
 
 
 class XPlatform(Platform):
+    platform_type = PlatformType.X
 
     def __init__(self, config: XConfig, session: aiohttp.ClientSession):
         http = XHttp(session)

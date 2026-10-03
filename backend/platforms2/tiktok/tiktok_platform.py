@@ -2,7 +2,7 @@ from typing import override
 
 import aiohttp
 
-from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
+from platforms2.core import AuthorizationInteractor, Platform, PlatformType, PublishInteractor
 
 from .auth import TikTokAuthorizationInteractor
 from .core import TikTokConfig, TikTokHttp
@@ -12,6 +12,7 @@ from .tiktok_validator import TikTokValidator
 
 
 class TikTokPlatform(Platform):
+    platform_type = PlatformType.TIKTOK
 
     def __init__(self, config: TikTokConfig, session: aiohttp.ClientSession):
         http = TikTokHttp(session)
