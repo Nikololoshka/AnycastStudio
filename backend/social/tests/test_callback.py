@@ -6,7 +6,7 @@ from django.db import connection
 from django.utils import timezone
 
 from accounts.models import User
-from platforms2.tests.fakes.http import FakeAnswer
+from platforms.tests.fakes.http import FakeAnswer
 from social.models import OAuthSession, SocialAccount
 from social.tests.base import (
     ACCESS_TOKEN,

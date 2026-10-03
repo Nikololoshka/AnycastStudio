@@ -13,8 +13,8 @@ from accounts.models import User
 from config.wiring import Container, container
 from media import storage
 from media.models import MediaAsset
-from platforms2.tests.fakes.http import FakeSession
-from platforms2.youtube.publish.youtube_api import YouTubeApi
+from platforms.tests.fakes.http import FakeSession
+from platforms.youtube.publish.youtube_api import YouTubeApi
 from publishing.models import Publication, PublicationTarget
 from social.models import SocialAccount
 
@@ -107,7 +107,7 @@ class PublishingTestCase(TestCase):
 
         self.http = FakeSession()
         self.patch(mock.patch.object(Container, "open_session", return_value=self.http))
-        self.patch(mock.patch("platforms2.core.http.retry_policy.asyncio.sleep", new=mock.AsyncMock()))
+        self.patch(mock.patch("platforms.core.http.retry_policy.asyncio.sleep", new=mock.AsyncMock()))
         self.patch(mock.patch("googleapiclient.http.time.sleep"))
 
     def patch(self, patcher):

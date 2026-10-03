@@ -4,10 +4,10 @@ from django.utils import timezone
 
 from asgiref.sync import sync_to_async
 
-from platforms2.core import PlatformError
-from platforms2.core.ports import SystemClock
-from platforms2.core.usecases.accounts import TokenService
-from platforms2.tests.fakes.http import FakeAnswer
+from platforms.core import PlatformError
+from platforms.core.ports import SystemClock
+from platforms.core.usecases.accounts import TokenService
+from platforms.tests.fakes.http import FakeAnswer
 from social.models import SocialAccount
 from social.tests.base import CODE, SocialTestCase
 

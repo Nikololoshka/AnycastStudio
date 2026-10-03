@@ -5,10 +5,10 @@ from django.utils import timezone
 
 from config.wiring import container
 from media.models import MediaAsset
-from platforms2.core import PlatformFailure
-from platforms2.core.usecases.accounts import TokenService
-from platforms2.core.usecases.publications import ConfirmationPoller, DeferredDispatcher, StaleTargetSweeper
-from platforms2.tests.fakes.http import FakeAnswer
+from platforms.core import PlatformFailure
+from platforms.core.usecases.accounts import TokenService
+from platforms.core.usecases.publications import ConfirmationPoller, DeferredDispatcher, StaleTargetSweeper
+from platforms.tests.fakes.http import FakeAnswer
 from publishing import tasks
 from publishing.models import PublicationTarget
 from social.models import SocialAccount

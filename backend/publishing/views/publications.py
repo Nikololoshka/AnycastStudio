@@ -3,8 +3,8 @@ from common.rate_limit import rate_limit
 from common.request_body import validate
 from common.responses import api_response, domain_errors
 from config.wiring import container
-from platforms2.core.domain import NotFound
-from platforms2.core.publications import NewPublication, NewTarget
+from platforms.core.domain import NotFound
+from platforms.core.publications import NewPublication, NewTarget
 
 from ..models import Publication
 from .schemas import CreatePublicationSchema

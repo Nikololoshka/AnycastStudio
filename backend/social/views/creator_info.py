@@ -2,7 +2,7 @@ from common.access import require_auth, require_get
 from common.rate_limit import rate_limit
 from common.responses import api_response, domain_errors
 from config.wiring import container
-from platforms2.core import PlatformType
+from platforms.core import PlatformType
 
 
 @require_get

@@ -1,7 +1,7 @@
 from django.test import override_settings
 from django.utils import timezone
 
-from platforms2.core import PlatformFailure
+from platforms.core import PlatformFailure
 from publishing.models import PublicationTarget
 
 from .base import PublishingTestCase

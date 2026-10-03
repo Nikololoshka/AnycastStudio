@@ -1,9 +1,9 @@
 from urllib.parse import parse_qs, urlparse
 
-from platforms2.core import Pkce
-from platforms2.x.core import XEndpoints
+from platforms.core import Pkce
+from platforms.x.core import XEndpoints
 from social.models import OAuthSession
-from platforms2.tests.fakes.http import FakeAnswer
+from platforms.tests.fakes.http import FakeAnswer
 from social.tests.base import SocialTestCase
 
 CONNECT_URL = "/api/social/x/connect"

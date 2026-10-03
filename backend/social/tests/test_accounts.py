@@ -7,8 +7,8 @@ from accounts.models import User
 from media.models import MediaAsset
 import aiohttp
 
-from platforms2.core import PlatformError
-from platforms2.tests.fakes.http import FakeAnswer
+from platforms.core import PlatformError
+from platforms.tests.fakes.http import FakeAnswer
 from publishing.models import Publication, PublicationTarget
 from social.models import SocialAccount
 from social.tests.base import (

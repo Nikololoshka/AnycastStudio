@@ -4,10 +4,10 @@ from unittest import mock
 from django.utils import timezone
 
 from media.models import MediaAsset
-from platforms2.core import PlatformFailure
-from platforms2.core.usecases.publications import CommitGuard, ConfirmationPoller, StaleTargetSweeper
-from platforms2.tests.fakes.http import FakeAnswer
-from platforms2.x.core import XEndpoints
+from platforms.core import PlatformFailure
+from platforms.core.usecases.publications import CommitGuard, ConfirmationPoller, StaleTargetSweeper
+from platforms.tests.fakes.http import FakeAnswer
+from platforms.x.core import XEndpoints
 from publishing import tasks
 from publishing.models import PublicationTarget
 from social.models import SocialAccount

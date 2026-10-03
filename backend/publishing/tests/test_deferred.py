@@ -2,9 +2,9 @@ from unittest import mock
 
 from django.utils import timezone
 
-from platforms2 import PlatformCatalog
-from platforms2.core import PlatformType
-from platforms2.core.usecases.publications import DeferredDispatcher
+from platforms import PlatformCatalog
+from platforms.core import PlatformType
+from platforms.core.usecases.publications import DeferredDispatcher
 from publishing import tasks
 from publishing.models import Publication, PublicationTarget
 

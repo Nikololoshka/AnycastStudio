@@ -1,8 +1,8 @@
 from urllib.parse import parse_qs, urlparse
 
-from platforms2.instagram.core import InstagramEndpoints
+from platforms.instagram.core import InstagramEndpoints
 from social.models import OAuthSession, SocialAccount
-from platforms2.tests.fakes.http import FakeAnswer
+from platforms.tests.fakes.http import FakeAnswer
 from social.tests.base import ACCOUNTS_URL, SocialTestCase
 
 CONNECT_URL = "/api/social/instagram/connect"

@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from accounts.models import User
 from config.wiring import Container, container
-from platforms2.tests.fakes.http import FakeAnswer, FakeSession
+from platforms.tests.fakes.http import FakeAnswer, FakeSession
 from social.models import SocialAccount
 
 CONNECT_URL = "/api/social/youtube/connect"
@@ -51,7 +51,7 @@ class SocialTestCase(TestCase):
         patcher = mock.patch.object(Container, "open_session", return_value=self.http)
         patcher.start()
         self.addCleanup(patcher.stop)
-        sleeper = mock.patch("platforms2.core.http.retry_policy.asyncio.sleep", new=mock.AsyncMock())
+        sleeper = mock.patch("platforms.core.http.retry_policy.asyncio.sleep", new=mock.AsyncMock())
         sleeper.start()
         self.addCleanup(sleeper.stop)
         self.given_platform_responds()

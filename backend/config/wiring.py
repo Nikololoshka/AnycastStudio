@@ -8,8 +8,8 @@ from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.core.signals import setting_changed
 
-from platforms2 import PlatformCatalog, PlatformConfigs
-from platforms2.core.ports import (
+from platforms import PlatformCatalog, PlatformConfigs
+from platforms.core.ports import (
     AccountRepository,
     Cache,
     Clock,
@@ -19,8 +19,8 @@ from platforms2.core.ports import (
     TargetRepository,
     TaskQueue,
 )
-from platforms2.core.usecases.accounts import AccountService, ConnectFlow, TokenService
-from platforms2.core.usecases.publications import (
+from platforms.core.usecases.accounts import AccountService, ConnectFlow, TokenService
+from platforms.core.usecases.publications import (
     CommitGuard,
     ConfirmationPoller,
     DeferredDispatcher,
@@ -29,12 +29,12 @@ from platforms2.core.usecases.publications import (
     StaleTargetSweeper,
     TargetWriter,
 )
-from platforms2.instagram import InstagramConfig
-from platforms2.tiktok import TikTokConfig
-from platforms2.tiktok.core import TikTokHttp
-from platforms2.tiktok.creator import CreatorInfoService, TikTokCreatorInfo
-from platforms2.x import XConfig
-from platforms2.youtube import YouTubeConfig
+from platforms.instagram import InstagramConfig
+from platforms.tiktok import TikTokConfig
+from platforms.tiktok.core import TikTokHttp
+from platforms.tiktok.creator import CreatorInfoService, TikTokCreatorInfo
+from platforms.x import XConfig
+from platforms.youtube import YouTubeConfig
 
 CALLBACK_PATH = "/api/social/{platform}/callback"
 X_MAX_SEGMENT_BYTES = 4 * 1024**2

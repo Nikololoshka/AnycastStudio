@@ -1,6 +1,6 @@
 from django.core.cache import cache
 
-from platforms2.core.ports import Cache
+from platforms.core.ports import Cache
 
 
 class DjangoCache(Cache):

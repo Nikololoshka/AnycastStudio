@@ -1,6 +1,6 @@
 from asgiref.sync import sync_to_async
 
-from platforms2.core.ports import TaskQueue
+from platforms.core.ports import TaskQueue
 
 from . import tasks
 

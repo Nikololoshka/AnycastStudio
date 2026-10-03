@@ -4,9 +4,9 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from media import storage
-from platforms2.core import PlatformError, PlatformFailure
-from platforms2.core.usecases.accounts import TokenService
-from platforms2.core.usecases.publications import StaleTargetSweeper
+from platforms.core import PlatformError, PlatformFailure
+from platforms.core.usecases.accounts import TokenService
+from platforms.core.usecases.publications import StaleTargetSweeper
 from publishing import tasks
 from publishing.models import PublicationTarget
 from publishing.repositories import DjangoTargetRepository

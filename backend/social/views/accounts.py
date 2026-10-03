@@ -1,7 +1,7 @@
 from common.access import require_auth, require_delete, require_get
 from common.responses import api_response, domain_errors
 from config.wiring import container
-from platforms2.core import PlatformType
+from platforms.core import PlatformType
 
 from ..models import SocialAccount
 from .serializers import account_json

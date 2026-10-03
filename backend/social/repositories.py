@@ -4,16 +4,16 @@ from asgiref.sync import sync_to_async
 from django.db.models import Q
 
 from common.encryption import current_key_version
-from platforms2.core import AuthProfile, AuthToken, PlatformType
-from platforms2.core.accounts import (
+from platforms.core import AuthProfile, AuthToken, PlatformType
+from platforms.core.accounts import (
     AccountRecord,
     AccountStatus,
     AccountTokens,
     OAuthSessionRecord,
     OAuthSessionStatus,
 )
-from platforms2.core.domain import NotFound
-from platforms2.core.ports import AccountRepository, OAuthSessionRepository
+from platforms.core.domain import NotFound
+from platforms.core.ports import AccountRepository, OAuthSessionRepository
 
 from .models import OAuthSession, SocialAccount
 

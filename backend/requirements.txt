@@ -1,5 +1,4 @@
 Django>=5.1,<6
-requests>=2.32
 aiohttp>=3.14
 google-api-python-client>=2.150
 uvicorn>=0.30

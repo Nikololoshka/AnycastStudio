@@ -3,9 +3,9 @@ from urllib.parse import parse_qs, urlparse
 from django.utils import timezone
 
 from accounts.models import User
-from platforms2.core import Pkce
+from platforms.core import Pkce
 from social.models import OAuthSession, SocialAccount
-from platforms2.tests.fakes.http import FakeAnswer
+from platforms.tests.fakes.http import FakeAnswer
 from social.tests.base import SocialTestCase
 
 CONNECT_URL = "/api/social/tiktok/connect"

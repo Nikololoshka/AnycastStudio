@@ -5,7 +5,7 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 
-from platforms2.core import Pkce
+from platforms.core import Pkce
 from social.models import OAuthSession
 from social.tests.base import CONNECT_URL, SocialTestCase
 

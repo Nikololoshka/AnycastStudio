@@ -1,6 +1,6 @@
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
-from platforms2.core import PlatformType
+from platforms.core import PlatformType
 
 
 class TargetSchema(BaseModel):
