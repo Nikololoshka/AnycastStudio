@@ -18,6 +18,7 @@ from .publish import (
     ReadyToCommit,
     Scheduled,
     UploadProgress,
+    VideoFile,
 )
 
 __all__ = [
@@ -45,4 +46,5 @@ __all__ = [
     "ReadyToCommit",
     "Scheduled",
     "UploadProgress",
+    "VideoFile",
 ]

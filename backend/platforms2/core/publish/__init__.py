@@ -10,6 +10,7 @@ from .published import Published
 from .ready_to_commit import ReadyToCommit
 from .scheduled import Scheduled
 from .upload_progress import UploadProgress
+from .video_file import VideoFile
 
 __all__ = [
     "AwaitingConfirmation",
@@ -24,4 +25,5 @@ __all__ = [
     "ReadyToCommit",
     "Scheduled",
     "UploadProgress",
+    "VideoFile",
 ]

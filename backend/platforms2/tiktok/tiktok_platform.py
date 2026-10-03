@@ -5,6 +5,7 @@ import aiohttp
 from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
 
 from .auth import TikTokAuthorizationInteractor
+from .publish import TikTokPublishInteractor
 from .tiktok_capabilities import TikTokCapabilities
 from .tiktok_config import TikTokConfig
 from .tiktok_http import TikTokHttp
@@ -19,6 +20,7 @@ class TikTokPlatform(Platform):
         self.capabilities = TikTokCapabilities()
         self.validator = TikTokValidator()
         self._authorization = TikTokAuthorizationInteractor(config, http)
+        self._publishing = TikTokPublishInteractor(config, http)
 
     @override
     def get_authorization_interactor(self) -> AuthorizationInteractor:
@@ -26,4 +28,4 @@ class TikTokPlatform(Platform):
 
     @override
     def get_publish_interactor(self) -> PublishInteractor:
-        raise NotImplementedError("TikTok publishing is not ported to platforms2 yet")
+        return self._publishing

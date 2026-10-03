@@ -13,6 +13,10 @@ class TikTokResponse(PlatformResponse):
         "unauthorized_client": PlatformFailure.MISCONFIGURED,
         "invalid_scope": PlatformFailure.MISCONFIGURED,
         "invalid_request": PlatformFailure.MISCONFIGURED,
+        "privacy_level_option_mismatch": PlatformFailure.INVALID,
+        "unaudited_client_can_only_post_to_private_accounts": PlatformFailure.INVALID,
+        "spam_risk_too_many_posts": PlatformFailure.RATE_LIMITED,
+        "spam_risk_too_many_pending_share": PlatformFailure.RATE_LIMITED,
     }
 
     @property

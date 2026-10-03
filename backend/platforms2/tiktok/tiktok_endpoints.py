@@ -4,3 +4,7 @@ class TikTokEndpoints:
     TOKEN = f"{API_ROOT}/oauth/token/"
     REVOKE = f"{API_ROOT}/oauth/revoke/"
     USER_INFO = f"{API_ROOT}/user/info/"
+    CREATOR_INFO = f"{API_ROOT}/post/publish/creator_info/query/"
+    VIDEO_INIT = f"{API_ROOT}/post/publish/video/init/"
+    PUBLISH_STATUS = f"{API_ROOT}/post/publish/status/fetch/"
+    POST = "https://www.tiktok.com/@{username}/video/{post_id}"
