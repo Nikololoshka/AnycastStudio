@@ -10,3 +10,6 @@ class YouTubeConfig:
         "https://www.googleapis.com/auth/youtube.upload",
         "https://www.googleapis.com/auth/youtube",
     )
+    chunk_bytes: int = 8 * 1024**2
+    retries: int = 5
+    http_timeout: float = 60

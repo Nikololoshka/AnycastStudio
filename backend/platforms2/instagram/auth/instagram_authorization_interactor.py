@@ -2,7 +2,7 @@ import logging
 from typing import override
 from urllib.parse import urlencode
 
-from platforms2.core import AuthFailure, AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken
+from platforms2.core import AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, PlatformError, PlatformFailure
 
 from ..instagram_config import InstagramConfig
 from ..instagram_endpoints import InstagramEndpoints
@@ -40,15 +40,16 @@ class InstagramAuthorizationInteractor(AuthorizationInteractor):
 
         page = await self._linked_page(long_lived)
         if page is None:
-            raise AuthorizationError(
-                AuthFailure.REFUSED, "No Instagram professional account is linked to a Facebook Page that was shared"
+            raise PlatformError(
+                PlatformFailure.REFUSED,
+                "No Instagram professional account is linked to a Facebook Page that was shared",
             )
         return AuthToken(access_token=page.access_token, scopes=self._config.scopes)
 
     @override
     async def refresh_auth_token(self, refresh_token: str) -> AuthToken:
-        raise AuthorizationError(
-            AuthFailure.GRANT_REVOKED, "An Instagram connection cannot be refreshed; reconnect the account"
+        raise PlatformError(
+            PlatformFailure.GRANT_REVOKED, "An Instagram connection cannot be refreshed; reconnect the account"
         )
 
     @override
@@ -62,7 +63,7 @@ class InstagramAuthorizationInteractor(AuthorizationInteractor):
         )
         account = page.instagram_business_account
         if account is None or not account.id:
-            raise AuthorizationError(AuthFailure.REFUSED, "The Facebook Page has no Instagram professional account")
+            raise PlatformError(PlatformFailure.REFUSED, "The Facebook Page has no Instagram professional account")
 
         return AuthProfile(
             external_id=account.id,
@@ -74,13 +75,13 @@ class InstagramAuthorizationInteractor(AuthorizationInteractor):
     async def revoke_auth_token(self, token: AuthToken) -> None:
         owner = await self._debug_token(token.access_token)
         if not owner.data.user_id:
-            raise AuthorizationError(AuthFailure.UNEXPECTED, "Facebook did not say whose token this is")
+            raise PlatformError(PlatformFailure.UNEXPECTED, "Facebook did not say whose token this is")
 
         response = await self._http.request(
             "DELETE", InstagramEndpoints.permissions(owner.data.user_id), headers=self._app_authorization()
         )
         if not response.ok:
-            raise AuthorizationError(response.failure(), f"Instagram refused the revocation: {response.refusal()}")
+            raise PlatformError(response.failure(), f"Instagram refused the revocation: {response.refusal()}")
 
     async def _user_token(self, grant_params: dict) -> str:
         client = {"client_id": self._config.client_id, "client_secret": self._config.client_secret}
@@ -120,7 +121,7 @@ class InstagramAuthorizationInteractor(AuthorizationInteractor):
                 params={"fields": self.PAGE_FIELDS},
                 headers=user,
             )
-        except AuthorizationError as error:
+        except PlatformError as error:
             if error.transient:
                 raise
             logger.info("Facebook asset %s granted to the app is not a Page: %s", asset_id, error.message)

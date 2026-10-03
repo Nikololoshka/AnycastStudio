@@ -2,13 +2,12 @@ from typing import override
 
 import aiohttp
 
-from platforms2.core import AuthorizationInteractor, Platform
+from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
 
 from .auth import TikTokAuthorizationInteractor
 from .tiktok_capabilities import TikTokCapabilities
 from .tiktok_config import TikTokConfig
 from .tiktok_http import TikTokHttp
-from .tiktok_publisher import TikTokPublisher
 from .tiktok_validator import TikTokValidator
 
 
@@ -18,10 +17,13 @@ class TikTokPlatform(Platform):
         http = TikTokHttp(session)
 
         self.capabilities = TikTokCapabilities()
-        self.publisher = TikTokPublisher()
         self.validator = TikTokValidator()
         self._authorization = TikTokAuthorizationInteractor(config, http)
 
     @override
     def get_authorization_interactor(self) -> AuthorizationInteractor:
         return self._authorization
+
+    @override
+    def get_publish_interactor(self) -> PublishInteractor:
+        raise NotImplementedError("TikTok publishing is not ported to platforms2 yet")

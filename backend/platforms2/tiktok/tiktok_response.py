@@ -1,18 +1,18 @@
-from platforms2.core import AuthFailure, PlatformResponse
+from platforms2.core import PlatformFailure, PlatformResponse
 
 
 class TikTokResponse(PlatformResponse):
     REFUSAL_LIMIT = 200
     OK_CODE = "ok"
     CODE_FAILURES = {
-        "access_token_invalid": AuthFailure.TOKEN_REJECTED,
-        "scope_not_authorized": AuthFailure.SCOPE_MISSING,
-        "rate_limit_exceeded": AuthFailure.RATE_LIMITED,
-        "invalid_grant": AuthFailure.GRANT_REVOKED,
-        "invalid_client": AuthFailure.MISCONFIGURED,
-        "unauthorized_client": AuthFailure.MISCONFIGURED,
-        "invalid_scope": AuthFailure.MISCONFIGURED,
-        "invalid_request": AuthFailure.MISCONFIGURED,
+        "access_token_invalid": PlatformFailure.TOKEN_REJECTED,
+        "scope_not_authorized": PlatformFailure.SCOPE_MISSING,
+        "rate_limit_exceeded": PlatformFailure.RATE_LIMITED,
+        "invalid_grant": PlatformFailure.GRANT_REVOKED,
+        "invalid_client": PlatformFailure.MISCONFIGURED,
+        "unauthorized_client": PlatformFailure.MISCONFIGURED,
+        "invalid_scope": PlatformFailure.MISCONFIGURED,
+        "invalid_request": PlatformFailure.MISCONFIGURED,
     }
 
     @property
@@ -27,16 +27,16 @@ class TikTokResponse(PlatformResponse):
             return "" if code == self.OK_CODE else code
         return str(error or "")
 
-    def failure(self) -> AuthFailure:
+    def failure(self) -> PlatformFailure:
         if self.error_code in self.CODE_FAILURES:
             return self.CODE_FAILURES[self.error_code]
         if self.status == 408 or self.status >= 500:
-            return AuthFailure.NETWORK
+            return PlatformFailure.NETWORK
         if self.status == 429:
-            return AuthFailure.RATE_LIMITED
+            return PlatformFailure.RATE_LIMITED
         if self.status == 401:
-            return AuthFailure.TOKEN_REJECTED
-        return AuthFailure.REFUSED
+            return PlatformFailure.TOKEN_REJECTED
+        return PlatformFailure.REFUSED
 
     def refusal(self) -> str:
         error = self.body.get("error")

@@ -2,7 +2,7 @@ import logging
 import secrets
 from collections.abc import Awaitable, Callable
 
-from platforms2.core import AuthFailure, AuthorizationError, AuthToken, Platform
+from platforms2.core import AuthToken, Platform, PlatformError, PlatformFailure
 
 logger = logging.getLogger(__name__)
 
@@ -47,17 +47,17 @@ async def authorization_flow_sketch(
     # В БД это условный UPDATE pending → used (claim), чтобы повторный
     # callback не прошёл.
     if callback.get("state") != session["state"] or session["status"] != "pending":
-        raise AuthorizationError(AuthFailure.REFUSED, "Unknown or used state")
+        raise PlatformError(PlatformFailure.REFUSED, "Unknown or used state")
     session["status"] = "used"
 
     # Проверка 2: callback пришёл от того же пользователя, что начал подключение
     # (сравнение с пользователем из session cookie).
     if callback.get("requester_id") != session["owner_id"]:
-        raise AuthorizationError(AuthFailure.REFUSED, "State belongs to another user")
+        raise PlatformError(PlatformFailure.REFUSED, "State belongs to another user")
 
     # Пользователь отказался на странице согласия.
     if callback.get("error") or not callback.get("code"):
-        raise AuthorizationError(AuthFailure.REFUSED, "User cancelled")
+        raise PlatformError(PlatformFailure.REFUSED, "User cancelled")
 
     # Сеть №1: меняем одноразовый code на токены. Не повторять при ошибке —
     # повторный обмен того же code получит invalid_grant.
@@ -88,16 +88,16 @@ async def authorization_flow_sketch(
     account = storage["account"]
     try:
         refreshed = await authorization.refresh_auth_token(account["refresh_token"])
-    except AuthorizationError as error:
+    except PlatformError as error:
         match error.failure:
-            case AuthFailure.NETWORK | AuthFailure.RATE_LIMITED:
+            case PlatformFailure.NETWORK | PlatformFailure.RATE_LIMITED:
                 # Сеть, 5xx или лимит: аккаунт в порядке, попробуем позже.
                 pass
-            case AuthFailure.GRANT_REVOKED | AuthFailure.SCOPE_MISSING:
+            case PlatformFailure.GRANT_REVOKED | PlatformFailure.SCOPE_MISSING:
                 # invalid_grant: пользователь отозвал доступ;
                 # scope_not_authorized: прав не хватает. Помогает только reconnect.
                 account["status"] = "needs_reauth"
-            case AuthFailure.MISCONFIGURED:
+            case PlatformFailure.MISCONFIGURED:
                 # Наш client_id/secret/redirect_uri неверен. Аккаунт НЕ трогаем,
                 # иначе ошибка в .env переведёт все аккаунты в needs_reauth.
                 logger.error("%s client is misconfigured: %s", "platform", error.message)
@@ -118,7 +118,7 @@ async def authorization_flow_sketch(
         await authorization.revoke_auth_token(
             AuthToken(access_token=account["access_token"], refresh_token=account["refresh_token"])
         )
-    except AuthorizationError:
+    except PlatformError:
         # Отказ платформы не мешает отключить аккаунт у нас.
         pass
     account["status"] = "revoked"

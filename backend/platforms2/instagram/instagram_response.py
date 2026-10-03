@@ -1,4 +1,4 @@
-from platforms2.core import AuthFailure, PlatformResponse
+from platforms2.core import PlatformFailure, PlatformResponse
 
 
 class InstagramResponse(PlatformResponse):
@@ -12,21 +12,21 @@ class InstagramResponse(PlatformResponse):
     def ok(self) -> bool:
         return 200 <= self.status < 300 and not self._graph_error()
 
-    def failure(self) -> AuthFailure:
+    def failure(self) -> PlatformFailure:
         code = self._graph_error().get("code")
         if code in self.TOKEN_REJECTED_CODES:
-            return AuthFailure.TOKEN_REJECTED
+            return PlatformFailure.TOKEN_REJECTED
         if code in self.MISCONFIGURED_CODES:
-            return AuthFailure.MISCONFIGURED
+            return PlatformFailure.MISCONFIGURED
         if code in self.PERMISSION_CODES:
-            return AuthFailure.SCOPE_MISSING
+            return PlatformFailure.SCOPE_MISSING
         if code in self.THROTTLED_CODES or self.status == 429:
-            return AuthFailure.RATE_LIMITED
+            return PlatformFailure.RATE_LIMITED
         if self.status == 408 or self.status >= 500:
-            return AuthFailure.NETWORK
+            return PlatformFailure.NETWORK
         if self.status == 401:
-            return AuthFailure.TOKEN_REJECTED
-        return AuthFailure.REFUSED
+            return PlatformFailure.TOKEN_REJECTED
+        return PlatformFailure.REFUSED
 
     def refusal(self) -> str:
         error = self._graph_error()

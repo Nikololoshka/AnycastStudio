@@ -198,6 +198,7 @@ LOGGING = {
     "loggers": {
         "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "urllib3": {"level": "WARNING"},
+        "googleapiclient": {"level": "ERROR"},
     },
 }
 

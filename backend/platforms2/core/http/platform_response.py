@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from ..auth import AuthFailure
+from ..platform_failure import PlatformFailure
 
 
 @dataclass(frozen=True)
@@ -14,7 +14,7 @@ class PlatformResponse(ABC):
         return 200 <= self.status < 300
 
     @abstractmethod
-    def failure(self) -> AuthFailure: ...
+    def failure(self) -> PlatformFailure: ...
 
     @abstractmethod
     def refusal(self) -> str: ...

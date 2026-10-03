@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 
 import aiohttp
 
-from platforms2.core import AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce
+from platforms2.core import AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce, PlatformError
 
 from ..x_config import XConfig
 from ..x_endpoints import XEndpoints
@@ -69,13 +69,13 @@ class XAuthorizationInteractor(AuthorizationInteractor):
 
     @override
     async def revoke_auth_token(self, token: AuthToken) -> None:
-        refusals: list[AuthorizationError] = []
+        refusals: list[PlatformError] = []
         for value, hint in ((token.refresh_token, "refresh_token"), (token.access_token, "access_token")):
             if not value:
                 continue
             try:
                 await self._revoke_one(value, hint)
-            except AuthorizationError as error:
+            except PlatformError as error:
                 refusals.append(error)
         if refusals:
             raise refusals[0]
@@ -88,7 +88,7 @@ class XAuthorizationInteractor(AuthorizationInteractor):
             auth=self._client_auth(),
         )
         if not response.ok:
-            raise AuthorizationError(response.failure(), f"X refused the revocation: {response.refusal()}")
+            raise PlatformError(response.failure(), f"X refused the revocation: {response.refusal()}")
 
     async def _token(self, grant_params: dict) -> AuthToken:
         answer = await self._http.answer(

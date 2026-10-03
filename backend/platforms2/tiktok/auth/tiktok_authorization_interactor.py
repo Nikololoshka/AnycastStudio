@@ -1,7 +1,7 @@
 from typing import override
 from urllib.parse import urlencode
 
-from platforms2.core import AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce
+from platforms2.core import AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce, PlatformError
 
 from ..tiktok_config import TikTokConfig
 from ..tiktok_endpoints import TikTokEndpoints
@@ -68,7 +68,7 @@ class TikTokAuthorizationInteractor(AuthorizationInteractor):
         )
         if response.ok:
             return
-        raise AuthorizationError(response.failure(), f"TikTok refused the revocation: {response.refusal()}")
+        raise PlatformError(response.failure(), f"TikTok refused the revocation: {response.refusal()}")
 
     async def _token(self, grant_params: dict) -> AuthToken:
         answer = await self._http.answer(
