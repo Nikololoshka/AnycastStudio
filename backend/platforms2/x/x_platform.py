@@ -5,6 +5,7 @@ import aiohttp
 from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
 
 from .auth import XAuthorizationInteractor
+from .publish import XPublishInteractor
 from .x_capabilities import XCapabilities
 from .x_config import XConfig
 from .x_http import XHttp
@@ -19,6 +20,7 @@ class XPlatform(Platform):
         self.capabilities = XCapabilities()
         self.validator = XValidator()
         self._authorization = XAuthorizationInteractor(config, http)
+        self._publishing = XPublishInteractor(config, http)
 
     @override
     def get_authorization_interactor(self) -> AuthorizationInteractor:
@@ -26,4 +28,4 @@ class XPlatform(Platform):
 
     @override
     def get_publish_interactor(self) -> PublishInteractor:
-        raise NotImplementedError("X publishing is not ported to platforms2 yet")
+        return self._publishing

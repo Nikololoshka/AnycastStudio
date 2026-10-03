@@ -7,3 +7,5 @@ class XConfig:
     client_secret: str = field(repr=False)
     redirect_uri: str
     scopes: tuple[str, ...] = ("tweet.read", "tweet.write", "users.read", "media.write", "offline.access")
+    segment_bytes: int = 4 * 1024**2
+    retries: int = 5
