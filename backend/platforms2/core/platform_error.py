@@ -11,3 +11,6 @@ class PlatformError(Exception):
     @property
     def transient(self) -> bool:
         return self.failure.transient
+
+    def as_failure(self) -> dict:
+        return {"failure": self.failure.value, "message": self.message, "details": self.details}

@@ -1,6 +1,7 @@
 from platforms2.core import AwaitingConfirmation, NotReady, PlatformError, PlatformFailure, Published
 from platforms2.tiktok import TikTokConfig
 from platforms2.tiktok.core import TikTokEndpoints, TikTokHttp
+from platforms2.tiktok.creator import TikTokCreatorInfo
 from platforms2.tiktok.publish import TikTokPublishInteractor
 from platforms2.tiktok.publish.answers.publish_status import Status
 from platforms2.tiktok.publish.chunk_plan import ChunkPlan
@@ -43,7 +44,8 @@ def chunks_kept(count: int) -> list[FakeAnswer]:
 
 class TikTokTestCase(PlatformTestCase):
     def publishing(self) -> TikTokPublishInteractor:
-        return TikTokPublishInteractor(CONFIG, TikTokHttp(self.http))
+        http = TikTokHttp(self.http)
+        return TikTokPublishInteractor(CONFIG, http, TikTokCreatorInfo(http))
 
 
 class ChunkPlanScenarios(TikTokTestCase):

@@ -6,6 +6,7 @@ from platforms2.core import AuthorizationInteractor, Platform, PlatformType, Pub
 
 from .auth import TikTokAuthorizationInteractor
 from .core import TikTokConfig, TikTokHttp
+from .creator import TikTokCreatorInfo
 from .publish import TikTokPublishInteractor
 from .tiktok_capabilities import TikTokCapabilities
 from .tiktok_validator import TikTokValidator
@@ -21,7 +22,8 @@ class TikTokPlatform(Platform):
         self.capabilities = TikTokCapabilities()
         self.validator = TikTokValidator(self.capabilities)
         self._authorization = TikTokAuthorizationInteractor(config, http)
-        self._publishing = TikTokPublishInteractor(config, http)
+        self.creator_info = TikTokCreatorInfo(http)
+        self._publishing = TikTokPublishInteractor(config, http, self.creator_info)
 
     @override
     def get_authorization_interactor(self) -> AuthorizationInteractor:

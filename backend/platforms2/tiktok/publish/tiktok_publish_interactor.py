@@ -19,7 +19,8 @@ from platforms2.core import (
 )
 
 from ..core import TikTokConfig, TikTokEndpoints, TikTokHttp
-from .answers import Creator, CreatorInfo, PublishStatus, Upload, VideoInit
+from ..creator.tiktok_creator_info import TikTokCreatorInfo
+from .answers import PublishStatus, Upload, VideoInit
 from .chunk_plan import ChunkPlan
 from .post_info import PostInfo
 from .tiktok_options import TikTokOptions
@@ -30,9 +31,10 @@ logger = logging.getLogger(__name__)
 class TikTokPublishInteractor(PublishInteractor):
     LAST_CHUNK_STATUS = 201
 
-    def __init__(self, config: TikTokConfig, http: TikTokHttp):
+    def __init__(self, config: TikTokConfig, http: TikTokHttp, creator_info: TikTokCreatorInfo):
         self._config = config
         self._http = http
+        self._creator_info = creator_info
         self._retry = RetryPolicy(config.retries)
 
     @override
@@ -72,8 +74,8 @@ class TikTokPublishInteractor(PublishInteractor):
 
     async def _init(self, job: PublishJob, access_token: str, plan: ChunkPlan) -> Upload:
         options = TikTokOptions.of(job.draft.settings)
-        creator = await self._creator(access_token)
-        refusals = creator.refusals(options, job.media.duration_seconds)
+        creator = await self._creator_info.fetch(access_token)
+        refusals = creator.refusals(options.privacy_level, job.media.duration_seconds)
         if refusals:
             raise PlatformError(PlatformFailure.INVALID, "; ".join(refusals), details=",".join(refusals))
         post_info = PostInfo.of(job.draft, options, creator)
@@ -83,12 +85,6 @@ class TikTokPublishInteractor(PublishInteractor):
             VideoInit,
             headers=self._http.bearer(access_token),
             json={"post_info": post_info.as_body(), "source_info": plan.as_source_info()},
-        )
-        return answer.data
-
-    async def _creator(self, access_token: str) -> Creator:
-        answer = await self._http.answer(
-            "POST", TikTokEndpoints.CREATOR_INFO, CreatorInfo, headers=self._http.bearer(access_token)
         )
         return answer.data
 
@@ -104,7 +100,7 @@ class TikTokPublishInteractor(PublishInteractor):
         if not post_ids:
             return ""
         try:
-            username = (await self._creator(access_token)).username
+            username = (await self._creator_info.fetch(access_token)).username
         except PlatformError as error:
             logger.info("Could not learn the TikTok username for the post link: %s", error.failure)
             return ""

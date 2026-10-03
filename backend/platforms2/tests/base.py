@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 from unittest import IsolatedAsyncioTestCase, mock
 
-from platforms2.core import PublishDraft, PublishJob, PublishMedia, UploadProgress
+from platforms2.core import PlatformType, PublishDraft, PublishJob, PublishMedia, UploadProgress
 
 from .fakes.http import FakeAnswer, FakeSession
 
@@ -49,6 +49,7 @@ class PlatformTestCase(IsolatedAsyncioTestCase):
         size = size_bytes if size_bytes is not None else (path.stat().st_size if path.exists() else len(CONTENT))
         return PublishJob(
             target_id=1,
+            platform=PlatformType.YOUTUBE,
             account_id=1,
             external_id=external_id,
             draft=PublishDraft(title, description, hashtags, settings or {}),

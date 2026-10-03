@@ -1,6 +1,7 @@
 import aiohttp
 
 from .core import Platform, PlatformType
+from .core.platform_registry import PlatformRegistry
 from .instagram import InstagramPlatform
 from .platform_configs import PlatformConfigs
 from .tiktok import TikTokPlatform
@@ -8,7 +9,7 @@ from .x import XPlatform
 from .youtube import YouTubePlatform
 
 
-class PlatformCatalog:
+class PlatformCatalog(PlatformRegistry):
 
     def __init__(self, configs: PlatformConfigs, session: aiohttp.ClientSession):
         platforms = (
@@ -24,6 +25,3 @@ class PlatformCatalog:
 
     def all(self) -> tuple[Platform, ...]:
         return tuple(self._platforms.values())
-
-    def deferring_upload(self) -> tuple[PlatformType, ...]:
-        return tuple(platform.platform_type for platform in self.all() if platform.capabilities.defers_upload)

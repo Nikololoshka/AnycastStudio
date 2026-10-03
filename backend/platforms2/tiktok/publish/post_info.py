@@ -3,7 +3,7 @@ from typing import Self
 
 from platforms2.core import PublishDraft
 
-from .answers import Creator
+from ..creator.answers import Creator
 from .tiktok_options import TikTokOptions
 
 

@@ -47,7 +47,7 @@ class SourceModule:
 
 
 def source_modules() -> list[SourceModule]:
-    return [SourceModule(path) for path in sorted(PACKAGE.rglob("*.py")) if "tests" not in path.parts and not path.stem.endswith("_sketch")]
+    return [SourceModule(path) for path in sorted(PACKAGE.rglob("*.py")) if "tests" not in path.parts]
 
 
 def platform_of(module_name: str) -> str | None:
