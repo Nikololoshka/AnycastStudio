@@ -11,11 +11,8 @@ from platforms2.core import (
     PlatformFailure,
 )
 
-from ..google_endpoints import GoogleEndpoints
-from ..google_http import GoogleHttp
-from ..youtube_config import YouTubeConfig
-from .channel_list import ChannelList
-from .token_answer import TokenAnswer
+from ..core import GoogleEndpoints, GoogleHttp, YouTubeConfig
+from .answers import ChannelList, TokenAnswer
 
 
 class YouTubeAuthorizationInteractor(AuthorizationInteractor):

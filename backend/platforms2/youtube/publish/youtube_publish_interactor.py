@@ -16,9 +16,8 @@ from platforms2.core import (
     UploadProgress,
 )
 
-from ..google_endpoints import GoogleEndpoints
-from ..youtube_config import YouTubeConfig
-from .uploaded_video import UploadedVideo
+from ..core import GoogleEndpoints, YouTubeConfig
+from .answers import UploadedVideo
 from .video_metadata import VideoMetadata
 from .video_upload import VideoUpload
 from .youtube_api import YouTubeApi

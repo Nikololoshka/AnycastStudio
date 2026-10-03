@@ -2,7 +2,7 @@ from typing import ClassVar
 
 from platforms2.core import PlatformError, PlatformFailure
 
-from ..instagram_answer import InstagramAnswer
+from ...core import InstagramAnswer
 
 
 class ContainerStatus(InstagramAnswer):

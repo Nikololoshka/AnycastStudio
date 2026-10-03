@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ..x_answer import XAnswer
+from ...core import XAnswer
 
 
 class Identified(XAnswer):

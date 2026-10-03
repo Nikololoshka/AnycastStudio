@@ -3,11 +3,8 @@ from urllib.parse import urlencode
 
 from platforms2.core import AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce, PlatformError
 
-from ..tiktok_config import TikTokConfig
-from ..tiktok_endpoints import TikTokEndpoints
-from ..tiktok_http import TikTokHttp
-from .token_answer import TokenAnswer
-from .user_info import UserInfo
+from ..core import TikTokConfig, TikTokEndpoints, TikTokHttp
+from .answers import TokenAnswer, UserInfo
 
 
 class TikTokAuthorizationInteractor(AuthorizationInteractor):

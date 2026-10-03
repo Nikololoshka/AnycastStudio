@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ..instagram_answer import InstagramAnswer
+from ...core import InstagramAnswer
 
 
 class UserToken(InstagramAnswer):

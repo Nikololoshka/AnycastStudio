@@ -5,11 +5,8 @@ import aiohttp
 
 from platforms2.core import AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce, PlatformError
 
-from ..x_config import XConfig
-from ..x_endpoints import XEndpoints
-from ..x_http import XHttp
-from .me import Me
-from .token_answer import TokenAnswer
+from ..core import XConfig, XEndpoints, XHttp
+from .answers import Me, TokenAnswer
 
 
 class XAuthorizationInteractor(AuthorizationInteractor):

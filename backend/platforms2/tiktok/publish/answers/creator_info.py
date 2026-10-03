@@ -1,7 +1,7 @@
 from pydantic import Field
 
-from ..tiktok_answer import TikTokAnswer
-from .tiktok_options import TikTokOptions
+from ...core import TikTokAnswer
+from ..tiktok_options import TikTokOptions
 
 
 class Creator(TikTokAnswer):

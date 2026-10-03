@@ -1,9 +1,9 @@
 from platforms2.core import AuthToken
 
-from ..google_answer import GoogleAnswer
+from ...core import XAnswer
 
-# todo: mapper?
-class TokenAnswer(GoogleAnswer):
+
+class TokenAnswer(XAnswer):
     access_token: str
     refresh_token: str | None = None
     expires_in: int | None = None

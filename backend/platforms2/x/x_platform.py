@@ -5,10 +5,9 @@ import aiohttp
 from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
 
 from .auth import XAuthorizationInteractor
+from .core import XConfig, XHttp
 from .publish import XPublishInteractor
 from .x_capabilities import XCapabilities
-from .x_config import XConfig
-from .x_http import XHttp
 from .x_validator import XValidator
 
 

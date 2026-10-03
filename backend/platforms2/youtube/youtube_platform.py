@@ -5,10 +5,9 @@ import aiohttp
 from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
 
 from .auth import YouTubeAuthorizationInteractor
-from .google_http import GoogleHttp
+from .core import GoogleHttp, YouTubeConfig
 from .publish import YouTubePublishInteractor
 from .youtube_capabilities import YouTubeCapabilities
-from .youtube_config import YouTubeConfig
 from .youtube_validator import YouTubeValidator
 
 

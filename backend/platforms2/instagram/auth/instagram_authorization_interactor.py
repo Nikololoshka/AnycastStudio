@@ -4,12 +4,8 @@ from urllib.parse import urlencode
 
 from platforms2.core import AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, PlatformError, PlatformFailure
 
-from ..instagram_config import InstagramConfig
-from ..instagram_endpoints import InstagramEndpoints
-from ..instagram_http import InstagramHttp
-from .debug_token import DebugToken
-from .page_list import Page, PageList
-from .user_token import UserToken
+from ..core import InstagramConfig, InstagramEndpoints, InstagramHttp
+from .answers import DebugToken, Page, PageList, UserToken
 
 logger = logging.getLogger(__name__)
 

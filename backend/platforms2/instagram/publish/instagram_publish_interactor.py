@@ -18,13 +18,8 @@ from platforms2.core import (
     VideoFile,
 )
 
-from ..instagram_config import InstagramConfig
-from ..instagram_endpoints import InstagramEndpoints
-from ..instagram_http import InstagramHttp
-from .chunk_answer import ChunkAnswer
-from .container_status import ContainerStatus
-from .created import Created
-from .permalink import Permalink
+from ..core import InstagramConfig, InstagramEndpoints, InstagramHttp
+from .answers import ChunkAnswer, ContainerStatus, Created, Permalink
 from .reel_info import ReelInfo
 
 logger = logging.getLogger(__name__)

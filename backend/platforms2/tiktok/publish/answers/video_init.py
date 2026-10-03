@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ..tiktok_answer import TikTokAnswer
+from ...core import TikTokAnswer
 
 
 class Upload(TikTokAnswer):

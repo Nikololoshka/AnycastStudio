@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ..google_answer import GoogleAnswer
+from ...core import GoogleAnswer
 
 
 class UploadedVideo(GoogleAnswer):

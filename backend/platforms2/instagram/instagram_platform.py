@@ -5,9 +5,8 @@ import aiohttp
 from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
 
 from .auth import InstagramAuthorizationInteractor
+from .core import InstagramConfig, InstagramHttp
 from .instagram_capabilities import InstagramCapabilities
-from .instagram_config import InstagramConfig
-from .instagram_http import InstagramHttp
 from .instagram_validator import InstagramValidator
 from .publish import InstagramPublishInteractor
 

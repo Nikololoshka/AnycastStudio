@@ -2,7 +2,7 @@ from typing import ClassVar
 
 from platforms2.core import PlatformError, PlatformFailure
 
-from ..x_answer import XAnswer
+from ...core import XAnswer
 
 
 class ProcessingError(XAnswer):

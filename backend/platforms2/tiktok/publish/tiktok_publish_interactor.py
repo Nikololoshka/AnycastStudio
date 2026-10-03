@@ -18,15 +18,11 @@ from platforms2.core import (
     VideoFile,
 )
 
-from ..tiktok_config import TikTokConfig
-from ..tiktok_endpoints import TikTokEndpoints
-from ..tiktok_http import TikTokHttp
+from ..core import TikTokConfig, TikTokEndpoints, TikTokHttp
+from .answers import Creator, CreatorInfo, PublishStatus, Upload, VideoInit
 from .chunk_plan import ChunkPlan
-from .creator_info import Creator, CreatorInfo
 from .post_info import PostInfo
-from .publish_status import PublishStatus
 from .tiktok_options import TikTokOptions
-from .video_init import Upload, VideoInit
 
 logger = logging.getLogger(__name__)
 

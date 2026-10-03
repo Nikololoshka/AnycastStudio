@@ -21,11 +21,8 @@ from platforms2.core import (
     VideoFile,
 )
 
-from ..x_config import XConfig
-from ..x_endpoints import XEndpoints
-from ..x_http import XHttp
-from .created import Created
-from .media_status import MediaStatus
+from ..core import XConfig, XEndpoints, XHttp
+from .answers import Created, MediaStatus
 from .x_options import XOptions
 
 logger = logging.getLogger(__name__)

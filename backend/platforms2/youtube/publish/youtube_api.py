@@ -11,8 +11,7 @@ from googleapiclient.http import build_http
 
 from platforms2.core import PlatformError, PlatformFailure
 
-from ..google_response import GoogleResponse
-from ..youtube_config import YouTubeConfig
+from ..core import GoogleResponse, YouTubeConfig
 
 
 class YouTubeApi:

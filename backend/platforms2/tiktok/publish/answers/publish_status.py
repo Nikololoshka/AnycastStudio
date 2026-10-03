@@ -4,7 +4,7 @@ from pydantic import Field
 
 from platforms2.core import PlatformError, PlatformFailure
 
-from ..tiktok_answer import TikTokAnswer
+from ...core import TikTokAnswer
 
 
 class Status(TikTokAnswer):

@@ -5,10 +5,9 @@ import aiohttp
 from platforms2.core import AuthorizationInteractor, Platform, PublishInteractor
 
 from .auth import TikTokAuthorizationInteractor
+from .core import TikTokConfig, TikTokHttp
 from .publish import TikTokPublishInteractor
 from .tiktok_capabilities import TikTokCapabilities
-from .tiktok_config import TikTokConfig
-from .tiktok_http import TikTokHttp
 from .tiktok_validator import TikTokValidator
 
 

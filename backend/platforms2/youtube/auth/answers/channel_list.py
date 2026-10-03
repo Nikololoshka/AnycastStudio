@@ -1,4 +1,4 @@
-from ..google_answer import GoogleAnswer
+from ...core import GoogleAnswer
 
 
 class Thumbnail(GoogleAnswer):
