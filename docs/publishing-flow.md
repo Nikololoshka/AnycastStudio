@@ -5,6 +5,15 @@
 путь видео от диска пользователя до четырёх платформ (YouTube, TikTok,
 Instagram, X) и перечисляет найденные слабые места с указанием файлов.
 
+> **Срез устарел в деталях.** После `docs/adr/0003-async-platforms.md` платформы
+> работают на asyncio (`AuthorizationInteractor` / `PublishInteractor`),
+> сценарии лежат в `platforms/core/usecases/`, загрузка не возобновляется
+> (зависшие цели переводит в failed `StaleTargetSweeper`), `resume_state`
+> переименован в `confirmation_state` и хранит только подтверждение, а
+> `FailureType` заменён на `PlatformFailure`. Пути файлов и описание resume
+> ниже относятся к прежней реализации; потоки статусов и подтверждения
+> остались прежними.
+
 Общие решения (почему Django без DRF, почему polling, почему SQLite) — в
 `docs/architecture.md` и `docs/adr/0001-web-migration.md`. Здесь — именно поток
 публикации.

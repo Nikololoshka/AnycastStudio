@@ -80,11 +80,11 @@ size, rather than losing what already arrived.
 
 ```
 POST /api/publications/create  → Publication + one PublicationTarget per platform
-                               → run_target.delay(...) on commit
+                               → run_target.delay(...) once it is stored
                                  ══ the tab can close here ══
 
 worker: claim → validate → upload → publish
-        progress and resume point written to the target row
+        progress written to the target row on whole percents
 browser: GET /api/publications/<id> every 2s while isActive
 ```
 
@@ -135,8 +135,9 @@ is `database is locked` in the worker log.
 | --- | --- |
 | Connection drops mid-chunk | The client asks for the offset and continues |
 | Browser reloads mid-upload | The person re-picks the same file; the server's bytes are kept |
-| Worker dies mid-upload | `resume_state` holds the session URI and offset; the retried task continues |
-| Token expires mid-upload | Google answers 401, the pipeline refreshes and resumes from the confirmed offset |
+| Worker dies mid-upload | `StaleTargetSweeper` fails the target after 15 silent minutes; the person retries and the upload starts again |
+| Token expires mid-upload | The platform answers 401, the token is refreshed once and the upload starts again with it |
+| Worker dies while confirming | `confirmation_state` keeps the polls and the commit mark; the beat sweep resumes the polls |
 | Task delivered twice | The claim is a conditional UPDATE; the second delivery finds nothing to take |
 | Platform is down | Five attempts, exponential backoff with jitter, then the target fails with a reason |
 | Platform rejects the file | Failed immediately, never retried — repetition burns quota and changes nothing |
@@ -146,7 +147,9 @@ is `database is locked` in the worker log.
 ## Where the rules live
 
 `backend/platforms/` holds the business logic and imports nothing from
-Django (`docs/adr/0002-platforms-core.md`):
+Django (`docs/adr/0002-platforms-core.md`, `docs/adr/0003-async-platforms.md`).
+The use cases are `async`; views and tasks enter them through
+`container().run(...)`:
 
 ```
 views / Celery tasks ──► platforms/core use cases ──► platforms/<p>
@@ -155,24 +158,29 @@ views / Celery tasks ──► platforms/core use cases ──► platforms/<p>
 config/wiring.py ──────► Django adapters (repositories, Celery queue, cache)
 ```
 
-- `platforms/core/publishing/` — `PublicationService` (create, cancel,
-  retry), `PublicationPipeline` (claim, validate, upload, publish),
-  `ConfirmationPoller` (polls, the confirmation window, the two-phase
-  commit), `DeferredDispatcher` (due targets, stalled confirmations).
-- `platforms/core/auth/` — `TokenService` (valid token, lease-guarded
-  refresh), `AccountService`, `ConnectFlow` (both `state` checks).
-- `platforms/<p>/` — one platform, built by its `PlatformFactory` into a
-  `Platform`: provider, publisher, validator, capabilities.
+- `platforms/core/usecases/publications/` — `PublicationService` (create,
+  cancel, retry), `PublicationPipeline` (claim, validate, upload, publish),
+  `ConfirmationPoller` and `CommitGuard` (polls, the confirmation window, the
+  two-phase commit), `DeferredDispatcher` (due targets, stalled
+  confirmations), `StaleTargetSweeper` (targets a stopped worker left).
+- `platforms/core/usecases/accounts/` — `TokenService` (valid token,
+  lease-guarded refresh), `AccountService`, `ConnectFlow` (both `state`
+  checks).
+- `platforms/<p>/` — one `Platform`: an `AuthorizationInteractor`, a
+  `PublishInteractor`, a validator and the capabilities.
 
 ## Adding a platform
 
-1. `backend/platforms/<platform>/` in the shared shape — `client.py`,
-   `auth/`, `upload/`, `publish/`, `options/`, `platform.py` — with tests in
+1. `backend/platforms/<platform>/` in the shared shape — `core/`, `auth/`,
+   `publish/`, `<platform>_capabilities.py`, `<platform>_validator.py`,
+   `<platform>_platform.py` — with tests in
    `backend/platforms/tests/<platform>/`. No imports from another platform
    folder; shared pieces come from `platforms/core/`.
-2. Add its factory to `platforms/registry.py` and its credential settings to
-   `config/wiring.py::CREDENTIAL_SETTINGS`. The pipeline, the capabilities
-   endpoint, the deferred sweep and the OAuth flow read the registry.
+2. Add it to `platforms/platform_catalog.py` and `platforms/platform_configs.py`,
+   and build its config from the settings in
+   `config/wiring.py::Container.platform_configs`. The pipeline, the
+   capabilities endpoint, the deferred sweep and the OAuth flow read the
+   catalog.
 3. Add `frontend/src/platforms/<platform>/` — settings, descriptor, panel — and
    the `AVAILABLE_PLATFORMS` entry, then register it in `platforms/registry.ts`,
    `platforms/settings.ts` and `features/composer/PlatformTab.tsx`.

@@ -1,7 +1,7 @@
 # 2. `platforms` holds the business logic; Django apps adapt it
 
 Date: 2026-09-28
-Status: accepted
+Status: accepted; amended by 0003 (platforms on asyncio, uploads without resume, PlatformFailure)
 
 ## Context
 

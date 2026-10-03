@@ -89,7 +89,8 @@ Unless asked otherwise:
 | Queue | celery[redis] 5.6 | Background uploads | `acks_late`; no task-level retry, the pipeline decides |
 | Encryption | cryptography | Platform tokens at rest | `MultiFernet`, rotatable; see `common/encryption/` |
 | Passwords | argon2-cffi | Hashing | First in `PASSWORD_HASHERS` |
-| HTTP (server) | requests | Platform calls | Only through `platforms/core/http/` (`PlatformClient`) |
+| HTTP (server) | aiohttp | Platform calls | Only through a platform's `PlatformHttp` subclass (`platforms/core/http/`); the session is opened by `config/wiring.py` |
+| YouTube upload | google-api-python-client | Resumable `videos.insert` | Only inside `platforms/youtube/publish/`, run in a thread |
 | Config | python-dotenv | Reads `backend/.env` | Real env vars win |
 | UI | HeroUI 3 | Component library | Compound components; built on React Aria |
 | Styling | Tailwind CSS 4.3 | Utilities and theme tokens | Tokens defined in `src/styles.css` |
@@ -122,9 +123,11 @@ Celery worker ──► backend/media_files ──► platform APIs
 ```
 
 Server: `views / tasks → platforms/core use cases → platforms/<p> → the platform's API`.
-The use cases reach the database, the queue and the cache only through the
-ports in `platforms/core/ports/`; the Django apps implement them and
-`config/wiring.py` assembles everything (see `docs/adr/0002-platforms-core.md`).
+The use cases are `async` and reach the database, the queue and the cache only
+through the async ports in `platforms/core/ports/`; the Django apps implement
+them and `config/wiring.py` assembles everything. Views and tasks stay
+synchronous and enter through `container().run(...)` (`async_to_sync`), see
+`docs/adr/0002-platforms-core.md` and `docs/adr/0003-async-platforms.md`.
 Browser: `components → RTK Query hooks → the API`.
 
 **Business logic lives on the server.** The SPA renders, collects input and
@@ -135,33 +138,44 @@ reports progress. Publishing, scheduling and tokens are the server's.
 - `backend/platforms/` holds the business logic of publishing and of
   connecting accounts, and imports nothing from Django or the apps.
   `platforms/tests/core/test_architecture.py` enforces it.
-- `platforms/core/` holds the shared toolkit (`http/`, `upload/`,
-  `capabilities/`, `errors.py`, `config.py`), the interfaces (`ports/`,
-  `platform.py`) and the use cases: `publishing/` (`PublicationService`,
-  `PublicationPipeline`, `ConfirmationPoller`, `DeferredDispatcher`) and
-  `auth/` (`TokenService`, `AccountService`, `ConnectFlow`).
+- `platforms/core/` holds the platform interfaces and their values (`auth/`,
+  `publish/`, `http/`, `platform.py`, `platform_registry.py`,
+  `platform_failure.py`, …), the values the use cases share (`accounts/`,
+  `publications/`, `domain/`), the async ports (`ports/`) and the use cases:
+  `usecases/publications/` (`PublicationService`, `PublicationPipeline`,
+  `ConfirmationPoller`, `CommitGuard`, `DeferredDispatcher`,
+  `StaleTargetSweeper`) and `usecases/accounts/` (`TokenService`,
+  `AccountService`, `ConnectFlow`). Nothing a port names imports a use case.
 - The Django apps are adapters: models, views, Celery tasks and one
   repository per port (`publishing/repositories.py`, `social/repositories.py`,
-  `publishing/queue.py`, `common/transactions`, `common/caching`). Views and
-  tasks take services from `config.wiring.container()`, never build them.
+  `publishing/queue.py`, `common/caching`). Each database method is a sync
+  method wrapped in `sync_to_async`, so a transaction stays inside one call.
+  Views and tasks reach the use cases through `config.wiring.container().run`,
+  never build them.
 - A use case is called from a view only when it answers in milliseconds;
   uploads and confirmations run from Celery tasks.
-- Every platform folder has the same shape: `client.py` (a `PlatformClient`
-  subclass with its own `FailureClassifier`), `auth/` (the `OAuth2Provider`),
-  `upload/` (state, protocol, `UploadSession`, uploader), `publish/` (the
-  `Publisher` and status calls), `options/` (options, `Validator`,
-  `CAPABILITIES`) and `platform.py` (a `PlatformFactory`). No imports between
+- Every platform folder has the same shape: `core/` (config, endpoints, the
+  `PlatformHttp` subclass, the `PlatformResponse` that classifies answers),
+  `auth/` (the `AuthorizationInteractor` and its `answers/`), `publish/` (the
+  `PublishInteractor`, its options and `answers/`), `<p>_capabilities.py`,
+  `<p>_validator.py` and `<p>_platform.py` (the `Platform`). No imports between
   platform folders; shared pieces come from `platforms/core/`.
-- A publisher works on a `PublishJob`, never on a model. A step that must not
-  run twice answers `ReadyToCommit`; the pipeline marks it before `commit`.
+- A publish interactor works on a `PublishJob`, never on a model. `upload` is
+  an async generator of `UploadProgress` whose last event carries the media
+  id. A step that must not run twice answers `ReadyToCommit`; `CommitGuard`
+  marks it before `commit`.
 - Behaviour lives in classes and value objects: no public module-level
   functions in `platforms/`. Internal values are frozen dataclasses; pydantic
   only reads what comes from outside (platform answers, request settings).
-- Every platform failure is a `PlatformError` with a `FailureType`; an API
-  refusal is a domain error (`NotFound`, `Conflict`, …) that
-  `common/responses::domain_errors` turns into the status contract.
-- Every platform HTTP call goes through `PlatformClient.send`, which owns the
-  timeout, the error classification and the retry policy.
+- Every platform failure is a `PlatformError` with a `PlatformFailure`
+  (`docs/adr/0003-async-platforms.md` says what each one means); an API
+  refusal is a domain error (`NotFound`, `Conflict`, …) from
+  `platforms/core/domain/` that `common/responses::domain_errors` turns into
+  the status contract.
+- Every platform HTTP call goes through the platform's `PlatformHttp`
+  (`request` / `answer`), which classifies the answer through its
+  `PlatformResponse`. Transient failures are retried only through
+  `RetryPolicy`, and only where repeating is safe.
 - Server state in the browser belongs to an RTK Query endpoint in `src/api/`.
   Only genuinely client-owned state goes in a slice: the composer draft, the
   in-flight browser upload, the theme and the language.
@@ -200,8 +214,10 @@ in a check afterwards:
 - Never retry what the platform decided about. A rejected file or an exhausted
   quota does not improve on repetition, and each attempt spends YouTube quota
   that cannot be recovered.
-- Persist enough to resume: `PublicationTarget.resume_state` is why a killed
-  worker continues rather than re-uploading gigabytes.
+- An upload is not resumed. A target that a stopped worker abandoned is
+  failed by `StaleTargetSweeper`, and the person publishes again. What must
+  survive a task is the confirmation: `PublicationTarget.confirmation_state`
+  keeps the platform's state, the polls and the commit mark.
 
 ### SQLite
 
@@ -251,7 +267,7 @@ backend/
 ├─ social/        SocialAccount, OAuthSession, repositories, connect/callback views
 ├─ media/         MediaAsset, UploadSession, chunked upload, storage, sweeps
 ├─ publishing/    Publication, PublicationTarget, repositories, Celery queue, tasks, API
-└─ platforms/     the business logic: core/ (toolkit, ports, use cases), registry.py, one folder per platform
+└─ platforms/     the business logic: core/ (interfaces, values, ports, usecases), platform_catalog.py, one folder per platform
 
 frontend/src/
 ├─ api/           RTK Query: baseApi + one module per area
@@ -267,10 +283,12 @@ frontend/src/
 
 - Anything touching a platform API, a token or a stored file is backend code.
 - A new platform goes in `backend/platforms/<platform>/` in the shared shape,
-  plus its factory in `platforms/registry.py` and its credential settings in
-  `config/wiring.py::CREDENTIAL_SETTINGS`.
+  plus its entry in `platforms/platform_catalog.py` and
+  `platforms/platform_configs.py`, and its config built from the settings in
+  `config/wiring.py::Container.platform_configs`.
 - A new rule about publishing or accounts goes in a use case in
-  `platforms/core/`; the database side of it goes in the app's repository.
+  `platforms/core/usecases/`; the database side of it goes in the app's
+  repository.
 - New screens go in `frontend/src/features/<feature>/`.
 - Cross-feature reusable UI goes in `frontend/src/components/`.
 - A new endpoint goes in `<app>/views/<name>.py`, one file per endpoint group.
@@ -341,12 +359,14 @@ npm run dev                                        # http://localhost:5173
 
 - **Backend tests are mandatory** for new behaviour, written as Given / When /
   Then. Two kinds:
-  - use cases in `platforms/core/` are tested as `SimpleTestCase` against the
-    in-memory fakes in `platforms/tests/fakes/`, which implement the same
-    ports — state transitions, windows and leases without a database;
-  - adapters, views and the whole path are Django `TestCase`, with the
-    platform mocked at `platforms.core.http.transport.requests.request` so the
-    real chunking and retry run.
+  - use cases and platforms in `platforms/` are tested as
+    `IsolatedAsyncioTestCase` against the in-memory fakes in
+    `platforms/tests/fakes/`, which implement the same ports — state
+    transitions, windows and leases without a database or Django;
+  - adapters, views and the whole path are Django `TestCase`, with the network
+    faked by `platforms/tests/fakes/http.py::FakeSession` patched into
+    `config.wiring.Container.open_session`, and YouTube by an `httplib2`-style
+    double behind `YouTubeApi.videos`, so the real chunking and retry run.
 - What must have a test: anything about who can see what, anything about
   tokens, the upload offsets, and every way a platform can refuse.
 - **Frontend tests cover pure functions only** — hashtag normalisation, the
@@ -402,9 +422,10 @@ Treat this section as mandatory.
   `EncryptedTextField`. A token must never appear in an API response, a log
   line, a `__str__`, the admin, or the SPA.
 - **No secret may go in a `VITE_*` variable.** The frontend bundle is public.
-- Report the class of a network exception, never its text: a `requests`
+- Report the class of a network exception, never its text: an `aiohttp`
   exception contains the URL, and the token request body carries
-  `client_secret`. `urllib3` is pinned to WARNING for the same reason.
+  `client_secret`. The `aiohttp` logger is pinned to WARNING for the same
+  reason.
 - `state` in an OAuth callback is checked twice: that we issued it and it is
   still pending, and that it belongs to the person whose session cookie is on
   the request.
@@ -412,8 +433,8 @@ Treat this section as mandatory.
 ### Human Approval Required Before
 
 - changing OAuth or credential handling (`backend/social/`,
-  `backend/platforms/core/auth/`, `backend/platforms/*/auth/`,
-  `backend/common/encryption/`);
+  `backend/platforms/core/auth/`, `backend/platforms/core/usecases/accounts/`,
+  `backend/platforms/*/auth/`, `backend/common/encryption/`);
 - deleting user data or stored media;
 - installing or replacing major dependencies;
 - rotating secrets or changing how `.env` is read;
@@ -422,7 +443,7 @@ Treat this section as mandatory.
 ### Sensitive Areas
 
 - Authentication: `backend/accounts/`, `backend/common/access/`, `backend/common/core/`
-- Platform authorisation: `backend/social/`, `backend/platforms/core/auth/`, `backend/platforms/*/auth/`
+- Platform authorisation: `backend/social/`, `backend/platforms/core/auth/`, `backend/platforms/core/usecases/accounts/`, `backend/platforms/*/auth/`
 - Encryption: `backend/common/encryption/`
 - Configuration: `backend/.env`
 

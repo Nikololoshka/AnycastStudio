@@ -16,7 +16,7 @@ Everything the desktop client did is in the `v0-desktop` tag. Read it with
 | X | `frontend/src/platforms/x/` | `frontend/src-tauri/src/commands/x_upload.rs` |
 | Instagram | `frontend/src/platforms/instagram/` | `frontend/src-tauri/src/commands/instagram_upload.rs` |
 
-The Rust loops are the specification for chunk sizes, retries and resume.
+The Rust loops are the specification for chunk sizes and retries.
 The TypeScript auth code is not a model to copy: it ran in the browser with
 the client secret in the bundle. Those secrets are compromised; every platform
 gets a new client pair before it is connected again.
@@ -41,24 +41,24 @@ registry.
 
 Everything goes in `backend/platforms/<p>/`. Nothing in `publishing/` or
 `social/` changes: the pipeline, the confirmation polling, the token refresh
-and the OAuth flow are shared use cases in `platforms/core/` and reach the
-platform only through the `Platform` its factory builds. Read
-`docs/adr/0002-platforms-core.md` for why.
+and the OAuth flow are shared use cases in `platforms/core/usecases/` and reach
+the platform only through its `Platform`. Read
+`docs/adr/0002-platforms-core.md` and `docs/adr/0003-async-platforms.md` for
+why.
 
 ### The shape, mirrored from `platforms/tiktok/`
 
 ```text
 <p>/
-├─ client.py        <P>Client(PlatformClient) and, when the platform has its own
-│                   error envelope, <P>FailureClassifier(FailureClassifier)
-├─ responses.py     models several parts share (optional)
-├─ auth/            provider.py (<P>Provider(OAuth2Provider)), responses.py
-├─ upload/          state.py (ResumeState), protocol.py (the platform's upload
-│                   calls), session.py (<P>UploadSession), uploader.py
-├─ publish/         publisher.py (<P>Publisher(Publisher)), status calls
-├─ options/         options.py (<P>Options.of(raw)), validator.py
-│                   (<P>Validator), capabilities.py (CAPABILITIES)
-└─ platform.py      <P>Factory(PlatformFactory).build(config, clock) -> Platform
+├─ core/                  <p>_config.py (<P>Config, frozen, with `configured`),
+│                         <p>_endpoints.py, <p>_http.py (<P>Http(PlatformHttp)),
+│                         <p>_response.py (<P>Response(PlatformResponse)),
+│                         <p>_answer.py (the pydantic base of every answer)
+├─ auth/                  <p>_authorization_interactor.py, answers/
+├─ publish/               <p>_publish_interactor.py, <p>_options.py, answers/
+├─ <p>_capabilities.py    <P>Capabilities(PlatformCapabilities)
+├─ <p>_validator.py       <P>Validator(PlatformValidator)
+└─ <p>_platform.py        <P>Platform(Platform)
 ```
 
 `platforms/tests/core/test_architecture.py` fails if a folder misses a part,
@@ -66,42 +66,38 @@ imports another platform or Django, or exposes a public function.
 
 ### The parts
 
-- **Client.** `PlatformClient.send` owns the timeout, the classification and
-  the retry. Override `FailureClassifier.classify` to read the platform's
-  error envelope, even on a 200, and keep its code in `PlatformError.details`.
-  Read every answer with `client.parse(response, Model, refusal=...)`, never
-  as a raw dict; a missing required field names only the field path, never the
-  values.
-- **Provider.** Class attributes for `name`, `label`, `scopes` and the
-  endpoints; `create(config)` builds it with the client, the credentials from
-  `config.credentials_of(name)` and `config.callback_url(name)`. Override
-  `client_id_param`, `scope_separator`, `uses_pkce`, `code_challenge`,
-  `authorize_params` or `token_request` only where the platform differs;
-  implement `fetch_identity` and `revoke(access_token, refresh_token)`.
-- **Upload.** `ResumeState` is a frozen `ResumableState`; the session
-  advances it with `dataclasses.replace`. Wrap every call that sends a token
-  in `TokenRejectionGuard(state).run(...)` so a 401 becomes
-  `NeedsFreshToken` carrying the resume point. `UploadDriver` owns the loop,
-  the cancel check and the progress reports; `VideoFile.piece` refuses a file
-  shorter than claimed. Anything time-based reads the `Clock` the factory
-  receives.
-- **Publisher.** Works on a `PublishJob`:
-  - `upload(job, token, on_progress, should_cancel) -> media_id`;
-  - `publish(job, media_id, token)` — the default waits for confirmation;
-    return `Published(COMPLETED | SCHEDULED, url)` when the platform answers
-    at once;
+- **Http and response.** `PlatformHttp.request` sends and reports a network
+  error by its class only; `answer(method, url, Model)` reads the body into a
+  pydantic answer or raises. `<P>Response.failure()` maps the platform's error
+  envelope — even on a 200 — onto a `PlatformFailure`, and `refusal()` keeps
+  the platform's words for the message. Never read an answer as a raw dict.
+- **Authorization interactor.** `create_auth_request(state)` builds the consent
+  URL and the PKCE verifier without a network call; `create_auth_token`,
+  `refresh_auth_token`, `fetch_auth_profile` and `revoke_auth_token(AuthToken)`
+  talk to the platform. Revoke receives the whole token: the platform decides
+  what it revokes.
+- **Publish interactor.** Works on a `PublishJob`:
+  - `upload(job, token)` — an async generator of `UploadProgress`; the last
+    event carries the media id. Read the file through `VideoFile.piece`, and
+    retry a chunk that met an outage through `RetryPolicy`. Nothing about the
+    session is stored.
+  - `publish(job, token)` — `Published` or `Scheduled` when the platform
+    answers at once, `AwaitingConfirmation(state)` when it processes later;
   - `confirm(job, token)` — `NotReady`, `Published`, or `ReadyToCommit` when
     the last step must not run twice; then implement `commit(job, token)`,
     and `resolve_uncertain` if the platform can tell whether an unanswered
     commit went through.
-- **Validator.** `validate(draft)` returns error codes the frontend also
+- **Validator.** `validate(draft, media)` returns error codes the frontend also
   knows. `draft.caption()` is the shared title + description + hashtags text.
-- **Factory.** Builds one client and hands it to every part.
+- **Platform.** Builds one `<P>Http` on the session it receives and hands it to
+  every part.
 
 ### Registrations
 
-- `platforms/registry.py` — the factory in `FACTORIES`.
-- `config/wiring.py::CREDENTIAL_SETTINGS` — the `<P>_CLIENT_*` setting names.
+- `platforms/platform_catalog.py` and `platforms/platform_configs.py` — the
+  platform and its config; `platforms/core/platform_type.py` — its name.
+- `config/wiring.py::Container.platform_configs` — the config built from the
+  `<P>_CLIENT_*` settings and the callback URL.
 - `config/settings/base.py` and `test.py` — `<P>_CLIENT_*`; `.env.example` —
   the block with the redirect URI and the required app type.
 
@@ -148,17 +144,17 @@ Locales: `en` and `ru` together, in `platforms.json` under the platform's key.
 
 ## Tests that caught real mistakes
 
-- **Platform**, `backend/platforms/tests/<p>/` with a stateful double routed
-  by URL: the init body matches the chunks sent, every byte goes once and in
-  order, the last-chunk rule, resume inside and outside the upload's
-  lifetime, 401 → `NeedsFreshToken`, the envelope error on a 200, each
-  refusal reason. Build the parts with `TEST_CONFIG` from
-  `platforms/tests/base.py`.
+- **Platform**, `backend/platforms/tests/<p>/` on the `FakeSession` from
+  `platforms/tests/fakes/http.py`: the init body matches the chunks sent,
+  every byte goes once and in order, the last-chunk rule, a chunk retried
+  after an outage, 401 → `token_rejected`, the envelope error on a 200, each
+  refusal reason mapped to its `PlatformFailure`.
 - **Pipeline**, `backend/publishing/tests/test_<p>.py` through
-  `container()`: local refusals make no call, an upload ends `processing`
-  rather than `completed`, confirmation completes, fails with the platform's
-  reason, or times out, a duplicate confirmation does nothing, and the
-  abandoned-upload claim leaves `processing` alone.
+  `container().run` with a stateful double routed by URL
+  (`FakeSession.responder`): local refusals make no call, an upload ends
+  `processing` rather than `completed`, confirmation completes, fails with the
+  platform's reason, or times out, a duplicate confirmation does nothing, and
+  the abandoned-target sweep leaves `processing` alone.
 - **OAuth**, `backend/social/tests/test_<p>.py`: the consent URL (client
   parameter name, challenge encoding) and a full callback.
 - **Contract**: add a test to `publishing/tests/test_platforms.py::ContractScenarios`
@@ -168,8 +164,8 @@ Locales: `en` and `ru` together, in `platforms.json` under the platform's key.
 
 ## What TikTok changed in shared code
 
-Historical: these changes predate `docs/adr/0002-platforms-core.md`, which
-moved them into `platforms/core/`.
+Historical: these changes predate `docs/adr/0002-platforms-core.md` and
+`docs/adr/0003-async-platforms.md`, which moved them into `platforms/core/`.
 
 | Change | Why |
 | --- | --- |

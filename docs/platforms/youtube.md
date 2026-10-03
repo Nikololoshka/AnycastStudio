@@ -89,19 +89,19 @@ The chunk size is `PLATFORM_CHUNK_BYTES` (8 MiB). The desktop client used 1 MiB
 for a responsive progress bar in a window; on a server that is eight times the
 request overhead for no benefit.
 
-After every chunk the session URI and the confirmed offset are handed to the
-pipeline, which writes them to `PublicationTarget.resume_state` on whole
-percents. This is the one thing the desktop version did not need: a worker that
-is killed resumes rather than re-sending gigabytes. Because the stored offset
-can lag by up to a percent, a resumed upload always asks Google first (step 5)
-and continues from Google's answer — or finishes at once when the worker died
-after the last chunk.
+The protocol is driven by `google-api-python-client` (`videos.insert` with a
+resumable `MediaUpload` over the stored file), run in a thread so the event
+loop keeps serving. The client retries a chunk that met a 5xx inside the same
+session, up to `UPLOAD_RETRY_ATTEMPTS`; the bytes Google already kept are not
+sent again. Progress reaches the pipeline after every chunk and is written on
+whole percents.
 
-If Google stops advancing (`UPLOAD_RETRY_ATTEMPTS` chunks in a row without a
-larger offset), the upload fails as `platform` instead of looping.
+Nothing about the session is stored. A worker that is killed mid-upload leaves
+the target to `StaleTargetSweeper`, and a retry uploads the file again
+(`docs/adr/0003-async-platforms.md`).
 
-A `401` mid-upload is not retried — it is raised with the resume point, so the
-pipeline refreshes the token and continues from the confirmed offset.
+A `401` mid-upload is `token_rejected`: the token is refreshed once and the
+upload starts again with it.
 
 ---
 
@@ -145,15 +145,16 @@ Limits enforced before anything is sent: title 100 characters, description
 
 | Response | Meaning | What happens |
 | --- | --- | --- |
-| 401 | Access token expired | Refreshed, upload resumes from the offset |
-| 403 | Scope revoked, or quota exhausted | Fails as `authorization`; not retried |
-| 429 | Rate limited | Retried with backoff |
-| 400 / 404 / 422 | The file or the request was rejected | Fails as `validation`; not retried |
-| 5xx / 408 | Google is having trouble | Retried with backoff, five attempts |
-| network error | No answer at all | Retried like a 5xx; only the exception class is reported |
+| 401 | Access token expired | `token_rejected`: refreshed once, the upload starts again |
+| 403 `insufficientPermissions` | Scope revoked | `scope_missing`: the account asks to be reconnected |
+| 403 `quotaExceeded` / 429 | Quota exhausted or rate limited | `rate_limited`; not retried by the pipeline |
+| 400 `invalid*` | The metadata was rejected | `invalid`; not retried |
+| 400 / 404 / 422 otherwise | The request was refused | `refused`; not retried |
+| 5xx / 408 | Google is having trouble | `network`; the chunk is retried inside the session |
+| network error | No answer at all | `network`; only the exception class is reported |
 
 Backoff is exponential from one second to thirty, with jitter, so retries do
 not arrive in lockstep. Anything the platform *decided* (401, 403, 4xx) is never
 repeated: each attempt spends quota that cannot be recovered. A network error
-is reported by its class only, because the `requests` exception text contains
-the URL and the token request body carries `client_secret`.
+is reported by its class only, because the exception text contains the URL
+and the token request body carries `client_secret`.

@@ -102,11 +102,11 @@ and at most 1,000 chunks.
 The caption is the title, the description and the hashtags, separated by blank
 lines, at most 2,200 UTF-16 units.
 
-**Resuming.** TikTok cannot say how much it has received, so `resume_state`
-records the next chunk to send, and the upload URL with its expiry. The URL
-lives an hour; we treat it as 55 minutes. A worker that restarts inside that
-window continues at the next chunk. After it, the upload starts over with a new
-`init`; the abandoned `publish_id` never publishes, so no post is duplicated.
+**No resuming.** TikTok cannot say how much it has received, and its upload
+URL lives an hour. An upload is not resumed: a worker that stops leaves the
+target to `StaleTargetSweeper`, and a retry starts over with a new `init`. The
+abandoned `publish_id` never publishes, so no post is duplicated. A chunk that
+met an outage is sent again with the same range (`RetryPolicy`).
 
 ---
 

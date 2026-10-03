@@ -83,12 +83,11 @@ Chunks are `PLATFORM_CHUNK_BYTES` (8 MiB); Meta sets no size.
 The caption is the title, the description and the hashtags, separated by blank
 lines, as for TikTok.
 
-**Resuming.** `resume_state` holds the container id, the offset and when the
-container was created. A restarted worker asks the container for
-`video_status.uploading_phase.bytes_transferred` and continues from there, or
-from the stored offset when Meta does not say. A container older than 23 hours
-(Meta expires them after 24), or one that is `ERROR`, `EXPIRED` or
-`PUBLISHED`, is abandoned and a new one is created.
+**No resuming.** An upload is not resumed: a worker that stops leaves the
+target to `StaleTargetSweeper`, and a retry creates a new container. Meta
+expires an unused container after 24 hours, so the abandoned one never
+publishes. A piece that met an outage is sent again at the same offset
+(`RetryPolicy`).
 
 ---
 
