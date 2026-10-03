@@ -1,7 +1,10 @@
+import logging
 import secrets
 from collections.abc import Awaitable, Callable
 
-from platforms2.core import AuthorizationError, Platform
+from platforms2.core import AuthFailure, AuthorizationError, AuthToken, Platform
+
+logger = logging.getLogger(__name__)
 
 
 # Тестовый эскиз: весь жизненный цикл аккаунта одной функцией, чтобы видеть
@@ -44,17 +47,17 @@ async def authorization_flow_sketch(
     # В БД это условный UPDATE pending → used (claim), чтобы повторный
     # callback не прошёл.
     if callback.get("state") != session["state"] or session["status"] != "pending":
-        raise AuthorizationError("Unknown or used state")
+        raise AuthorizationError(AuthFailure.REFUSED, "Unknown or used state")
     session["status"] = "used"
 
     # Проверка 2: callback пришёл от того же пользователя, что начал подключение
     # (сравнение с пользователем из session cookie).
     if callback.get("requester_id") != session["owner_id"]:
-        raise AuthorizationError("State belongs to another user")
+        raise AuthorizationError(AuthFailure.REFUSED, "State belongs to another user")
 
     # Пользователь отказался на странице согласия.
     if callback.get("error") or not callback.get("code"):
-        raise AuthorizationError("User cancelled")
+        raise AuthorizationError(AuthFailure.REFUSED, "User cancelled")
 
     # Сеть №1: меняем одноразовый code на токены. Не повторять при ошибке —
     # повторный обмен того же code получит invalid_grant.
@@ -86,11 +89,21 @@ async def authorization_flow_sketch(
     try:
         refreshed = await authorization.refresh_auth_token(account["refresh_token"])
     except AuthorizationError as error:
-        if error.transient:
-            # Сеть или 5xx: аккаунт в порядке, попробуем позже.
-            raise
-        # invalid_grant и т.п.: пользователь отозвал доступ — нужен reconnect.
-        account["status"] = "needs_reauth"
+        match error.failure:
+            case AuthFailure.NETWORK | AuthFailure.RATE_LIMITED:
+                # Сеть, 5xx или лимит: аккаунт в порядке, попробуем позже.
+                pass
+            case AuthFailure.GRANT_REVOKED | AuthFailure.SCOPE_MISSING:
+                # invalid_grant: пользователь отозвал доступ;
+                # scope_not_authorized: прав не хватает. Помогает только reconnect.
+                account["status"] = "needs_reauth"
+            case AuthFailure.MISCONFIGURED:
+                # Наш client_id/secret/redirect_uri неверен. Аккаунт НЕ трогаем,
+                # иначе ошибка в .env переведёт все аккаунты в needs_reauth.
+                logger.error("%s client is misconfigured: %s", "platform", error.message)
+            case _:
+                # REFUSED / UNEXPECTED / TOKEN_REJECTED: залогировать, аккаунт не трогать.
+                logger.warning("Refresh failed: %s (%s)", error.message, error.failure)
         raise
 
     # Google при refresh не присылает новый refresh_token — старый сохраняем.
@@ -99,9 +112,12 @@ async def authorization_flow_sketch(
     account["expires_in"] = refreshed.expires_in
 
     # ── 5. DELETE /api/social/accounts/<id> ──────────────────────────────
-    # Отзываем доступ у платформы. Отзыв refresh_token отзывает и access_token.
+    # Отзываем доступ у платформы. Передаём токен целиком: платформа сама решает,
+    # что отзывать (Google — refresh_token, TikTok — access_token).
     try:
-        await authorization.revoke_auth_token(account["refresh_token"] or account["access_token"])
+        await authorization.revoke_auth_token(
+            AuthToken(access_token=account["access_token"], refresh_token=account["refresh_token"])
+        )
     except AuthorizationError:
         # Отказ платформы не мешает отключить аккаунт у нас.
         pass

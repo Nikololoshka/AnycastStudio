@@ -175,10 +175,12 @@ class TokenService:
         try:
             return await authorization.refresh_auth_token(account.refresh_token)
         except AuthorizationError as error:
-            if error.transient:
-                raise
-            await self._accounts.mark_needs_reauth(account.id, error.message)
-            raise AuthorizationError(RECONNECT) from None
+            if error.failure in (AuthFailure.GRANT_REVOKED, AuthFailure.SCOPE_MISSING):
+                await self._accounts.mark_needs_reauth(account.id, error.message)
+                raise AuthorizationError(error.failure, RECONNECT) from None
+            if error.failure is AuthFailure.MISCONFIGURED:
+                logger.error("%s client is misconfigured: %s", account.platform, error.message)
+            raise
 ```
 
 - Lease остаётся условным UPDATE в БД: два процесса (web и воркер) могут
@@ -186,11 +188,20 @@ class TokenService:
 - Ожидание чужого refresh — `await asyncio.sleep(...)` вместо `time.sleep`, loop не блокируется.
 - Google не возвращает новый `refresh_token` при refresh, поэтому `merged_with`
   оставляет старый (нужно перенести из `platforms/core/auth/tokens.py`).
-- Постоянная ошибка (`invalid_grant`) — аккаунт `needs_reauth`; временная —
-  пробрасывается, решает вызывающий.
+- Реакция зависит от `AuthFailure`:
 
-Ответ 401 от API платформы во время публикации: один раз вызвать `refresh` и
-повторить запрос; второй 401 — `needs_reauth`.
+| `AuthFailure` | Google | TikTok | Реакция |
+| --- | --- | --- | --- |
+| `NETWORK` | обрыв, 408, 5xx | обрыв, 408, 5xx | повторить с backoff |
+| `RATE_LIMITED` | 429, `quotaExceeded`, `rateLimitExceeded` | 429, `rate_limit_exceeded` | ждать; квоту YouTube повтор не вернёт |
+| `TOKEN_REJECTED` | 401 на API | `access_token_invalid`, 401 | один раз `refresh_auth_token` и повторить вызов |
+| `GRANT_REVOKED` | `invalid_grant` | `invalid_grant` | при refresh — `needs_reauth`; при обмене кода — подключить заново |
+| `SCOPE_MISSING` | `insufficientPermissions`, `ACCESS_TOKEN_SCOPE_INSUFFICIENT` | `scope_not_authorized` | `needs_reauth`, refresh не поможет |
+| `MISCONFIGURED` | `invalid_client`, `unauthorized_client`, `redirect_uri_mismatch`, `invalid_scope`, `invalid_request` | те же OAuth-коды | лог уровня error; аккаунты **не трогать** |
+| `REFUSED` | прочие 4xx, нет канала | прочие коды | показать причину |
+| `UNEXPECTED` | ответ не той формы | ответ не той формы | лог, не повторять |
+
+Второй `TOKEN_REJECTED` сразу после refresh — `needs_reauth`.
 
 ## 6. Отключение аккаунта
 
@@ -199,7 +210,7 @@ class AccountService:
     async def disconnect(self, account_id: int) -> None:
         account = await self._accounts.tokens_of(account_id)
         try:
-            await self._catalog.get(account.platform).get_authorization_interactor().revoke_auth_token(account.refresh_token or account.access_token)
+            await self._catalog.get(account.platform).get_authorization_interactor().revoke_auth_token(account.token)
         except AuthorizationError as error:
             logger.info("Revocation of account %s failed: %s", account_id, error.message)
         await self._accounts.mark_revoked(account_id)
@@ -242,8 +253,9 @@ class AccountService:
 
 ## 9. Повторы
 
-`GoogleHttp` только помечает ошибку `transient`. Повтор делает async-политика
-вокруг вызова, а не сам клиент:
+`GoogleHttp` только классифицирует отказ (`AuthFailure`); `transient` — производное
+свойство (`NETWORK`, `RATE_LIMITED`). Повтор делает async-политика вокруг вызова,
+а не сам клиент:
 
 ```python
 class RetryPolicy:

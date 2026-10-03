@@ -3,7 +3,7 @@ from typing import TypeVar
 import aiohttp
 from pydantic import BaseModel, ValidationError
 
-from platforms2.core import AuthorizationError
+from platforms2.core import AuthFailure, AuthorizationError
 
 from .google_response import GoogleResponse
 
@@ -21,16 +21,16 @@ class GoogleHttp:
             async with self._session.request(method, url, **kwargs) as response:
                 return GoogleResponse(response.status, await self._body_of(response))
         except (aiohttp.ClientError, TimeoutError) as exc:
-            raise AuthorizationError(f"{self.LABEL} request failed: {type(exc).__name__}", transient=True) from None
+            raise AuthorizationError(AuthFailure.NETWORK, f"{self.LABEL} request failed: {type(exc).__name__}") from None
 
     async def answer(self, method: str, url: str, model: type[M], **kwargs) -> M:
         response = await self.request(method, url, **kwargs)
         if not response.ok:
-            raise AuthorizationError(f"{self.LABEL} refused: {response.refusal()}", transient=response.transient)
+            raise AuthorizationError(response.failure(), f"{self.LABEL} refused: {response.refusal()}")
         try:
             return model.model_validate(response.body)
         except ValidationError:
-            raise AuthorizationError(f"{self.LABEL} answered in an unexpected shape") from None
+            raise AuthorizationError(AuthFailure.UNEXPECTED, f"{self.LABEL} answered in an unexpected shape") from None
 
     @staticmethod
     async def _body_of(response: aiohttp.ClientResponse) -> dict:

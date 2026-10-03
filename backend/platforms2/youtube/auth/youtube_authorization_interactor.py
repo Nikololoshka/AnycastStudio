@@ -1,7 +1,7 @@
 from typing import override
 from urllib.parse import urlencode
 
-from platforms2.core import AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken
+from platforms2.core import AuthFailure, AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken
 
 from ..google_endpoints import GoogleEndpoints
 from ..google_http import GoogleHttp
@@ -63,7 +63,7 @@ class YouTubeAuthorizationInteractor(AuthorizationInteractor):
             headers={"Authorization": f"Bearer {access_token}"},
         )
         if not channels.items:
-            raise AuthorizationError("This Google account has no YouTube channel")
+            raise AuthorizationError(AuthFailure.REFUSED, "This Google account has no YouTube channel")
 
         channel = channels.items[0]
         return AuthProfile(
@@ -73,11 +73,12 @@ class YouTubeAuthorizationInteractor(AuthorizationInteractor):
         )
 
     @override
-    async def revoke_auth_token(self, token: str) -> None:
-        response = await self._http.request("POST", GoogleEndpoints.REVOKE, data={"token": token})
+    async def revoke_auth_token(self, token: AuthToken) -> None:
+        revocable = token.refresh_token or token.access_token
+        response = await self._http.request("POST", GoogleEndpoints.REVOKE, data={"token": revocable})
         if response.ok or response.body.get("error") == "invalid_token":
             return
-        raise AuthorizationError(f"YouTube refused the revocation: {response.refusal()}", transient=response.transient)
+        raise AuthorizationError(response.failure(), f"YouTube refused the revocation: {response.refusal()}")
 
     async def _token(self, grant_params: dict) -> AuthToken:
         form = {"client_id": self._config.client_id, "client_secret": self._config.client_secret, **grant_params}
