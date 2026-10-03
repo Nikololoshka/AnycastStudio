@@ -17,6 +17,7 @@ class YouTubePlatform(Platform):
     def __init__(self, config: YouTubeConfig, session: aiohttp.ClientSession):
         http = GoogleHttp(session)
 
+        self.configured = config.configured
         self.capabilities = YouTubeCapabilities()
         self.validator = YouTubeValidator(self.capabilities)
         self._authorization = YouTubeAuthorizationInteractor(config, http)

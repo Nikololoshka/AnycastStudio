@@ -2,7 +2,7 @@ from platforms2.core import AuthToken
 
 from ...core import GoogleAnswer
 
-# todo: mapper?
+
 class TokenAnswer(GoogleAnswer):
     access_token: str
     refresh_token: str | None = None

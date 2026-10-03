@@ -17,6 +17,7 @@ class XPlatform(Platform):
     def __init__(self, config: XConfig, session: aiohttp.ClientSession):
         http = XHttp(session)
 
+        self.configured = config.configured
         self.capabilities = XCapabilities()
         self.validator = XValidator(self.capabilities)
         self._authorization = XAuthorizationInteractor(config, http)

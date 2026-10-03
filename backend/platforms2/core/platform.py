@@ -10,6 +10,7 @@ from .publish import PublishInteractor
 
 class Platform(ABC):
     platform_type: ClassVar[PlatformType]
+    configured: bool
     capabilities: PlatformCapabilities
     validator: PlatformValidator
 

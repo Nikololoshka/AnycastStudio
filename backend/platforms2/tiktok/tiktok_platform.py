@@ -17,6 +17,7 @@ class TikTokPlatform(Platform):
     def __init__(self, config: TikTokConfig, session: aiohttp.ClientSession):
         http = TikTokHttp(session)
 
+        self.configured = config.configured
         self.capabilities = TikTokCapabilities()
         self.validator = TikTokValidator(self.capabilities)
         self._authorization = TikTokAuthorizationInteractor(config, http)

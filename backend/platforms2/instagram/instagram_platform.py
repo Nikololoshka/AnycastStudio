@@ -17,6 +17,7 @@ class InstagramPlatform(Platform):
     def __init__(self, config: InstagramConfig, session: aiohttp.ClientSession):
         http = InstagramHttp(session)
 
+        self.configured = config.configured
         self.capabilities = InstagramCapabilities()
         self.validator = InstagramValidator(self.capabilities)
         self._authorization = InstagramAuthorizationInteractor(config, http)

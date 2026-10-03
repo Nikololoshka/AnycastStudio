@@ -14,3 +14,7 @@ class InstagramConfig:
     )
     chunk_bytes: int = 8 * 1024**2
     retries: int = 5
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.client_id and self.client_secret)
