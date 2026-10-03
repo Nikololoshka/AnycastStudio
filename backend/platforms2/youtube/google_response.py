@@ -1,10 +1,7 @@
-from dataclasses import dataclass
-
-from platforms2.core import AuthFailure
+from platforms2.core import AuthFailure, PlatformResponse
 
 
-@dataclass(frozen=True)
-class GoogleResponse:
+class GoogleResponse(PlatformResponse):
     REFUSAL_LIMIT = 200
     OAUTH_FAILURES = {
         "invalid_grant": AuthFailure.GRANT_REVOKED,
@@ -22,13 +19,6 @@ class GoogleResponse:
         "insufficientPermissions": AuthFailure.SCOPE_MISSING,
         "ACCESS_TOKEN_SCOPE_INSUFFICIENT": AuthFailure.SCOPE_MISSING,
     }
-
-    status: int
-    body: dict
-
-    @property
-    def ok(self) -> bool:
-        return 200 <= self.status < 300
 
     def failure(self) -> AuthFailure:
         if self.status == 408 or self.status >= 500:

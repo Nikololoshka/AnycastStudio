@@ -1,10 +1,7 @@
-from dataclasses import dataclass
-
-from platforms2.core import AuthFailure
+from platforms2.core import AuthFailure, PlatformResponse
 
 
-@dataclass(frozen=True)
-class TikTokResponse:
+class TikTokResponse(PlatformResponse):
     REFUSAL_LIMIT = 200
     OK_CODE = "ok"
     CODE_FAILURES = {
@@ -17,9 +14,6 @@ class TikTokResponse:
         "invalid_scope": AuthFailure.MISCONFIGURED,
         "invalid_request": AuthFailure.MISCONFIGURED,
     }
-
-    status: int
-    body: dict
 
     @property
     def ok(self) -> bool:

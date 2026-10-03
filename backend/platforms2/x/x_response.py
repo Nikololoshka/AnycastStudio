@@ -1,10 +1,7 @@
-from dataclasses import dataclass
-
-from platforms2.core import AuthFailure
+from platforms2.core import AuthFailure, PlatformResponse
 
 
-@dataclass(frozen=True)
-class XResponse:
+class XResponse(PlatformResponse):
     REFUSAL_LIMIT = 200
     PROBLEM_PREFIX = "https://api.x.com/2/problems/"
     INVALID_TOKEN_MARK = "was invalid"
@@ -19,13 +16,6 @@ class XResponse:
         "usage-capped": AuthFailure.RATE_LIMITED,
         "client-forbidden": AuthFailure.MISCONFIGURED,
     }
-
-    status: int
-    body: dict
-
-    @property
-    def ok(self) -> bool:
-        return 200 <= self.status < 300
 
     def failure(self) -> AuthFailure:
         error = self.body.get("error")

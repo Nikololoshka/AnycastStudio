@@ -1,4 +1,5 @@
-from .auth import AuthFailure, AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken
+from .auth import AuthFailure, AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce
+from .http import PlatformHttp, PlatformResponse
 from .platform import Platform
 from .platform_capabilities import PlatformCapabilities
 from .platform_publisher import PlatformPublisher
@@ -11,7 +12,10 @@ __all__ = [
     "AuthToken",
     "AuthorizationError",
     "AuthorizationInteractor",
+    "Pkce",
     "Platform",
+    "PlatformHttp",
+    "PlatformResponse",
     "PlatformCapabilities",
     "PlatformPublisher",
     "PlatformValidator",

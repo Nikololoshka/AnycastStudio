@@ -1,18 +1,12 @@
-from dataclasses import dataclass
-
-from platforms2.core import AuthFailure
+from platforms2.core import AuthFailure, PlatformResponse
 
 
-@dataclass(frozen=True)
-class InstagramResponse:
+class InstagramResponse(PlatformResponse):
     REFUSAL_LIMIT = 200
     TOKEN_REJECTED_CODES = (102, 190)
     MISCONFIGURED_CODES = (101, 191)
     PERMISSION_CODES = (10, *range(200, 300))
     THROTTLED_CODES = (4, 17, 32, 613)
-
-    status: int
-    body: dict
 
     @property
     def ok(self) -> bool:

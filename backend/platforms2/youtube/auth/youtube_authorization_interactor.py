@@ -1,13 +1,12 @@
 from typing import override
 from urllib.parse import urlencode
 
-from platforms2.core import AuthFailure, AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken
+from platforms2.core import AuthFailure, AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce
 
 from ..google_endpoints import GoogleEndpoints
 from ..google_http import GoogleHttp
 from ..youtube_config import YouTubeConfig
 from .channel_list import ChannelList
-from .pkce import Pkce
 from .token_answer import TokenAnswer
 
 

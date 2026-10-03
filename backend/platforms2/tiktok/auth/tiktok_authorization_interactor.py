@@ -1,12 +1,11 @@
 from typing import override
 from urllib.parse import urlencode
 
-from platforms2.core import AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken
+from platforms2.core import AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce
 
 from ..tiktok_config import TikTokConfig
 from ..tiktok_endpoints import TikTokEndpoints
 from ..tiktok_http import TikTokHttp
-from .pkce import Pkce
 from .token_answer import TokenAnswer
 from .user_info import UserInfo
 

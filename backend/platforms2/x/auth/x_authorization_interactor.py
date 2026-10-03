@@ -3,13 +3,12 @@ from urllib.parse import urlencode
 
 import aiohttp
 
-from platforms2.core import AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken
+from platforms2.core import AuthorizationError, AuthorizationInteractor, AuthProfile, AuthRequest, AuthToken, Pkce
 
 from ..x_config import XConfig
 from ..x_endpoints import XEndpoints
 from ..x_http import XHttp
 from .me import Me
-from .pkce import Pkce
 from .token_answer import TokenAnswer
 
 
