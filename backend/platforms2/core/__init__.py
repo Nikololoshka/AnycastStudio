@@ -20,6 +20,7 @@ from .publish import (
     UploadProgress,
     VideoFile,
 )
+from .validation_result import ValidationResult
 
 __all__ = [
     "AuthProfile",
@@ -47,5 +48,6 @@ __all__ = [
     "RetryPolicy",
     "Scheduled",
     "UploadProgress",
+    "ValidationResult",
     "VideoFile",
 ]

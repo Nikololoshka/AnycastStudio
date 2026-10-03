@@ -1,5 +1,10 @@
-from abc import ABC
+from abc import ABC, abstractmethod
+
+from .publish import PublishDraft, PublishMedia
+from .validation_result import ValidationResult
 
 
 class PlatformValidator(ABC):
-    pass
+
+    @abstractmethod
+    def validate(self, draft: PublishDraft, media: PublishMedia) -> ValidationResult: ...

@@ -6,6 +6,7 @@ from typing import ClassVar, Self
 @dataclass(frozen=True)
 class TikTokOptions:
     PRIVACY_VALUES: ClassVar = ("PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY")
+    PRIVATE: ClassVar = "SELF_ONLY"
 
     privacy_level: str | None = None
     disable_comment: bool = False
@@ -31,6 +32,10 @@ class TikTokOptions:
             is_aigc=bool(raw.get("isAigc")),
             cover_frame_seconds=cls._seconds(raw.get("coverFrameSeconds")),
         )
+
+    @property
+    def is_private(self) -> bool:
+        return self.privacy_level == self.PRIVATE
 
     @property
     def brand_organic_toggle(self) -> bool:
