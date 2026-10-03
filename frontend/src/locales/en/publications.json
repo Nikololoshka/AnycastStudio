@@ -25,12 +25,16 @@
   },
   "error": {
     "network": "The connection to the platform failed.",
-    "authentication": "The account needs reconnecting.",
-    "authorization": "The platform refused this account.",
-    "rate_limit": "The platform is rate limiting us. Try later.",
-    "validation": "The platform rejected the video.",
-    "platform": "The platform is having trouble.",
-    "file": "The uploaded video is no longer on the server.",
-    "unknown": "Something went wrong."
+    "rate_limited": "The platform is limiting requests. Try later.",
+    "token_rejected": "The platform refused the account’s access. Try again; if it repeats, reconnect the account.",
+    "grant_revoked": "The account needs reconnecting.",
+    "scope_missing": "The account is missing a permission. Reconnect it and allow everything it asks for.",
+    "misconfigured": "The app’s connection to the platform is misconfigured.",
+    "invalid": "The platform rejected the post’s settings.",
+    "file_rejected": "The platform could not accept this video file.",
+    "media_missing": "The uploaded video is no longer on the server.",
+    "refused": "The platform refused the publish.",
+    "unconfirmed": "The platform did not confirm the post. Check it there before publishing again.",
+    "unexpected": "Something went wrong."
   }
 }

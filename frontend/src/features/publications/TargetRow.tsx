@@ -82,7 +82,7 @@ export function TargetRow({ target }: { target: PublicationTarget }) {
 
       {target.error && (
         <p className="text-sm text-danger">
-          {t(`error.${target.error.type}`, { defaultValue: target.error.message })}
+          {t(`error.${target.error.failure}`, { defaultValue: target.error.message })}
         </p>
       )}
     </div>

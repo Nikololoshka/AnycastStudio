@@ -10,18 +10,22 @@ export type PublicationStatus =
   | 'failed'
   | 'cancelled';
 
-export type ErrorType =
+export type PlatformFailure =
   | 'network'
-  | 'authentication'
-  | 'authorization'
-  | 'validation'
-  | 'rate_limit'
-  | 'platform'
-  | 'file'
-  | 'unknown';
+  | 'rate_limited'
+  | 'token_rejected'
+  | 'grant_revoked'
+  | 'scope_missing'
+  | 'misconfigured'
+  | 'invalid'
+  | 'file_rejected'
+  | 'media_missing'
+  | 'refused'
+  | 'unconfirmed'
+  | 'unexpected';
 
 export interface PublicationError {
-  type: ErrorType;
+  failure: PlatformFailure;
   message: string;
   details?: string;
 }
