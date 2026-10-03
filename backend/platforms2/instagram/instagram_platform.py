@@ -17,7 +17,7 @@ class InstagramPlatform(Platform):
         http = InstagramHttp(session)
 
         self.capabilities = InstagramCapabilities()
-        self.validator = InstagramValidator()
+        self.validator = InstagramValidator(self.capabilities)
         self._authorization = InstagramAuthorizationInteractor(config, http)
         self._publishing = InstagramPublishInteractor(config, http)
 

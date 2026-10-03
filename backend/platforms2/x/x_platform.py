@@ -17,7 +17,7 @@ class XPlatform(Platform):
         http = XHttp(session)
 
         self.capabilities = XCapabilities()
-        self.validator = XValidator()
+        self.validator = XValidator(self.capabilities)
         self._authorization = XAuthorizationInteractor(config, http)
         self._publishing = XPublishInteractor(config, http)
 

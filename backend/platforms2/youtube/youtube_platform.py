@@ -17,7 +17,7 @@ class YouTubePlatform(Platform):
         http = GoogleHttp(session)
 
         self.capabilities = YouTubeCapabilities()
-        self.validator = YouTubeValidator()
+        self.validator = YouTubeValidator(self.capabilities)
         self._authorization = YouTubeAuthorizationInteractor(config, http)
         self._publishing = YouTubePublishInteractor(config)
 

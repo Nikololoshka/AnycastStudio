@@ -20,6 +20,7 @@ from .publish import (
     UploadProgress,
     VideoFile,
 )
+from .scheduling import Scheduling
 from .validation_result import ValidationResult
 
 __all__ = [
@@ -47,6 +48,7 @@ __all__ = [
     "ReadyToCommit",
     "RetryPolicy",
     "Scheduled",
+    "Scheduling",
     "UploadProgress",
     "ValidationResult",
     "VideoFile",

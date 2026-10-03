@@ -1,14 +1,15 @@
 from typing import override
 
-from platforms2.core import PlatformValidator, PublishDraft, PublishMedia, ValidationResult
+from platforms2.core import PlatformCapabilities, PlatformValidator, PublishDraft, PublishMedia, ValidationResult
 
 
 class XValidator(PlatformValidator):
     MAX_TEXT_LENGTH = 280
     MIN_DURATION_SECONDS = 0.5
     MAX_DURATION_SECONDS = 140
-    MAX_FILE_BYTES = 512 * 1024**2
-    SUPPORTED_MIME_TYPES = ("video/mp4", "video/quicktime")
+
+    def __init__(self, capabilities: PlatformCapabilities):
+        self._capabilities = capabilities
 
     @override
     def validate(self, draft: PublishDraft, media: PublishMedia) -> ValidationResult:
@@ -17,10 +18,10 @@ class XValidator(PlatformValidator):
         if self._utf16_length(draft.caption()) > self.MAX_TEXT_LENGTH:
             errors.append("captionTooLong")
 
-        if media.size_bytes > self.MAX_FILE_BYTES:
+        if not self._capabilities.fits(media.size_bytes):
             errors.append("fileTooLarge")
 
-        if media.mime_type and media.mime_type not in self.SUPPORTED_MIME_TYPES:
+        if not self._capabilities.supports(media.mime_type):
             errors.append("unsupportedType")
 
         if media.duration_seconds and media.duration_seconds < self.MIN_DURATION_SECONDS:

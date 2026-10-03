@@ -1,14 +1,15 @@
 from typing import override
 
-from platforms2.core import PlatformValidator, PublishDraft, PublishMedia, ValidationResult
+from platforms2.core import PlatformCapabilities, PlatformValidator, PublishDraft, PublishMedia, ValidationResult
 
 from .publish.tiktok_options import TikTokOptions
 
 
 class TikTokValidator(PlatformValidator):
     MAX_CAPTION_LENGTH = 2200
-    MAX_FILE_BYTES = 4 * 1024**3
-    SUPPORTED_MIME_TYPES = ("video/mp4", "video/quicktime", "video/webm")
+
+    def __init__(self, capabilities: PlatformCapabilities):
+        self._capabilities = capabilities
 
     @override
     def validate(self, draft: PublishDraft, media: PublishMedia) -> ValidationResult:
@@ -27,10 +28,10 @@ class TikTokValidator(PlatformValidator):
         if options.brand_content_toggle and options.is_private:
             errors.append("brandedContentCannotBePrivate")
 
-        if media.size_bytes > self.MAX_FILE_BYTES:
+        if not self._capabilities.fits(media.size_bytes):
             errors.append("fileTooLarge")
 
-        if media.mime_type and media.mime_type not in self.SUPPORTED_MIME_TYPES:
+        if not self._capabilities.supports(media.mime_type):
             errors.append("unsupportedType")
 
         return ValidationResult(tuple(errors))

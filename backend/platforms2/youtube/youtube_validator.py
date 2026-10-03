@@ -1,22 +1,14 @@
 from typing import override
 
-from platforms2.core import PlatformValidator, PublishDraft, PublishMedia, ValidationResult
+from platforms2.core import PlatformCapabilities, PlatformValidator, PublishDraft, PublishMedia, ValidationResult
 
 
 class YouTubeValidator(PlatformValidator):
     MAX_TITLE_LENGTH = 100
     MAX_DESCRIPTION_LENGTH = 5000
-    MAX_FILE_BYTES = 128 * 1024**3
-    SUPPORTED_MIME_TYPES = (
-        "video/mp4",
-        "video/quicktime",
-        "video/x-msvideo",
-        "video/x-ms-wmv",
-        "video/x-flv",
-        "video/3gpp",
-        "video/webm",
-        "video/mpeg",
-    )
+
+    def __init__(self, capabilities: PlatformCapabilities):
+        self._capabilities = capabilities
 
     @override
     def validate(self, draft: PublishDraft, media: PublishMedia) -> ValidationResult:
@@ -30,10 +22,10 @@ class YouTubeValidator(PlatformValidator):
         if len(draft.description) > self.MAX_DESCRIPTION_LENGTH:
             errors.append("descriptionTooLong")
 
-        if media.size_bytes > self.MAX_FILE_BYTES:
+        if not self._capabilities.fits(media.size_bytes):
             errors.append("fileTooLarge")
 
-        if media.mime_type and media.mime_type not in self.SUPPORTED_MIME_TYPES:
+        if not self._capabilities.supports(media.mime_type):
             errors.append("unsupportedType")
 
         return ValidationResult(tuple(errors))

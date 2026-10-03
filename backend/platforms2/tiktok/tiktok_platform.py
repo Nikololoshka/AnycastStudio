@@ -17,7 +17,7 @@ class TikTokPlatform(Platform):
         http = TikTokHttp(session)
 
         self.capabilities = TikTokCapabilities()
-        self.validator = TikTokValidator()
+        self.validator = TikTokValidator(self.capabilities)
         self._authorization = TikTokAuthorizationInteractor(config, http)
         self._publishing = TikTokPublishInteractor(config, http)
 
