@@ -29,10 +29,10 @@ class FakeTargets(TargetRepository):
         self.rows[job.target_id] = TargetRow(job=job, **row)
         return self.rows[job.target_id]
 
-    async def job_of(self, target_id: int) -> PublishJob:
+    async def get_publish_job(self, target_id: int) -> PublishJob:
         return self.rows[target_id].job
 
-    async def claim(self, target_id: int, now: datetime) -> bool:
+    async def claim_queued_target(self, target_id: int, now: datetime) -> bool:
         row = self.rows[target_id]
         if row.status != TargetStatus.QUEUED:
             return False
@@ -40,10 +40,10 @@ class FakeTargets(TargetRepository):
         row.last_activity_at = now
         return True
 
-    async def start_attempt(self, target_id: int, now: datetime) -> None:
+    async def start_target_attempt(self, target_id: int, now: datetime) -> None:
         self.rows[target_id].attempt_count += 1
 
-    async def update(self, target_id: int, **fields) -> None:
+    async def update_target(self, target_id: int, **fields) -> None:
         row = self.rows[target_id]
         self.history.append(dict(fields))
         if "status" in fields:
@@ -56,48 +56,48 @@ class FakeTargets(TargetRepository):
             row.job = replace(row.job, media_id=fields["uploaded_media_id"])
         row.fields.update(fields)
 
-    async def cancel_requested(self, target_id: int) -> bool:
+    async def is_cancel_requested(self, target_id: int) -> bool:
         return self.rows[target_id].cancel_requested
 
-    async def claim_confirmation(self, target_id: int, now: datetime) -> bool:
+    async def claim_confirmation_poll(self, target_id: int, now: datetime) -> bool:
         row = self.rows[target_id]
         if row.status != TargetStatus.PROCESSING:
             return False
         row.last_activity_at = now
         return True
 
-    async def take_due(
+    async def claim_due_targets(
         self, platforms: Iterable[PlatformType], now: datetime, dispatched_before: datetime
     ) -> list[int]:
         return []
 
-    async def take_stalled_confirmations(self, now: datetime, stalled_before: datetime) -> list[int]:
+    async def claim_stalled_confirmations(self, now: datetime, stalled_before: datetime) -> list[int]:
         return []
 
-    async def fail_abandoned(self, now: datetime, abandoned_before: datetime, failure: dict) -> list[int]:
+    async def fail_abandoned_targets(self, now: datetime, abandoned_before: datetime, failure: dict) -> list[int]:
         abandoned = [
             target_id
             for target_id, row in self.rows.items()
             if row.status in TargetStatus.worked_on() and row.last_activity_at and row.last_activity_at < abandoned_before
         ]
         for target_id in abandoned:
-            await self.update(target_id, status=TargetStatus.FAILED, error=failure, finished_at=now)
+            await self.update_target(target_id, status=TargetStatus.FAILED, error=failure, finished_at=now)
         return abandoned
 
-    async def ensure_owned(self, owner_id: int, target_id: int) -> None:
+    async def ensure_target_owned(self, owner_id: int, target_id: int) -> None:
         if target_id not in self.rows:
             raise NotFound()
 
-    async def status_of(self, target_id: int) -> TargetStatus:
+    async def get_target_status(self, target_id: int) -> TargetStatus:
         return self.rows[target_id].status
 
-    async def request_cancel(self, target_id: int, now: datetime) -> None:
+    async def request_target_cancel(self, target_id: int, now: datetime) -> None:
         row = self.rows[target_id]
         row.cancel_requested = True
         if row.status == TargetStatus.QUEUED:
             row.status = TargetStatus.CANCELLED
 
-    async def reset_for_retry(self, target_id: int) -> None:
+    async def reset_target_for_retry(self, target_id: int) -> None:
         row = self.rows[target_id]
         row.status = TargetStatus.QUEUED
         row.cancel_requested = False
@@ -138,13 +138,13 @@ class FakePublications(PublicationRepository):
         self.created = created
         self.rows: list[NewPublication] = []
 
-    async def asset_ready(self, owner_id: int, asset_id: int) -> bool:
+    async def is_asset_ready(self, owner_id: int, asset_id: int) -> bool:
         return asset_id == 1
 
-    async def daily_limit(self, owner_id: int) -> int:
+    async def get_daily_publication_limit(self, owner_id: int) -> int:
         return self.limit
 
-    async def create_within_limit(
+    async def create_publication_within_limit(
         self, publication: NewPublication, since: datetime, limit: int
     ) -> CreatedPublication | None:
         if self.created >= limit:

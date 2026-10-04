@@ -24,13 +24,14 @@ class DeferredDispatcher:
     async def dispatch(self) -> int:
         now = self._writer.now()
 
-        due = await self._targets.take_due(self._platforms.deferring_upload(), now, now - self.REDISPATCH_AFTER)
+        dispatched_before = now - self.REDISPATCH_AFTER
+        due = await self._targets.claim_due_targets(self._platforms.deferring_upload(), now, dispatched_before)
         for target_id in due:
             await self._queue.run_target(target_id)
         if due:
             logger.info("Dispatched %d targets whose time has come", len(due))
 
-        stalled = await self._targets.take_stalled_confirmations(now, now - self.CONFIRMATION_STALLED_AFTER)
+        stalled = await self._targets.claim_stalled_confirmations(now, now - self.CONFIRMATION_STALLED_AFTER)
         for target_id in stalled:
             await self._queue.confirm_now(target_id)
         if stalled:

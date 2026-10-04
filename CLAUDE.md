@@ -218,7 +218,7 @@ in a check afterwards:
 ### Background work
 
 - Tasks are idempotent and claim before they work: a conditional UPDATE whose
-  rowcount decides, as in `DjangoTargetRepository.claim` and
+  rowcount decides, as in `DjangoTargetRepository.claim_queued_target` and
   `DjangoOAuthSessionRepository.claim_pending_session`. `acks_late` gives at-least-once; the claim
   makes it effectively-once.
 - Never retry what the platform decided about. A rejected file or an exhausted

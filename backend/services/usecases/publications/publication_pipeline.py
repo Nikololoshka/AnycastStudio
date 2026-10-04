@@ -42,13 +42,13 @@ class PublicationPipeline:
 
     async def run(self, target_id: int) -> TargetStatus | None:
         now = self._writer.now()
-        if not await self._targets.claim(target_id, now):
+        if not await self._targets.claim_queued_target(target_id, now):
             logger.info("Target %s was already taken", target_id)
             return None
-        await self._targets.start_attempt(target_id, now)
+        await self._targets.start_target_attempt(target_id, now)
 
         try:
-            job = await self._targets.job_of(target_id)
+            job = await self._targets.get_publish_job(target_id)
             await self._check_cancelled(target_id)
             self._validate(job)
             media_id = await self._upload(job)
@@ -67,7 +67,7 @@ class PublicationPipeline:
         return status
 
     async def _check_cancelled(self, target_id: int) -> None:
-        if await self._targets.cancel_requested(target_id):
+        if await self._targets.is_cancel_requested(target_id):
             raise _Cancelled()
 
     def _validate(self, job: PublishJob) -> None:
@@ -106,7 +106,7 @@ class PublicationPipeline:
                     await self._writer.set(
                         job.target_id, progress=progress.percent, uploaded_bytes=progress.uploaded_bytes
                     )
-                if await self._targets.cancel_requested(job.target_id):
+                if await self._targets.is_cancel_requested(job.target_id):
                     return None
         raise PlatformError(PlatformFailure.UNEXPECTED, "The upload ended without a media id")
 

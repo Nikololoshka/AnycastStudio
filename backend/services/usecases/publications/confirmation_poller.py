@@ -43,11 +43,11 @@ class ConfirmationPoller:
 
     async def confirm(self, target_id: int) -> int | None:
         now = self._writer.now()
-        if not await self._targets.claim_confirmation(target_id, now):
+        if not await self._targets.claim_confirmation_poll(target_id, now):
             logger.info("Target %s is not waiting for confirmation", target_id)
             return None
 
-        job = await self._targets.job_of(target_id)
+        job = await self._targets.get_publish_job(target_id)
         state = dict(job.confirmation_state)
         polls = int(state.get(TargetWriter.POLLS, 0))
         since = self._since(state, now)

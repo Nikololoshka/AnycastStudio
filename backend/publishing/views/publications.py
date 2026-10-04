@@ -33,7 +33,7 @@ def _new_publication(request, data: CreatePublicationSchema) -> NewPublication:
 
 def _owned_target(request, pk: int) -> int:
     owner_id = request.user.pk
-    container().run(lambda services: container().targets.ensure_owned(owner_id, pk))
+    container().run(lambda services: container().targets.ensure_target_owned(owner_id, pk))
     return pk
 
 

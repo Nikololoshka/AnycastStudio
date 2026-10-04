@@ -21,7 +21,7 @@ class TargetWriter:
         return self._clock.now()
 
     async def set(self, target_id: int, **fields) -> None:
-        await self._targets.update(target_id, last_activity_at=self.now(), **fields)
+        await self._targets.update_target(target_id, last_activity_at=self.now(), **fields)
 
     async def fail(self, target_id: int, failure: dict) -> None:
         await self.set(target_id, status=TargetStatus.FAILED, error=failure, finished_at=self.now())

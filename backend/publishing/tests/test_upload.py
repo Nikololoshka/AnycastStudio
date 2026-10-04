@@ -62,7 +62,7 @@ class UploadScenarios(PublishingTestCase):
                 seen.append(fields["progress"])
             PublicationTarget.objects.filter(pk=target_id).update(**fields)
 
-        with mock.patch.object(DjangoTargetRepository, "update", spy):
+        with mock.patch.object(DjangoTargetRepository, "update_target", spy):
             self.run_target(target.pk)
 
         # Then: the bar moved on whole percents up to the end

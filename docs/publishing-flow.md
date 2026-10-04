@@ -300,7 +300,7 @@ flowchart LR
 ## 8. Что сделано хорошо
 
 - **Effectively-once поверх at-least-once.** `acks_late` + условный UPDATE в
-  `claim`, `claim_confirmation`, `take_due`, refresh lease. Паттерн
+  `claim_queued_target`, `claim_confirmation_poll`, `claim_due_targets`, refresh lease. Паттерн
   переносится на PostgreSQL без изменений.
 - **Возобновление вместо перезаливки.** `resume_state` пишется вместе с
   прогрессом; YouTube и Instagram при resume спрашивают реальный offset у

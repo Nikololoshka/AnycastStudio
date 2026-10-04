@@ -34,14 +34,14 @@ class PublicationService:
 
     async def create(self, publication: NewPublication) -> int:
         now = self._clock.now()
-        if not await self._publications.asset_ready(publication.owner_id, publication.asset_id):
+        if not await self._publications.is_asset_ready(publication.owner_id, publication.asset_id):
             raise NotFound("media_asset")
         if publication.publish_at and publication.publish_at <= now:
             raise Invalid("publishAt", "must be in the future")
         await self._check_accounts(publication)
 
-        limit = await self._publications.daily_limit(publication.owner_id)
-        created = await self._publications.create_within_limit(publication, now - self.LIMIT_WINDOW, limit)
+        limit = await self._publications.get_daily_publication_limit(publication.owner_id)
+        created = await self._publications.create_publication_within_limit(publication, now - self.LIMIT_WINDOW, limit)
         if created is None:
             raise LimitReached("daily_limit", limit)
 
@@ -51,16 +51,16 @@ class PublicationService:
         return created.id
 
     async def cancel(self, target_id: int) -> None:
-        status = await self._targets.status_of(target_id)
+        status = await self._targets.get_target_status(target_id)
         if not status.is_active or status == TargetStatus.PROCESSING:
             raise Conflict("not_running")
-        await self._targets.request_cancel(target_id, self._clock.now())
+        await self._targets.request_target_cancel(target_id, self._clock.now())
 
     async def retry(self, target_id: int) -> None:
-        if await self._targets.status_of(target_id) not in self.RETRYABLE:
+        if await self._targets.get_target_status(target_id) not in self.RETRYABLE:
             raise Conflict("not_retryable")
-        await self._targets.reset_for_retry(target_id)
-        job = await self._targets.job_of(target_id)
+        await self._targets.reset_target_for_retry(target_id)
+        job = await self._targets.get_publish_job(target_id)
         await self._hand_to_worker(target_id, job.platform, job.publish_at)
 
     async def _check_accounts(self, publication: NewPublication) -> None:
