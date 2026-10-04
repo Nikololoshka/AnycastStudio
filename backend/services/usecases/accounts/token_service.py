@@ -27,37 +27,37 @@ class TokenService(AccessTokens):
         return await self.valid_within(account_id, self.REFRESH_MARGIN)
 
     async def valid_within(self, account_id: int, margin: timedelta) -> str:
-        account = await self._accounts.tokens_of(account_id)
+        account = await self._accounts.get_account_tokens(account_id)
         if not account.expires_within(self._clock.now(), margin):
             return account.access_token
         return await self.refresh(account_id)
 
     async def refresh(self, account_id: int) -> str:
-        account = await self._accounts.tokens_of(account_id)
+        account = await self._accounts.get_account_tokens(account_id)
         lease_until = self._clock.now() + self.REFRESH_LEASE
-        if not await self._accounts.claim_refresh_lease(account_id, self._clock.now(), lease_until):
+        if not await self._accounts.try_lock_token_refresh(account_id, self._clock.now(), lease_until):
             logger.info("Waiting for another refresh of %s account %s", account.platform, account_id)
             return await self._await_other_refresh(account)
 
         try:
             token = await self._refreshed_token(account)
-            if await self._accounts.store_refreshed(account_id, account.expires_at, token, self._clock.now()):
-                logger.info("Refreshed the token of %s account %s", account.platform, account_id)
+            await self._accounts.save_refreshed_tokens(account_id, token, self._clock.now())
+            logger.info("Refreshed the token of %s account %s", account.platform, account_id)
         finally:
-            await self._accounts.release_refresh_lease(account_id, lease_until)
+            await self._accounts.unlock_token_refresh(account_id, lease_until)
 
-        return (await self._accounts.tokens_of(account_id)).access_token
+        return (await self._accounts.get_account_tokens(account_id)).access_token
 
     async def refresh_expiring(self) -> int:
         refreshed = 0
-        for account_id in await self._accounts.expiring_before(self._clock.now() + self.REFRESH_AHEAD):
-            expired_at = (await self._accounts.tokens_of(account_id)).expires_at
+        for account_id in await self._accounts.find_active_expiring_before(self._clock.now() + self.REFRESH_AHEAD):
+            expired_at = (await self._accounts.get_account_tokens(account_id)).expires_at
             try:
                 await self.valid_within(account_id, self.REFRESH_AHEAD)
             except PlatformError as error:
                 logger.info("Could not refresh account %s: %s (%s)", account_id, error.message, error.failure)
                 continue
-            if (await self._accounts.tokens_of(account_id)).expires_at != expired_at:
+            if (await self._accounts.get_account_tokens(account_id)).expires_at != expired_at:
                 refreshed += 1
 
         if refreshed:
@@ -86,7 +86,7 @@ class TokenService(AccessTokens):
         current = account
         for _ in range(int(self.REFRESH_LEASE.total_seconds() / self.LEASE_POLL_SECONDS)):
             await self._clock.sleep(self.LEASE_POLL_SECONDS)
-            current = await self._accounts.tokens_of(account.id)
+            current = await self._accounts.get_account_tokens(account.id)
             if current.expires_at != expired_at or current.lease_until is None:
                 break
 

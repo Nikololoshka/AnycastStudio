@@ -28,7 +28,7 @@ def social_account(request, pk: int):
 
 
 async def _disconnect(services, owner_id: int, account_id: int) -> None:
-    account = await container().accounts.owned_account(owner_id, account_id)
+    account = await container().accounts.get_connected_account(owner_id, account_id)
     await services.account_service.disconnect(account.id)
 
 

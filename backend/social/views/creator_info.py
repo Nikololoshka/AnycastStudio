@@ -2,6 +2,7 @@ from common.access import require_auth, require_get
 from common.rate_limit import rate_limit
 from common.responses import api_response, domain_errors
 from platforms.core import PlatformType
+from services.core.domain import NotFound
 from services.wiring import container
 
 
@@ -15,5 +16,7 @@ def social_creator_info(request, pk: int):
 
 
 async def _creator_info(services, owner_id: int, account_id: int) -> dict:
-    account = await container().accounts.owned_account(owner_id, account_id, PlatformType.TIKTOK)
+    account = await container().accounts.get_connected_account(owner_id, account_id)
+    if account.platform is not PlatformType.TIKTOK:
+        raise NotFound()
     return await services.creator_info.info(account)

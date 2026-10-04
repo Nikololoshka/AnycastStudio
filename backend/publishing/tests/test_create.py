@@ -112,6 +112,14 @@ class CreateScenarios(PublishingTestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_a_disconnected_account_cannot_be_published_to(self):
+        SocialAccount.objects.filter(pk=self.account.pk).update(status=SocialAccount.Status.REVOKED)
+
+        response = self.create_publication()
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Publication.objects.exists())
+
     def test_an_account_that_needs_reconnecting_is_refused_with_a_reason(self):
         SocialAccount.objects.filter(pk=self.account.pk).update(
             status=SocialAccount.Status.NEEDS_REAUTH

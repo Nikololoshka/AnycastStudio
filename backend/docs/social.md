@@ -6,12 +6,12 @@ reason is not visible in the code.
 
 ## Connecting
 
-- `sessions.create` starts an `OAuthSession` with a random `state` and, for
+- `sessions.create_pending` starts an `OAuthSession` with a random `state` and, for
   PKCE platforms, a verifier that is stored encrypted and never leaves the
   server. Expired sessions are swept whenever a new one starts.
 - The callback is a GET the platform redirects to, so it cannot carry a CSRF
   token. `state` is the defence, and it is checked twice: that we issued it and
-  it is still pending (`sessions.claim`), and that it belongs to the person
+  it is still pending (`sessions.claim_pending_by_state`), and that it belongs to the person
   whose session cookie is on the request. Without the second check a stranger
   could graft their own platform account onto someone else's tenant.
 - `claim` is a conditional UPDATE, not a lock: SQLite has no
@@ -29,9 +29,10 @@ reason is not visible in the code.
   for a refresh and a revoked grant is noticed before the person presses
   Publish.
 - A refresh never holds a transaction open across the call to the platform
-  (SQLite rule 1): read the row, call the platform, then write with a
-  conditional UPDATE on `token_expires_at`. If another caller refreshed first,
-  the UPDATE touches nothing and the row is re-read.
+  (SQLite rule 1): read the row, call the platform, then write. The write is
+  unconditional because the refresh lease below already keeps a second caller
+  out; if a lease outlives a slow platform call, the second refresh either gets
+  an equally valid token or, on a rotating platform, a refusal.
 - Only one caller refreshes an account at a time. It first claims
   `refresh_lease_until` with a conditional UPDATE; X and TikTok rotate refresh
   tokens, so a second simultaneous call would burn the winner's token. A caller

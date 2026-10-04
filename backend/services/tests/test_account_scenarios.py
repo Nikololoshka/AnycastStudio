@@ -55,7 +55,7 @@ class TokenServiceScenarios(AccountScenarioBase):
 
         await self.tokens.valid(7)
 
-        self.assertEqual((await self.accounts.tokens_of(7)).refresh_token, "refresh-1")
+        self.assertEqual((await self.accounts.get_account_tokens(7)).refresh_token, "refresh-1")
 
     async def test_a_revoked_grant_asks_for_reconnection(self):
         # Given: the platform says the refresh token is no longer valid
@@ -66,7 +66,7 @@ class TokenServiceScenarios(AccountScenarioBase):
         with self.assertRaises(PlatformError) as raised:
             await self.tokens.valid(7)
         self.assertEqual(raised.exception.failure, PlatformFailure.GRANT_REVOKED)
-        account = await self.accounts.tokens_of(7)
+        account = await self.accounts.get_account_tokens(7)
         self.assertEqual(account.status, AccountStatus.NEEDS_REAUTH)
         self.assertIsNone(account.lease_until)
         self.assertEqual(self.accounts.reasons[7], "invalid_grant")
@@ -78,7 +78,7 @@ class TokenServiceScenarios(AccountScenarioBase):
         with self.assertRaises(PlatformError):
             await self.tokens.valid(7)
 
-        self.assertEqual((await self.accounts.tokens_of(7)).status, AccountStatus.NEEDS_REAUTH)
+        self.assertEqual((await self.accounts.get_account_tokens(7)).status, AccountStatus.NEEDS_REAUTH)
 
     async def test_an_outage_keeps_the_account_usable(self):
         self.given_account(expires_in=timedelta(0))
@@ -88,7 +88,7 @@ class TokenServiceScenarios(AccountScenarioBase):
             await self.tokens.valid(7)
 
         self.assertTrue(raised.exception.transient)
-        self.assertEqual((await self.accounts.tokens_of(7)).status, AccountStatus.ACTIVE)
+        self.assertEqual((await self.accounts.get_account_tokens(7)).status, AccountStatus.ACTIVE)
 
     async def test_a_misconfigured_client_does_not_blame_the_account(self):
         # Given: our own client credentials are wrong
@@ -99,7 +99,7 @@ class TokenServiceScenarios(AccountScenarioBase):
         with self.assertRaises(PlatformError) as raised:
             await self.tokens.valid(7)
         self.assertEqual(raised.exception.failure, PlatformFailure.MISCONFIGURED)
-        self.assertEqual((await self.accounts.tokens_of(7)).status, AccountStatus.ACTIVE)
+        self.assertEqual((await self.accounts.get_account_tokens(7)).status, AccountStatus.ACTIVE)
 
     async def test_an_account_without_a_refresh_token_asks_for_reconnection(self):
         self.given_account(expires_in=timedelta(0), refresh_token="")
@@ -132,7 +132,7 @@ class TokenServiceScenarios(AccountScenarioBase):
         self.given_account(expires_in=timedelta(minutes=40))
 
         self.assertEqual(await self.tokens.refresh_expiring(), 1)
-        self.assertEqual((await self.accounts.tokens_of(7)).access_token, "fresh")
+        self.assertEqual((await self.accounts.get_account_tokens(7)).access_token, "fresh")
 
     async def test_a_rejected_token_is_refreshed_once_and_the_call_repeated(self):
         # Given: the platform rejects the stored token
@@ -160,7 +160,7 @@ class AccountServiceScenarios(AccountScenarioBase):
         await self.account_service.disconnect(7)
 
         self.assertEqual(self.authorization.revoked, [AuthToken("stored", "refresh-1")])
-        tokens = await self.accounts.tokens_of(7)
+        tokens = await self.accounts.get_account_tokens(7)
         self.assertEqual((tokens.access_token, tokens.refresh_token, tokens.status), ("", "", AccountStatus.REVOKED))
 
     async def test_a_failed_revoke_still_disconnects(self):
@@ -169,7 +169,7 @@ class AccountServiceScenarios(AccountScenarioBase):
 
         await self.account_service.disconnect(7)
 
-        self.assertEqual((await self.accounts.tokens_of(7)).status, AccountStatus.REVOKED)
+        self.assertEqual((await self.accounts.get_account_tokens(7)).status, AccountStatus.REVOKED)
 
     async def test_an_account_without_tokens_is_not_revoked_at_the_platform(self):
         self.given_account(access_token="", refresh_token="")

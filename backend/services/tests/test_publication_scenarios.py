@@ -410,6 +410,12 @@ class PublicationServiceScenarios(IsolatedAsyncioTestCase):
         with self.assertRaises(NotFound):
             await self.service.create(self.new_publication(targets=(NewTarget(FAKE, 8),)))
 
+    async def test_a_disconnected_account_is_not_found(self):
+        self.accounts.accounts[7] = AccountRecord(7, FAKE, AccountStatus.REVOKED)
+
+        with self.assertRaises(NotFound):
+            await self.service.create(self.new_publication())
+
     async def test_an_account_that_must_reconnect_is_refused(self):
         self.accounts.accounts[7] = AccountRecord(7, FAKE, AccountStatus.NEEDS_REAUTH)
 

@@ -30,31 +30,25 @@ class FakeAccounts(AccountRepository):
         self.tokens[account_id] = account
         self.accounts[account_id] = AccountRecord(account.id, account.platform, account.status)
 
-    async def owned_accounts(self, owner_id: int) -> dict[int, AccountRecord]:
-        return dict(self.accounts)
+    async def get_connected_accounts(self, owner_id: int) -> dict[int, AccountRecord]:
+        return {pk: account for pk, account in self.accounts.items() if account.status != AccountStatus.REVOKED}
 
-    async def owned_account(
-        self, owner_id: int, account_id: int, platform: PlatformType | None = None
-    ) -> AccountRecord:
-        account = self.accounts.get(account_id)
-        if account is None or (platform is not None and account.platform != platform):
+    async def get_connected_account(self, owner_id: int, account_id: int) -> AccountRecord:
+        account = (await self.get_connected_accounts(owner_id)).get(account_id)
+        if account is None:
             raise NotFound()
         return account
 
-    async def tokens_of(self, account_id: int) -> AccountTokens:
+    async def get_account_tokens(self, account_id: int) -> AccountTokens:
         return self.tokens[account_id]
 
-    async def save_connected(
+    async def upsert_connected_account(
         self, owner_id: int, platform: PlatformType, token: AuthToken, profile: AuthProfile, now: datetime
     ) -> int:
         self.saved.append((owner_id, platform, token, profile))
         return len(self.saved)
 
-    async def store_refreshed(
-        self, account_id: int, previous_expiry: datetime | None, token: AuthToken, now: datetime
-    ) -> bool:
-        if self.tokens[account_id].expires_at != previous_expiry:
-            return False
+    async def save_refreshed_tokens(self, account_id: int, token: AuthToken, now: datetime) -> None:
         self.change(
             account_id,
             access_token=token.access_token,
@@ -62,16 +56,15 @@ class FakeAccounts(AccountRepository):
             expires_at=token.expires_at(now),
             status=AccountStatus.ACTIVE,
         )
-        return True
 
-    async def claim_refresh_lease(self, account_id: int, now: datetime, until: datetime) -> bool:
+    async def try_lock_token_refresh(self, account_id: int, now: datetime, until: datetime) -> bool:
         lease = self.tokens[account_id].lease_until
         if lease is not None and lease >= now:
             return False
         self.change(account_id, lease_until=until)
         return True
 
-    async def release_refresh_lease(self, account_id: int, until: datetime) -> None:
+    async def unlock_token_refresh(self, account_id: int, until: datetime) -> None:
         if self.tokens[account_id].lease_until == until:
             self.change(account_id, lease_until=None)
 
@@ -79,10 +72,10 @@ class FakeAccounts(AccountRepository):
         self.reasons[account_id] = reason
         self.change(account_id, status=AccountStatus.NEEDS_REAUTH)
 
-    async def revoke(self, account_id: int) -> None:
+    async def clear_tokens_and_mark_revoked(self, account_id: int) -> None:
         self.change(account_id, access_token="", refresh_token="", expires_at=None, status=AccountStatus.REVOKED)
 
-    async def expiring_before(self, moment: datetime) -> list[int]:
+    async def find_active_expiring_before(self, moment: datetime) -> list[int]:
         return [
             account.id
             for account in self.tokens.values()
@@ -95,13 +88,13 @@ class FakeSessions(OAuthSessionRepository):
         self._clock = clock
         self.rows: dict[int, dict] = {}
 
-    async def sweep_created_before(self, moment: datetime) -> int:
+    async def delete_created_before(self, moment: datetime) -> int:
         expired = [pk for pk, row in self.rows.items() if row["created_at"] < moment]
         for pk in expired:
             del self.rows[pk]
         return len(expired)
 
-    async def create(
+    async def create_pending(
         self, owner_id: int, platform: PlatformType, state: str, code_verifier: str
     ) -> OAuthSessionRecord:
         pk = max(self.rows, default=0) + 1
@@ -115,7 +108,9 @@ class FakeSessions(OAuthSessionRepository):
         }
         return OAuthSessionRecord(pk, owner_id, platform, code_verifier)
 
-    async def claim(self, platform: PlatformType, state: str, created_after: datetime) -> OAuthSessionRecord | None:
+    async def claim_pending_by_state(
+        self, platform: PlatformType, state: str, created_after: datetime
+    ) -> OAuthSessionRecord | None:
         for pk, row in self.rows.items():
             if row["platform"] != platform or row["state"] != state:
                 continue
@@ -125,7 +120,7 @@ class FakeSessions(OAuthSessionRepository):
             return OAuthSessionRecord(pk, row["owner_id"], platform, row["verifier"])
         return None
 
-    async def finish(self, session_id: int, status: OAuthSessionStatus) -> None:
+    async def mark_finished(self, session_id: int, status: OAuthSessionStatus) -> None:
         self.rows[session_id]["status"] = status
 
     def only(self) -> dict:

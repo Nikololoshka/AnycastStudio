@@ -64,7 +64,7 @@ class PublicationService:
         await self._hand_to_worker(target_id, job.platform, job.publish_at)
 
     async def _check_accounts(self, publication: NewPublication) -> None:
-        accounts = await self._accounts.owned_accounts(publication.owner_id)
+        accounts = await self._accounts.get_connected_accounts(publication.owner_id)
         for target in publication.targets:
             account = accounts.get(target.account_id)
             if account is None or account.platform != target.platform:
