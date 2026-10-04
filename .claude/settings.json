@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ENABLE_LSP_TOOL": "1"
+  },
   "permissions": {
     "allow": [
       "Bash(npm -v)",
@@ -14,6 +17,18 @@
     "ask": [
       "Read(./agents)"
     ]
+  },
+  "skillOverrides": {
+    "anthropic-skills:docs": "off",
+    "anthropic-skills:docx": "off",
+    "anthropic-skills:google-workspace": "off",
+    "anthropic-skills:import-memory": "off",
+    "anthropic-skills:morning": "off",
+    "anthropic-skills:pdf": "off",
+    "anthropic-skills:pptx": "off",
+    "anthropic-skills:setup-writing-style": "off",
+    "anthropic-skills:skill-creator": "off",
+    "anthropic-skills:xlsx": "off"
   },
   "hooks": {
     "PreToolUse": [
@@ -31,7 +46,8 @@
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true,
+    "ponytail@ponytail": true
   },
   "outputStyle": "concise",
   "sandbox": {
@@ -41,25 +57,56 @@
   "spinnerVerbs": {
     "mode": "replace",
     "verbs": [
-      "Analyzing…",
-      "Thinking…",
-      "Hacking…",
-      "Spellcasting…",
-      "Overthinking…",
-      "Caffeinating…",
-      "Rubber ducking…",
-      "Hallucinating responsibly…",
-      "Reading the docs…",
-      "Pretending to know…",
-      "Indexing…",
-      "Refactoring…",
-      "Debugging…",
-      "Git blaming…",
-      "Stack overflowing…",
-      "Consulting the oracle…",
-      "Writing tests nobody will read…",
-      "Ignoring the linter…",
-      "Compiling excuses…"
+      "Expanding my domain...",
+      "Bankai! Refactoring reality...",
+      "Going beyond! PLUS ULTRA!",
+      "Becoming King of the Pirates...",
+      "Believing it! Believe it!",
+      "All according to keikaku...",
+      "Equivalent exchange in progress...",
+      "Tatakae. No matter what...",
+      "Sasageyo! Deploying to production...",
+      "Nani?! The build is broken?!",
+      "Omae wa mou shindeiru...",
+      "Kono Dio da!",
+      "El Psy Kongroo...",
+      "Get in the robot...",
+      "I reject my humanity...",
+      "Awakening the Geass...",
+      "This is my Bankai...",
+      "Going Plus Ultra on this codebase...",
+      "Becoming the strongest...",
+      "Awakening the Sharingan...",
+      "Activating the Nen ability...",
+      "Entering the Hyperbolic Time Chamber...",
+      "Searching for the Dragon Balls...",
+      "Opening the Eight Gates...",
+      "Becoming the next Hokage...",
+      "Summoning my Persona...",
+      "Shinji, get in the debugger...",
+      "Making one last sacrifice...",
+      "Powering up for another episode...",
+      "Surpassing my limits...",
+      "Calling upon the Holy Grail...",
+      "Entering the Abyss...",
+      "Deploying the Titan...",
+      "Joining the Survey Corps...",
+      "Following the path of the Hero...",
+      "Activating my Stand...",
+      "WRYYYYYY! Compiling...",
+      "Using the power of friendship...",
+      "Reincarnating with maxed stats...",
+      "Starting the training arc...",
+      "Unlocking my hidden potential...",
+      "Becoming the Demon King...",
+      "Accepting the contract...",
+      "Making a deal with the devil...",
+      "Entering the game...",
+      "Solving the impossible case...",
+      "Calculating the perfect move...",
+      "Changing the future...",
+      "Rewriting the timeline...",
+      "Preparing the ultimate technique..."
     ]
   },
   "plansDirectory": "./agents/plans"
