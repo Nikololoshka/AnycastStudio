@@ -373,7 +373,7 @@ claim уже умеет их брать.
 
 ### 9.3. Серверная валидация только в воркере
 
-`publishing_create` проверяет asset, аккаунты и `publishAt`, но не вызывает
+`publishing_create_publication` проверяет asset, аккаунты и `publishAt`, но не вызывает
 `publisher.validate` и не проверяет `settings`. Проверки дублированы в
 TypeScript (`descriptor.validate` в `SummaryPanel.tsx`).
 

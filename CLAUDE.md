@@ -256,7 +256,7 @@ outcome is a new row there, not a new body shape.
 @rate_limit("publications")
 @validate(CreatePublicationSchema)
 @domain_errors
-def publishing_create(request, data: CreatePublicationSchema): ...
+def publishing_create_publication(request, data: CreatePublicationSchema): ...
 ```
 
 A view parses the request, checks ownership through a repository, calls a use

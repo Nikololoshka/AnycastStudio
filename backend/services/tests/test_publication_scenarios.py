@@ -434,12 +434,12 @@ class PublicationServiceScenarios(IsolatedAsyncioTestCase):
         self.targets.add(fake_job(Path("clip.mp4")), status=TargetStatus.PROCESSING)
 
         with self.assertRaises(Conflict):
-            await self.service.cancel(1)
+            await self.service.cancel(1, 1)
 
     async def test_a_queued_target_is_cancelled_at_once(self):
         row = self.targets.add(fake_job(Path("clip.mp4")))
 
-        await self.service.cancel(1)
+        await self.service.cancel(1, 1)
 
         self.assertEqual(row.status, TargetStatus.CANCELLED)
 
@@ -447,7 +447,7 @@ class PublicationServiceScenarios(IsolatedAsyncioTestCase):
         self.targets.add(fake_job(Path("clip.mp4")), status=TargetStatus.COMPLETED)
 
         with self.assertRaises(Conflict):
-            await self.service.retry(1)
+            await self.service.retry(1, 1)
 
     async def test_a_failed_target_is_queued_again_from_the_start(self):
         row = self.targets.add(
@@ -455,7 +455,7 @@ class PublicationServiceScenarios(IsolatedAsyncioTestCase):
             status=TargetStatus.FAILED,
         )
 
-        await self.service.retry(1)
+        await self.service.retry(1, 1)
 
         self.assertEqual(row.status, TargetStatus.QUEUED)
         self.assertEqual((row.job.media_id, dict(row.job.confirmation_state)), ("", {}))

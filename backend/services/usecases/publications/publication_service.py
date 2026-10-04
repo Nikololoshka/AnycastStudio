@@ -50,13 +50,15 @@ class PublicationService:
             await self._hand_to_worker(target.id, target.platform, created.publish_at)
         return created.id
 
-    async def cancel(self, target_id: int) -> None:
+    async def cancel(self, owner_id: int, target_id: int) -> None:
+        await self._targets.ensure_target_owned(owner_id, target_id)
         status = await self._targets.get_target_status(target_id)
         if not status.is_active or status == TargetStatus.PROCESSING:
             raise Conflict("not_running")
         await self._targets.request_target_cancel(target_id, self._clock.now())
 
-    async def retry(self, target_id: int) -> None:
+    async def retry(self, owner_id: int, target_id: int) -> None:
+        await self._targets.ensure_target_owned(owner_id, target_id)
         if await self._targets.get_target_status(target_id) not in self.RETRYABLE:
             raise Conflict("not_retryable")
         await self._targets.reset_target_for_retry(target_id)

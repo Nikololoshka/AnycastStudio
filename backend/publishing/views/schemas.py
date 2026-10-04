@@ -1,6 +1,7 @@
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 from platforms.core import PlatformType
+from services.core.publications import NewPublication, NewTarget
 
 
 class TargetSchema(BaseModel):
@@ -24,3 +25,16 @@ class CreatePublicationSchema(BaseModel):
         if len(platforms) != len(set(platforms)):
             raise ValueError("only one target per platform")
         return targets
+
+    def as_new_publication(self, owner_id: int) -> NewPublication:
+        return NewPublication(
+            owner_id=owner_id,
+            asset_id=self.mediaAssetId,
+            title=self.title,
+            description=self.description,
+            hashtags=tuple(self.hashtags),
+            publish_at=self.publishAt,
+            targets=tuple(
+                NewTarget(target.platform, target.socialAccountId, target.settings) for target in self.targets
+            ),
+        )
