@@ -157,7 +157,7 @@ class AccountServiceScenarios(AccountScenarioBase):
     async def test_disconnecting_revokes_at_the_platform_and_forgets_the_tokens(self):
         self.given_account()
 
-        await self.account_service.disconnect(7)
+        await self.account_service.disconnect(1, 7)
 
         self.assertEqual(self.authorization.revoked, [AuthToken("stored", "refresh-1")])
         tokens = await self.accounts.get_account_tokens(7)
@@ -167,14 +167,14 @@ class AccountServiceScenarios(AccountScenarioBase):
         self.given_account()
         self.authorization.revoke_failure = PlatformError(PlatformFailure.NETWORK, "down")
 
-        await self.account_service.disconnect(7)
+        await self.account_service.disconnect(1, 7)
 
         self.assertEqual((await self.accounts.get_account_tokens(7)).status, AccountStatus.REVOKED)
 
     async def test_an_account_without_tokens_is_not_revoked_at_the_platform(self):
         self.given_account(access_token="", refresh_token="")
 
-        await self.account_service.disconnect(7)
+        await self.account_service.disconnect(1, 7)
 
         self.assertEqual(self.authorization.revoked, [])
 

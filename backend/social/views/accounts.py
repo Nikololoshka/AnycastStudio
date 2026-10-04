@@ -9,11 +9,15 @@ from .serializers import account_json
 
 @require_get
 @require_auth
-def social_accounts(request):
-    rows = _connected_accounts_of(request.user).order_by("platform", "display_name")
+def social_list_connected_accounts(request):
+    accounts = (
+        SocialAccount.objects.filter(user=request.user)
+        .exclude(status=SocialAccount.Status.REVOKED)
+        .order_by("platform", "display_name")
+    )
     return api_response(
         status="ok",
-        accounts=[account_json(account) for account in rows],
+        accounts=[account_json(account) for account in accounts],
         platforms=sorted(platform.value for platform in PlatformType),
     )
 
@@ -21,16 +25,7 @@ def social_accounts(request):
 @require_delete
 @require_auth
 @domain_errors
-def social_account(request, pk: int):
+def social_disconnect_account(request, pk: int):
     owner_id = request.user.pk
-    container().run(lambda services: _disconnect(services, owner_id, pk))
+    container().run(lambda services: services.account_service.disconnect(owner_id, pk))
     return api_response("ok")
-
-
-async def _disconnect(services, owner_id: int, account_id: int) -> None:
-    account = await container().accounts.get_connected_account(owner_id, account_id)
-    await services.account_service.disconnect(account.id)
-
-
-def _connected_accounts_of(user):
-    return SocialAccount.objects.filter(user=user).exclude(status=SocialAccount.Status.REVOKED)

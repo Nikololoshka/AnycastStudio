@@ -19,7 +19,8 @@ class AccountService:
         logger.info("Connected %s account %s for user %s", platform, account_id, owner_id)
         return account_id
 
-    async def disconnect(self, account_id: int) -> None:
+    async def disconnect(self, owner_id: int, account_id: int) -> None:
+        await self._accounts.get_connected_account(owner_id, account_id)
         account = await self._accounts.get_account_tokens(account_id)
         if account.access_token or account.refresh_token:
             authorization = self._platforms.get(account.platform).get_authorization_interactor()

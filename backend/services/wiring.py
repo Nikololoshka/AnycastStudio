@@ -70,7 +70,9 @@ class Services:
         )
         self.dispatcher = DeferredDispatcher(container.targets, self.catalog, container.queue, writer)
         self.sweeper = StaleTargetSweeper(container.targets, clock)
-        self.creator_info = CreatorInfoService(TikTokCreatorInfo(TikTokHttp(session)), self.tokens, container.cache)
+        self.creator_info = CreatorInfoService(
+            container.accounts, TikTokCreatorInfo(TikTokHttp(session)), self.tokens, container.cache
+        )
 
 
 class Container:
