@@ -116,10 +116,10 @@ class FakeValidator(PlatformValidator):
 
 class FakePlatform(Platform):
     platform_type = FAKE
+    capabilities = CAPABILITIES
 
     def __init__(self):
         self.configured = True
-        self.capabilities = CAPABILITIES
         self.validator = FakeValidator()
         self.authorization = FakeAuthorization()
         self.publishing = FakePublishing()

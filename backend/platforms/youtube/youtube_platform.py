@@ -13,12 +13,12 @@ from .youtube_validator import YouTubeValidator
 
 class YouTubePlatform(Platform):
     platform_type = PlatformType.YOUTUBE
+    capabilities = YouTubeCapabilities()
 
     def __init__(self, config: YouTubeConfig, session: aiohttp.ClientSession):
         http = GoogleHttp(session)
 
         self.configured = config.configured
-        self.capabilities = YouTubeCapabilities()
         self.validator = YouTubeValidator(self.capabilities)
         self._authorization = YouTubeAuthorizationInteractor(config, http)
         self._publishing = YouTubePublishInteractor(config)

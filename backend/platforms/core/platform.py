@@ -11,7 +11,7 @@ from .publish import PublishInteractor
 class Platform(ABC):
     platform_type: ClassVar[PlatformType]
     configured: bool
-    capabilities: PlatformCapabilities
+    capabilities: ClassVar[PlatformCapabilities]
     validator: PlatformValidator
 
     @abstractmethod

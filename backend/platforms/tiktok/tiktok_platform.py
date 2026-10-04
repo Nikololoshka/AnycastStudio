@@ -14,12 +14,12 @@ from .tiktok_validator import TikTokValidator
 
 class TikTokPlatform(Platform):
     platform_type = PlatformType.TIKTOK
+    capabilities = TikTokCapabilities()
 
     def __init__(self, config: TikTokConfig, session: aiohttp.ClientSession):
         http = TikTokHttp(session)
 
         self.configured = config.configured
-        self.capabilities = TikTokCapabilities()
         self.validator = TikTokValidator(self.capabilities)
         self._authorization = TikTokAuthorizationInteractor(config, http)
         self.creator_info = TikTokCreatorInfo(http)

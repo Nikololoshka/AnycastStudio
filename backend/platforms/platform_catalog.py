@@ -1,6 +1,6 @@
 import aiohttp
 
-from .core import Platform, PlatformType
+from .core import Platform, PlatformCapabilities, PlatformType
 from .core.platform_registry import PlatformRegistry
 from .instagram import InstagramPlatform
 from .platform_configs import PlatformConfigs
@@ -19,6 +19,11 @@ class PlatformCatalog(PlatformRegistry):
             XPlatform(configs.x, session),
         )
         self._platforms = {platform.platform_type: platform for platform in platforms}
+
+    @classmethod
+    def capabilities_by_platform(cls) -> dict[PlatformType, PlatformCapabilities]:
+        platforms = (YouTubePlatform, TikTokPlatform, InstagramPlatform, XPlatform)
+        return {platform.platform_type: platform.capabilities for platform in platforms}
 
     def get(self, platform_type: PlatformType) -> Platform:
         return self._platforms[platform_type]

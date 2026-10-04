@@ -105,6 +105,16 @@ class CatalogScenarios(PlatformTestCase):
         self.assertFalse(catalog.get(PlatformType.X).configured)
         self.assertTrue(catalog.get(PlatformType.YOUTUBE).configured)
 
+    def test_capabilities_are_known_without_building_the_platforms(self):
+        catalog = self.catalog()
+
+        capabilities = PlatformCatalog.capabilities_by_platform()
+
+        self.assertEqual(set(capabilities), set(PlatformType))
+        for platform in catalog.all():
+            with self.subTest(platform=platform.platform_type):
+                self.assertIs(capabilities[platform.platform_type], platform.capabilities)
+
     def test_capabilities_keep_the_json_the_composer_reads(self):
         capabilities = self.catalog().get(PlatformType.TIKTOK).capabilities.as_json()
 

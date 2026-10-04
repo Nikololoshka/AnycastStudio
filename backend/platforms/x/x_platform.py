@@ -13,12 +13,12 @@ from .x_validator import XValidator
 
 class XPlatform(Platform):
     platform_type = PlatformType.X
+    capabilities = XCapabilities()
 
     def __init__(self, config: XConfig, session: aiohttp.ClientSession):
         http = XHttp(session)
 
         self.configured = config.configured
-        self.capabilities = XCapabilities()
         self.validator = XValidator(self.capabilities)
         self._authorization = XAuthorizationInteractor(config, http)
         self._publishing = XPublishInteractor(config, http)

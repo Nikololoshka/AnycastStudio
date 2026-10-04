@@ -95,7 +95,10 @@ imports another platform or Django, or exposes a public function.
 ### Registrations
 
 - `platforms/platform_catalog.py` and `platforms/platform_configs.py` — the
-  platform and its config; `platforms/core/platform_type.py` — its name.
+  platform (in `__init__` and in `capabilities_by_platform`) and its config;
+  `platforms/core/platform_type.py` — its name.
+- `capabilities` is a class attribute of `<P>Platform`, so the catalog serves
+  them without opening a session.
 - `services/wiring.py::Container.platform_configs` — the config built from the
   `<P>_CLIENT_*` settings and the callback URL.
 - `config/settings/base.py` and `test.py` — `<P>_CLIENT_*`; `.env.example` —
