@@ -2,9 +2,9 @@ from common.access import require_auth, require_get, require_post
 from common.rate_limit import rate_limit
 from common.request_body import validate
 from common.responses import api_response, domain_errors
-from config.wiring import container
-from platforms.core.domain import NotFound
-from platforms.core.publications import NewPublication, NewTarget
+from services.core.domain import NotFound
+from services.core.publications import NewPublication, NewTarget
+from services.wiring import container
 
 from ..models import Publication
 from .schemas import CreatePublicationSchema

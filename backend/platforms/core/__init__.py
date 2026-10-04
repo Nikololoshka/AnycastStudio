@@ -4,6 +4,7 @@ from .platform import Platform
 from .platform_capabilities import PlatformCapabilities
 from .platform_error import PlatformError
 from .platform_failure import PlatformFailure
+from .platform_registry import PlatformRegistry
 from .platform_type import PlatformType
 from .platform_validator import PlatformValidator
 from .publish import (
@@ -38,6 +39,7 @@ __all__ = [
     "PlatformError",
     "PlatformFailure",
     "PlatformHttp",
+    "PlatformRegistry",
     "PlatformResponse",
     "PlatformType",
     "PlatformValidator",

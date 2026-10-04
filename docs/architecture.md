@@ -147,23 +147,25 @@ is `database is locked` in the worker log.
 ## Where the rules live
 
 `backend/platforms/` holds the business logic and imports nothing from
-Django (`docs/adr/0002-platforms-core.md`, `docs/adr/0003-async-platforms.md`).
+Django (`docs/adr/0002-platforms-core.md`, `docs/adr/0003-async-platforms.md`);
+they live in `backend/services/`, apart from the platforms
+(`docs/adr/0004-services-package.md`).
 The use cases are `async`; views and tasks enter them through
 `container().run(...)`:
 
 ```
-views / Celery tasks ──► platforms/core use cases ──► platforms/<p>
-        │                       │ ports
-        ▼                       ▼
-config/wiring.py ──────► Django adapters (repositories, Celery queue, cache)
+views / services/tasks.py ──► services/usecases ──► platforms/<p>
+        │                           │ services/core/ports
+        ▼                           ▼
+services/wiring.py ──────► Django adapters (repositories, Celery queue, cache)
 ```
 
-- `platforms/core/usecases/publications/` — `PublicationService` (create,
+- `services/usecases/publications/` — `PublicationService` (create,
   cancel, retry), `PublicationPipeline` (claim, validate, upload, publish),
   `ConfirmationPoller` and `CommitGuard` (polls, the confirmation window, the
   two-phase commit), `DeferredDispatcher` (due targets, stalled
   confirmations), `StaleTargetSweeper` (targets a stopped worker left).
-- `platforms/core/usecases/accounts/` — `TokenService` (valid token,
+- `services/usecases/accounts/` — `TokenService` (valid token,
   lease-guarded refresh), `AccountService`, `ConnectFlow` (both `state`
   checks).
 - `platforms/<p>/` — one `Platform`: an `AuthorizationInteractor`, a
@@ -178,7 +180,7 @@ config/wiring.py ──────► Django adapters (repositories, Celery que
    folder; shared pieces come from `platforms/core/`.
 2. Add it to `platforms/platform_catalog.py` and `platforms/platform_configs.py`,
    and build its config from the settings in
-   `config/wiring.py::Container.platform_configs`. The pipeline, the
+   `services/wiring.py::Container.platform_configs`. The pipeline, the
    capabilities endpoint, the deferred sweep and the OAuth flow read the
    catalog.
 3. Add `frontend/src/platforms/<platform>/` — settings, descriptor, panel — and

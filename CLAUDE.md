@@ -89,7 +89,7 @@ Unless asked otherwise:
 | Queue | celery[redis] 5.6 | Background uploads | `acks_late`; no task-level retry, the pipeline decides |
 | Encryption | cryptography | Platform tokens at rest | `MultiFernet`, rotatable; see `common/encryption/` |
 | Passwords | argon2-cffi | Hashing | First in `PASSWORD_HASHERS` |
-| HTTP (server) | aiohttp | Platform calls | Only through a platform's `PlatformHttp` subclass (`platforms/core/http/`); the session is opened by `config/wiring.py` |
+| HTTP (server) | aiohttp | Platform calls | Only through a platform's `PlatformHttp` subclass (`platforms/core/http/`); the session is opened by `services/wiring.py` |
 | YouTube upload | google-api-python-client | Resumable `videos.insert` | Only inside `platforms/youtube/publish/`, run in a thread |
 | Config | python-dotenv | Reads `backend/.env` | Real env vars win |
 | UI | HeroUI 3 | Component library | Compound components; built on React Aria |
@@ -122,12 +122,13 @@ uvicorn / Django ──► SQLite (WAL)
 Celery worker ──► backend/media_files ──► platform APIs
 ```
 
-Server: `views / tasks → platforms/core use cases → platforms/<p> → the platform's API`.
+Server: `views / tasks → services use cases → platforms/<p> → the platform's API`.
 The use cases are `async` and reach the database, the queue and the cache only
-through the async ports in `platforms/core/ports/`; the Django apps implement
-them and `config/wiring.py` assembles everything. Views and tasks stay
+through the async ports in `services/core/ports/`; the Django apps implement
+them and `services/wiring.py` assembles everything. Views and tasks stay
 synchronous and enter through `container().run(...)` (`async_to_sync`), see
-`docs/adr/0002-platforms-core.md` and `docs/adr/0003-async-platforms.md`.
+`docs/adr/0002-platforms-core.md`, `docs/adr/0003-async-platforms.md` and
+`docs/adr/0004-services-package.md`.
 Browser: `components → RTK Query hooks → the API`.
 
 **Business logic lives on the server.** The SPA renders, collects input and
@@ -135,23 +136,32 @@ reports progress. Publishing, scheduling and tokens are the server's.
 
 ### Architectural Rules
 
-- `backend/platforms/` holds the business logic of publishing and of
-  connecting accounts, and imports nothing from Django or the apps.
+- `backend/platforms/` holds the platforms: what talking to each platform
+  takes, and nothing about accounts, publications or the database. It imports
+  nothing from Django, the apps or `services`.
   `platforms/tests/core/test_architecture.py` enforces it.
 - `platforms/core/` holds the platform interfaces and their values (`auth/`,
   `publish/`, `http/`, `platform.py`, `platform_registry.py`,
-  `platform_failure.py`, …), the values the use cases share (`accounts/`,
-  `publications/`, `domain/`), the async ports (`ports/`) and the use cases:
-  `usecases/publications/` (`PublicationService`, `PublicationPipeline`,
-  `ConfirmationPoller`, `CommitGuard`, `DeferredDispatcher`,
-  `StaleTargetSweeper`) and `usecases/accounts/` (`TokenService`,
-  `AccountService`, `ConnectFlow`). Nothing a port names imports a use case.
-- The Django apps are adapters: models, views, Celery tasks and one
-  repository per port (`publishing/repositories.py`, `social/repositories.py`,
-  `publishing/queue.py`, `common/caching`). Each database method is a sync
-  method wrapped in `sync_to_async`, so a transaction stays inside one call.
-  Views and tasks reach the use cases through `config.wiring.container().run`,
-  never build them.
+  `platform_failure.py`, …).
+- `backend/services/` holds the business logic of publishing and of
+  connecting accounts, built on `platforms`:
+  - `core/` holds the values the use cases share (`accounts/`,
+    `publications/`, `domain/`) and the async ports (`ports/`);
+  - `usecases/` holds `publications/` (`PublicationService`,
+    `PublicationPipeline`, `ConfirmationPoller`, `CommitGuard`,
+    `DeferredDispatcher`, `StaleTargetSweeper`), `accounts/` (`TokenService`,
+    `AccountService`, `ConnectFlow`) and `tiktok/` (`CreatorInfoService`);
+  - `wiring.py` (the container), `queue.py` (`CeleryTaskQueue`) and
+    `tasks.py` (every Celery task) are the entry points.
+
+  `core/` and `usecases/` import nothing from Django, Celery or the apps, and
+  nothing a port names imports a use case.
+  `services/tests/test_architecture.py` enforces it.
+- The Django apps are adapters: models, views and one repository per port
+  (`publishing/repositories.py`, `social/repositories.py`, `common/caching`).
+  Each database method is a sync method wrapped in `sync_to_async`, so a
+  transaction stays inside one call. Views and tasks reach the use cases
+  through `services.wiring.container().run`, never build them.
 - A use case is called from a view only when it answers in milliseconds;
   uploads and confirmations run from Celery tasks.
 - Every platform folder has the same shape: `core/` (config, endpoints, the
@@ -165,12 +175,12 @@ reports progress. Publishing, scheduling and tokens are the server's.
   id. A step that must not run twice answers `ReadyToCommit`; `CommitGuard`
   marks it before `commit`.
 - Behaviour lives in classes and value objects: no public module-level
-  functions in `platforms/`. Internal values are frozen dataclasses; pydantic
+  functions in `platforms/`, `services/core/` or `services/usecases/`. Internal values are frozen dataclasses; pydantic
   only reads what comes from outside (platform answers, request settings).
 - Every platform failure is a `PlatformError` with a `PlatformFailure`
   (`docs/adr/0003-async-platforms.md` says what each one means); an API
   refusal is a domain error (`NotFound`, `Conflict`, …) from
-  `platforms/core/domain/` that `common/responses::domain_errors` turns into
+  `services/core/domain/` that `common/responses::domain_errors` turns into
   the status contract.
 - Every platform HTTP call goes through the platform's `PlatformHttp`
   (`request` / `answer`), which classifies the answer through its
@@ -261,13 +271,14 @@ from one check, which is why this project does not need a framework layer here.
 
 ```text
 backend/
-├─ config/        settings/{base,dev,test}.py, urls, asgi, celery, wiring (the container)
+├─ config/        settings/{base,dev,test}.py, urls, asgi, celery
 ├─ common/        one package per task: responses, access, rate_limit, request_body, encryption
 ├─ accounts/      User with its limits, sign-in
 ├─ social/        SocialAccount, OAuthSession, repositories, connect/callback views
 ├─ media/         MediaAsset, UploadSession, chunked upload, storage, sweeps
-├─ publishing/    Publication, PublicationTarget, repositories, Celery queue, tasks, API
-└─ platforms/     the business logic: core/ (interfaces, values, ports, usecases), platform_catalog.py, one folder per platform
+├─ publishing/    Publication, PublicationTarget, repositories, API
+├─ services/      the business logic: core/ (values, ports), usecases/, wiring (the container), queue, Celery tasks
+└─ platforms/     the platforms: core/ (interfaces, values), platform_catalog.py, one folder per platform
 
 frontend/src/
 ├─ api/           RTK Query: baseApi + one module per area
@@ -285,10 +296,12 @@ frontend/src/
 - A new platform goes in `backend/platforms/<platform>/` in the shared shape,
   plus its entry in `platforms/platform_catalog.py` and
   `platforms/platform_configs.py`, and its config built from the settings in
-  `config/wiring.py::Container.platform_configs`.
+  `services/wiring.py::Container.platform_configs`.
 - A new rule about publishing or accounts goes in a use case in
-  `platforms/core/usecases/`; the database side of it goes in the app's
+  `services/usecases/`; the database side of it goes in the app's
   repository.
+- A new Celery task goes in `services/tasks.py`; its name keeps the
+  `<area>.<task>` form the beat schedule refers to.
 - New screens go in `frontend/src/features/<feature>/`.
 - Cross-feature reusable UI goes in `frontend/src/components/`.
 - A new endpoint goes in `<app>/views/<name>.py`, one file per endpoint group.
@@ -359,13 +372,14 @@ npm run dev                                        # http://localhost:5173
 
 - **Backend tests are mandatory** for new behaviour, written as Given / When /
   Then. Two kinds:
-  - use cases and platforms in `platforms/` are tested as
+  - use cases in `services/` and platforms in `platforms/` are tested as
     `IsolatedAsyncioTestCase` against the in-memory fakes in
-    `platforms/tests/fakes/`, which implement the same ports — state
+    `services/tests/fakes/` and `platforms/tests/fakes/`, which implement the
+    same ports — state
     transitions, windows and leases without a database or Django;
   - adapters, views and the whole path are Django `TestCase`, with the network
     faked by `platforms/tests/fakes/http.py::FakeSession` patched into
-    `config.wiring.Container.open_session`, and YouTube by an `httplib2`-style
+    `services.wiring.Container.open_session`, and YouTube by an `httplib2`-style
     double behind `YouTubeApi.videos`, so the real chunking and retry run.
 - What must have a test: anything about who can see what, anything about
   tokens, the upload offsets, and every way a platform can refuse.
@@ -433,7 +447,7 @@ Treat this section as mandatory.
 ### Human Approval Required Before
 
 - changing OAuth or credential handling (`backend/social/`,
-  `backend/platforms/core/auth/`, `backend/platforms/core/usecases/accounts/`,
+  `backend/platforms/core/auth/`, `backend/services/usecases/accounts/`,
   `backend/platforms/*/auth/`, `backend/common/encryption/`);
 - deleting user data or stored media;
 - installing or replacing major dependencies;
@@ -443,7 +457,7 @@ Treat this section as mandatory.
 ### Sensitive Areas
 
 - Authentication: `backend/accounts/`, `backend/common/access/`, `backend/common/core/`
-- Platform authorisation: `backend/social/`, `backend/platforms/core/auth/`, `backend/platforms/core/usecases/accounts/`, `backend/platforms/*/auth/`
+- Platform authorisation: `backend/social/`, `backend/platforms/core/auth/`, `backend/services/usecases/accounts/`, `backend/platforms/*/auth/`
 - Encryption: `backend/common/encryption/`
 - Configuration: `backend/.env`
 

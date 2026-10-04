@@ -10,12 +10,12 @@ from django.utils import timezone
 from googleapiclient.discovery import build
 
 from accounts.models import User
-from config.wiring import Container, container
 from media import storage
 from media.models import MediaAsset
 from platforms.tests.fakes.http import FakeSession
 from platforms.youtube.publish.youtube_api import YouTubeApi
 from publishing.models import Publication, PublicationTarget
+from services.wiring import Container, container
 from social.models import SocialAccount
 
 CREATE_URL = "/api/publications/create"

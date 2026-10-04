@@ -5,9 +5,9 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 
 from platforms.core import PlatformError
-from platforms.core.ports import SystemClock
-from platforms.core.usecases.accounts import TokenService
 from platforms.tests.fakes.http import FakeAnswer
+from services.core.ports import SystemClock
+from services.usecases.accounts import TokenService
 from social.models import SocialAccount
 from social.tests.base import CODE, SocialTestCase
 

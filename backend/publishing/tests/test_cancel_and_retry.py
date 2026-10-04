@@ -11,7 +11,7 @@ Status = PublicationTarget.Status
 class CancelAndRetryScenarios(PublishingTestCase):
     def setUp(self):
         super().setUp()
-        patcher = mock.patch("publishing.tasks.run_target.delay")
+        patcher = mock.patch("services.tasks.run_target.delay")
         self.dispatch = patcher.start()
         self.addCleanup(patcher.stop)
         self.create_publication()

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from media.tasks import sweep_unused_assets, sweep_upload_sessions
+from media.services import sweep_unused_assets, sweep_upload_sessions
 
 
 class Command(BaseCommand):

@@ -1,7 +1,7 @@
 import inspect
 from functools import wraps
 
-from platforms.core.domain import (
+from services.core.domain import (
     AccountNeedsReauth,
     Conflict,
     DomainError,

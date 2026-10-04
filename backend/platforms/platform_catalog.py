@@ -12,7 +12,7 @@ from .youtube import YouTubePlatform
 class PlatformCatalog(PlatformRegistry):
 
     def __init__(self, configs: PlatformConfigs, session: aiohttp.ClientSession):
-        platforms = (
+        platforms: tuple[Platform, ...] = (
             YouTubePlatform(configs.youtube, session),
             TikTokPlatform(configs.tiktok, session),
             InstagramPlatform(configs.instagram, session),

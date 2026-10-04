@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from media import storage
 from media.models import MediaAsset, UploadSession
-from media.tasks import sweep_unused_assets, sweep_upload_sessions
+from media.services import sweep_unused_assets, sweep_upload_sessions
 
 from .base import CHUNK_SIZE, CONTENT, UploadTestCase
 

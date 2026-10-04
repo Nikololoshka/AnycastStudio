@@ -1,7 +1,7 @@
 from common.access import require_auth, require_post
 from common.rate_limit import rate_limit
 from common.responses import api_response, domain_errors
-from config.wiring import container
+from services.wiring import container
 
 
 @require_post

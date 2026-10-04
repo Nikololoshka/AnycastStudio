@@ -5,15 +5,15 @@ from django.db.models import Q
 
 from common.encryption import current_key_version
 from platforms.core import AuthProfile, AuthToken, PlatformType
-from platforms.core.accounts import (
+from services.core.accounts import (
     AccountRecord,
     AccountStatus,
     AccountTokens,
     OAuthSessionRecord,
     OAuthSessionStatus,
 )
-from platforms.core.domain import NotFound
-from platforms.core.ports import AccountRepository, OAuthSessionRepository
+from services.core.domain import NotFound
+from services.core.ports import AccountRepository, OAuthSessionRepository
 
 from .models import OAuthSession, SocialAccount
 

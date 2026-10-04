@@ -41,7 +41,7 @@ registry.
 
 Everything goes in `backend/platforms/<p>/`. Nothing in `publishing/` or
 `social/` changes: the pipeline, the confirmation polling, the token refresh
-and the OAuth flow are shared use cases in `platforms/core/usecases/` and reach
+and the OAuth flow are shared use cases in `services/usecases/` and reach
 the platform only through its `Platform`. Read
 `docs/adr/0002-platforms-core.md` and `docs/adr/0003-async-platforms.md` for
 why.
@@ -96,7 +96,7 @@ imports another platform or Django, or exposes a public function.
 
 - `platforms/platform_catalog.py` and `platforms/platform_configs.py` — the
   platform and its config; `platforms/core/platform_type.py` — its name.
-- `config/wiring.py::Container.platform_configs` — the config built from the
+- `services/wiring.py::Container.platform_configs` — the config built from the
   `<P>_CLIENT_*` settings and the callback URL.
 - `config/settings/base.py` and `test.py` — `<P>_CLIENT_*`; `.env.example` —
   the block with the redirect URI and the required app type.

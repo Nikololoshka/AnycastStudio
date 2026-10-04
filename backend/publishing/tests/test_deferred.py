@@ -4,9 +4,9 @@ from django.utils import timezone
 
 from platforms import PlatformCatalog
 from platforms.core import PlatformType
-from platforms.core.usecases.publications import DeferredDispatcher
-from publishing import tasks
 from publishing.models import Publication, PublicationTarget
+from services import tasks
+from services.usecases.publications import DeferredDispatcher
 
 from .base import PublishingTestCase
 
@@ -16,7 +16,7 @@ Status = PublicationTarget.Status
 class DeferredStartScenarios(PublishingTestCase):
     def setUp(self):
         super().setUp()
-        patcher = mock.patch("publishing.tasks.run_target.delay")
+        patcher = mock.patch("services.tasks.run_target.delay")
         self.dispatch = patcher.start()
         self.addCleanup(patcher.stop)
 

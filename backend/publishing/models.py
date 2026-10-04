@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from platforms.core.publications import TargetStatus
+from services.core.publications import TargetStatus
 
 
 class Publication(models.Model):

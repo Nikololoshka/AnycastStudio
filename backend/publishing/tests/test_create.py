@@ -15,7 +15,7 @@ Status = PublicationTarget.Status
 class CreateScenarios(PublishingTestCase):
     def setUp(self):
         super().setUp()
-        patcher = mock.patch("publishing.tasks.run_target.delay")
+        patcher = mock.patch("services.tasks.run_target.delay")
         self.dispatch = patcher.start()
         self.addCleanup(patcher.stop)
 

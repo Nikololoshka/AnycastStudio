@@ -204,3 +204,28 @@ def delete_asset(asset: MediaAsset) -> None:
     storage.delete(asset.storage_path)
     MediaAsset.objects.filter(pk=asset.pk).update(status=MediaAsset.Status.DELETED, storage_path="")
     logger.info("Deleted the file of media asset %s", asset.pk)
+
+
+def sweep_upload_sessions() -> int:
+    stale = UploadSession.objects.filter(
+        status=UploadSession.Status.OPEN, last_activity_at__lt=UploadSession.stale_cutoff()
+    )
+    count = 0
+    for session in stale:
+        abort(session)
+        count += 1
+
+    if count:
+        logger.info("Swept %d stale upload sessions", count)
+    return count
+
+
+def sweep_unused_assets() -> int:
+    count = 0
+    for asset in unused_assets():
+        delete_asset(asset)
+        count += 1
+
+    if count:
+        logger.info("Swept %d unused media assets", count)
+    return count

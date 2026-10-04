@@ -6,13 +6,13 @@ PACKAGE = Path(__file__).resolve().parents[2]
 ROOT = PACKAGE.name
 PLATFORMS = ("youtube", "tiktok", "instagram", "x")
 REQUIRED_PARTS = ("core", "auth", "publish", "{platform}_platform.py", "{platform}_capabilities.py", "{platform}_validator.py")
-FORBIDDEN_ROOTS = ("django", "accounts", "common", "config", "media", "publishing", "social")
+FORBIDDEN_ROOTS = ("django", "accounts", "common", "config", "media", "publishing", "services", "social")
 
 
 class SourceModule:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, package: Path = PACKAGE):
         self.path = path
-        self.name = ".".join((ROOT, *path.relative_to(PACKAGE).with_suffix("").parts)).removesuffix(".__init__")
+        self.name = ".".join((package.name, *path.relative_to(package).with_suffix("").parts)).removesuffix(".__init__")
         self.tree = ast.parse(path.read_text(encoding="utf-8"))
 
     @property

@@ -10,9 +10,9 @@ from django.db.models.functions import Coalesce
 from media import storage
 from media.models import MediaAsset
 from platforms.core import PlatformType, PublishDraft, PublishJob, PublishMedia
-from platforms.core.domain import NotFound
-from platforms.core.ports import PublicationRepository, TargetRepository
-from platforms.core.publications import CreatedPublication, CreatedTarget, NewPublication, TargetStatus
+from services.core.domain import NotFound
+from services.core.ports import PublicationRepository, TargetRepository
+from services.core.publications import CreatedPublication, CreatedTarget, NewPublication, TargetStatus
 from social.models import SocialAccount
 
 from .models import Publication, PublicationTarget

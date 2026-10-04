@@ -5,11 +5,11 @@ from django.utils import timezone
 
 from media import storage
 from platforms.core import PlatformError, PlatformFailure
-from platforms.core.usecases.accounts import TokenService
-from platforms.core.usecases.publications import StaleTargetSweeper
-from publishing import tasks
 from publishing.models import PublicationTarget
 from publishing.repositories import DjangoTargetRepository
+from services import tasks
+from services.usecases.accounts import TokenService
+from services.usecases.publications import StaleTargetSweeper
 
 from .base import CHUNK, CONTENT, VIDEO_ID, PublishingTestCase
 

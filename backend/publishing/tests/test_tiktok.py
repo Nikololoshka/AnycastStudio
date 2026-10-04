@@ -3,14 +3,14 @@ from unittest import mock
 
 from django.utils import timezone
 
-from config.wiring import container
 from media.models import MediaAsset
 from platforms.core import PlatformFailure
-from platforms.core.usecases.accounts import TokenService
-from platforms.core.usecases.publications import ConfirmationPoller, DeferredDispatcher, StaleTargetSweeper
 from platforms.tests.fakes.http import FakeAnswer
-from publishing import tasks
 from publishing.models import PublicationTarget
+from services import tasks
+from services.usecases.accounts import TokenService
+from services.usecases.publications import ConfirmationPoller, DeferredDispatcher, StaleTargetSweeper
+from services.wiring import container
 from social.models import SocialAccount
 
 from .base import CONTENT, PublishingTestCase
@@ -76,7 +76,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
             token_expires_at=timezone.now() + timezone.timedelta(hours=12),
         )
         MediaAsset.objects.filter(pk=self.asset.pk).update(duration_seconds=30)
-        patcher = mock.patch("publishing.tasks.run_target.delay")
+        patcher = mock.patch("services.tasks.run_target.delay")
         self.dispatch = patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -127,7 +127,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         self.given_tiktok()
         target = self.given_target()
 
-        with mock.patch("publishing.tasks.confirm_target.apply_async") as confirm:
+        with mock.patch("services.tasks.confirm_target.apply_async") as confirm:
             tasks.run_target(target.pk)
 
         confirm.assert_called_once_with((target.pk,), countdown=ConfirmationPoller.POLL_DELAYS_SECONDS[0])
@@ -310,7 +310,7 @@ class TikTokPublishingScenarios(PublishingTestCase):
         )
 
         # When: the sweep runs twice
-        with mock.patch("publishing.tasks.confirm_target.delay") as confirm:
+        with mock.patch("services.tasks.confirm_target.delay") as confirm:
             tasks.dispatch_due_targets()
             tasks.dispatch_due_targets()
 

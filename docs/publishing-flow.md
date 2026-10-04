@@ -7,7 +7,7 @@ Instagram, X) и перечисляет найденные слабые мест
 
 > **Срез устарел в деталях.** После `docs/adr/0003-async-platforms.md` платформы
 > работают на asyncio (`AuthorizationInteractor` / `PublishInteractor`),
-> сценарии лежат в `platforms/core/usecases/`, загрузка не возобновляется
+> сценарии лежат в `services/usecases/` (`docs/adr/0004-services-package.md`), загрузка не возобновляется
 > (зависшие цели переводит в failed `StaleTargetSweeper`), `resume_state`
 > переименован в `confirmation_state` и хранит только подтверждение, а
 > `FailureType` заменён на `PlatformFailure`. Пути файлов и описание resume

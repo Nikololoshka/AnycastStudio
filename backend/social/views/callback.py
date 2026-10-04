@@ -4,7 +4,7 @@ from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.views.decorators.http import require_GET
 
-from config.wiring import container
+from services.wiring import container
 
 RETURN_PATH = "/settings/accounts"
 

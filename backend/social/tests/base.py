@@ -5,8 +5,8 @@ from django.core.cache import cache
 from django.test import TestCase
 
 from accounts.models import User
-from config.wiring import Container, container
 from platforms.tests.fakes.http import FakeAnswer, FakeSession
+from services.wiring import Container, container
 from social.models import SocialAccount
 
 CONNECT_URL = "/api/social/youtube/connect"
