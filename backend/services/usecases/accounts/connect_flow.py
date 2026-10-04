@@ -42,7 +42,7 @@ class ConnectFlow:
 
         await self._sweep_expired()
         request = platform.get_authorization_interactor().create_auth_request(secrets.token_urlsafe(self.STATE_BYTES))
-        session = await self._sessions.create_pending(owner_id, platform_type, request.state, request.code_verifier)
+        session = await self._sessions.start_session(owner_id, platform_type, request.state, request.code_verifier)
         logger.info("OAuth session %s started for %s", session.id, platform_type)
         return request.url
 
@@ -54,7 +54,7 @@ class ConnectFlow:
             return ConnectOutcome.INVALID
 
         created_after = self._clock.now() - self._session_ttl
-        session = await self._sessions.claim_pending_by_state(platform_type, state, created_after)
+        session = await self._sessions.claim_pending_session(platform_type, state, created_after)
         if session is None:
             return ConnectOutcome.INVALID
 
@@ -92,10 +92,10 @@ class ConnectFlow:
             return None
 
     async def _sweep_expired(self) -> None:
-        deleted = await self._sessions.delete_created_before(self._clock.now() - self._session_ttl)
+        deleted = await self._sessions.delete_expired_sessions(self._clock.now() - self._session_ttl)
         if deleted:
             logger.info("Removed %d expired OAuth sessions", deleted)
 
     async def _finish(self, session: OAuthSessionRecord, status: OAuthSessionStatus) -> None:
-        await self._sessions.mark_finished(session.id, status)
+        await self._sessions.finish_session(session.id, status)
         logger.info("OAuth session %s finished as %s", session.id, status)

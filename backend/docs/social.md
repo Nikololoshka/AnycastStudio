@@ -6,12 +6,12 @@ reason is not visible in the code.
 
 ## Connecting
 
-- `sessions.create_pending` starts an `OAuthSession` with a random `state` and, for
+- `sessions.start_session` starts an `OAuthSession` with a random `state` and, for
   PKCE platforms, a verifier that is stored encrypted and never leaves the
   server. Expired sessions are swept whenever a new one starts.
 - The callback is a GET the platform redirects to, so it cannot carry a CSRF
   token. `state` is the defence, and it is checked twice: that we issued it and
-  it is still pending (`sessions.claim_pending_by_state`), and that it belongs to the person
+  it is still pending (`sessions.claim_pending_session`), and that it belongs to the person
   whose session cookie is on the request. Without the second check a stranger
   could graft their own platform account onto someone else's tenant.
 - `claim` is a conditional UPDATE, not a lock: SQLite has no

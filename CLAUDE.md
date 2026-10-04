@@ -219,7 +219,7 @@ in a check afterwards:
 
 - Tasks are idempotent and claim before they work: a conditional UPDATE whose
   rowcount decides, as in `DjangoTargetRepository.claim` and
-  `DjangoOAuthSessionRepository.claim_pending_by_state`. `acks_late` gives at-least-once; the claim
+  `DjangoOAuthSessionRepository.claim_pending_session`. `acks_late` gives at-least-once; the claim
   makes it effectively-once.
 - Never retry what the platform decided about. A rejected file or an exhausted
   quota does not improve on repetition, and each attempt spends YouTube quota

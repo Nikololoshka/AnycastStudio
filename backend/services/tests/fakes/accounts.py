@@ -88,13 +88,13 @@ class FakeSessions(OAuthSessionRepository):
         self._clock = clock
         self.rows: dict[int, dict] = {}
 
-    async def delete_created_before(self, moment: datetime) -> int:
+    async def delete_expired_sessions(self, moment: datetime) -> int:
         expired = [pk for pk, row in self.rows.items() if row["created_at"] < moment]
         for pk in expired:
             del self.rows[pk]
         return len(expired)
 
-    async def create_pending(
+    async def start_session(
         self, owner_id: int, platform: PlatformType, state: str, code_verifier: str
     ) -> OAuthSessionRecord:
         pk = max(self.rows, default=0) + 1
@@ -108,7 +108,7 @@ class FakeSessions(OAuthSessionRepository):
         }
         return OAuthSessionRecord(pk, owner_id, platform, code_verifier)
 
-    async def claim_pending_by_state(
+    async def claim_pending_session(
         self, platform: PlatformType, state: str, created_after: datetime
     ) -> OAuthSessionRecord | None:
         for pk, row in self.rows.items():
@@ -120,7 +120,7 @@ class FakeSessions(OAuthSessionRepository):
             return OAuthSessionRecord(pk, row["owner_id"], platform, row["verifier"])
         return None
 
-    async def mark_finished(self, session_id: int, status: OAuthSessionStatus) -> None:
+    async def finish_session(self, session_id: int, status: OAuthSessionStatus) -> None:
         self.rows[session_id]["status"] = status
 
     def only(self) -> dict:

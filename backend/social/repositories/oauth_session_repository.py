@@ -11,12 +11,12 @@ from ..models import OAuthSession
 
 class DjangoOAuthSessionRepository(OAuthSessionRepository):
     @sync_to_async
-    def delete_created_before(self, moment: datetime) -> int:
+    def delete_expired_sessions(self, moment: datetime) -> int:
         deleted, _ = OAuthSession.objects.filter(created_at__lt=moment).delete()
         return deleted
 
     @sync_to_async
-    def create_pending(
+    def start_session(
         self, owner_id: int, platform: PlatformType, state: str, code_verifier: str
     ) -> OAuthSessionRecord:
         session = OAuthSession.objects.create(
@@ -25,7 +25,7 @@ class DjangoOAuthSessionRepository(OAuthSessionRepository):
         return self._record(session)
 
     @sync_to_async
-    def claim_pending_by_state(
+    def claim_pending_session(
         self, platform: PlatformType, state: str, created_after: datetime
     ) -> OAuthSessionRecord | None:
         session = OAuthSession.objects.filter(platform=platform, state=state).first()
@@ -37,7 +37,7 @@ class DjangoOAuthSessionRepository(OAuthSessionRepository):
         return self._record(session) if claimed else None
 
     @sync_to_async
-    def mark_finished(self, session_id: int, status: OAuthSessionStatus) -> None:
+    def finish_session(self, session_id: int, status: OAuthSessionStatus) -> None:
         OAuthSession.objects.filter(pk=session_id).update(status=status)
 
     @staticmethod
