@@ -15,15 +15,15 @@ class TargetStatus(StrEnum):
 
     @classmethod
     def running(cls) -> tuple[Self, ...]:
-        return (cls.VALIDATING, cls.UPLOADING, cls.PROCESSING, cls.PUBLISHING)
+        return cls.VALIDATING, cls.UPLOADING, cls.PROCESSING, cls.PUBLISHING
 
     @classmethod
     def worked_on(cls) -> tuple[Self, ...]:
-        return (cls.VALIDATING, cls.UPLOADING, cls.PUBLISHING)
+        return cls.VALIDATING, cls.UPLOADING, cls.PUBLISHING
 
     @classmethod
     def active(cls) -> tuple[Self, ...]:
-        return (cls.QUEUED, *cls.running())
+        return cls.QUEUED, *cls.running()
 
     @property
     def is_active(self) -> bool:
