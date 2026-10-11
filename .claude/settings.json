@@ -47,7 +47,8 @@
     "typescript-lsp@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "ponytail@ponytail": true
+    "ponytail@ponytail": true,
+    "prismantis@prismantis": true
   },
   "outputStyle": "concise",
   "sandbox": {
