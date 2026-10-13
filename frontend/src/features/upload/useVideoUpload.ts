@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { baseApi } from '../../api/baseApi';
 import type { AppDispatch, RootState } from '../../app/store';
 import { setVideo } from '../composer';
 import { describeVideoFile } from '../../services/files';
@@ -87,6 +88,7 @@ export function useVideoUpload() {
 
         dispatch(setVideo({ ...video, mediaAssetId: String(asset.id) }));
         dispatch(uploadFinished());
+        dispatch(baseApi.util.invalidateTags(['MediaAsset']));
         removeStored(PENDING_UPLOAD_KEY);
       } catch (error) {
         if (abort.signal.aborted) {

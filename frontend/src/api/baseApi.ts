@@ -48,6 +48,6 @@ const baseQueryWithCsrf: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithCsrf,
-  tagTypes: ['Session', 'Account', 'MediaAsset', 'Publication'],
+  tagTypes: ['Session', 'Account', 'MediaAsset', 'Publication', 'Draft'],
   endpoints: () => ({}),
 });

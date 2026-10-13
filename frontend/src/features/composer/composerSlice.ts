@@ -5,6 +5,7 @@ import { AVAILABLE_PLATFORMS } from '../../domain/platform/order';
 import type { VideoFile } from '../../domain/video/types';
 import { defaultPlatformSettings, normalizeAllPlatformSettings } from '../../platforms/settings';
 import { readStored, STORAGE_KEYS } from '../../services/storage';
+import type { Draft } from '../../api/draftsApi';
 
 /**
  * The publication being written. This is the one part of the application the
@@ -12,6 +13,8 @@ import { readStored, STORAGE_KEYS } from '../../services/storage';
  * after which the server holds it.
  */
 export interface ComposerState {
+  draftId?: string;
+
   video?: VideoFile;
 
   title: string;
@@ -42,6 +45,16 @@ const composerSlice = createSlice({
   name: 'composer',
   initialState: initialComposer,
   reducers: {
+    composerReset() {
+      return initialComposer();
+    },
+    draftLoaded(_state, action: PayloadAction<Draft>) {
+      const { id, updatedAt: _updatedAt, ...content } = action.payload;
+      return { ...content, draftId: id };
+    },
+    draftSaved(state, action: PayloadAction<string>) {
+      state.draftId = action.payload;
+    },
     setVideo(state, action: PayloadAction<VideoFile>) {
       state.video = action.payload;
     },
@@ -79,6 +92,9 @@ const composerSlice = createSlice({
 });
 
 export const {
+  composerReset,
+  draftLoaded,
+  draftSaved,
   setVideo,
   clearVideo,
   setTitle,
