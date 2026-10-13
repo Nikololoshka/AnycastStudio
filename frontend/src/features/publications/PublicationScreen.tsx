@@ -27,7 +27,7 @@ export function PublicationScreen() {
   }
 
   return (
-    <Card className="mt-6">
+    <Card>
       <Card.Header>
         <Card.Title>{publication.title}</Card.Title>
         <Card.Description>{publication.filename}</Card.Description>

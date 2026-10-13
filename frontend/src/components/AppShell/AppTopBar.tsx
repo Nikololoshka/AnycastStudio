@@ -23,14 +23,14 @@ const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
 
 const NAV_ITEMS = [
   { to: '/compose', key: 'nav.compose' },
-  { to: '/publications', key: 'nav.publications' },
+  { to: '/files', key: 'nav.files' },
   { to: '/settings/accounts', key: 'nav.accounts' },
 ] as const;
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return [
     'rounded-lg px-3 py-1.5 text-sm transition-colors',
-    isActive ? 'bg-surface text-foreground' : 'text-muted hover:text-foreground',
+    isActive ? 'bg-surface-secondary text-foreground' : 'text-muted hover:text-foreground',
   ].join(' ');
 }
 
@@ -54,7 +54,7 @@ export function AppTopBar() {
   }
 
   return (
-    <header className="mx-auto flex h-14 w-full max-w-6xl shrink-0 items-center gap-3 px-4">
+    <header className="flex h-14 w-full shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
       <AppMark />
       <span className="font-display text-[17px] font-semibold tracking-tight">{t('app.name')}</span>
 

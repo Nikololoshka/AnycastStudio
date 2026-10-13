@@ -1,0 +1,27 @@
+{
+  "storage": {
+    "title": "Storage",
+    "usage": "{{used}} of {{quota}}"
+  },
+  "files": {
+    "title": "Files",
+    "subtitle": "Videos stored on the server for your posts.",
+    "empty": "No files uploaded yet.",
+    "delete": "Delete file",
+    "column": {
+      "name": "Name",
+      "size": "Size",
+      "duration": "Duration",
+      "resolution": "Resolution",
+      "uploaded": "Uploaded"
+    },
+    "confirm": {
+      "heading": "Delete this file?",
+      "body": "{{name}} will be removed from the server."
+    },
+    "error": {
+      "inUse": "{{name}} is used by a post that is still in progress.",
+      "unknown": "Could not delete the file."
+    }
+  }
+}

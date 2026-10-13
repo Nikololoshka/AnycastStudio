@@ -77,12 +77,6 @@ body {
   background: transparent;
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
-  user-select: none;
-}
-
-input,
-textarea {
-  user-select: text;
 }
 
 ::-webkit-scrollbar {
