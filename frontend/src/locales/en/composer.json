@@ -102,7 +102,9 @@
       "tooManyHashtags": "{{platform}} allows at most 30 hashtags in the caption.",
       "videoTooShort": "The video is too short for {{platform}}.",
       "videoTooLong": "The video is too long for {{platform}}."
-    }
+    },
+    "saveDraft": "Save draft",
+    "draftSaved": "Draft saved"
   },
   "progress": {
     "enable": "Publish to {{platform}}",

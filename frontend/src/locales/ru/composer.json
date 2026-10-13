@@ -104,7 +104,9 @@
       "tooManyHashtags": "{{platform}} допускает не больше 30 хештегов в подписи.",
       "videoTooShort": "Видео слишком короткое для {{platform}}.",
       "videoTooLong": "Видео слишком длинное для {{platform}}."
-    }
+    },
+    "saveDraft": "Сохранить черновик",
+    "draftSaved": "Черновик сохранён"
   },
   "progress": {
     "enable": "Публиковать в {{platform}}",

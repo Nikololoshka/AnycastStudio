@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { Button } from '@heroui/react';
-import { CalendarClock, Clapperboard, Send, Zap } from 'lucide-react';
+import { CalendarClock, Clapperboard, Save, Send, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
-import { useCreatePublicationMutation, useGetAccountsQuery } from '../../api';
+import {
+  useCreatePublicationMutation,
+  useDeleteDraftMutation,
+  useGetAccountsQuery,
+  useSaveDraftMutation,
+} from '../../api';
 import { messageOf, statusOf } from '../../api/errors';
 import type { AppDispatch, RootState } from '../../app/store';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
 import { getDescriptorFor, getLabelFor } from '../../platforms/registry';
 import { TikTokConsent } from '../../platforms/tiktok';
-import { clearVideo } from './composerSlice';
+import { clearVideo, draftSaved } from './composerSlice';
 import { uploadReset } from '../upload';
 
 const SCHEDULE_FORMAT: Intl.DateTimeFormatOptions = {
@@ -26,12 +31,16 @@ export function SummaryPanel() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const { video, title, description, hashtags, publishAt, selectedPlatforms, platformSettings } =
-    useSelector((state: RootState) => state.composer);
+  const composer = useSelector((state: RootState) => state.composer);
+  const { draftId, video, title, description, hashtags, publishAt, selectedPlatforms, platformSettings } =
+    composer;
   const uploadStatus = useSelector((state: RootState) => state.upload.status);
 
   const { data: accounts } = useGetAccountsQuery();
   const [createPublication, { isLoading: isPublishing }] = useCreatePublicationMutation();
+  const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
+  const [deleteDraft] = useDeleteDraftMutation();
+  const [savedAt, setSavedAt] = useState('');
   const [error, setError] = useState('');
 
   const targets = selectedPlatforms.flatMap((platform) => {
@@ -89,7 +98,7 @@ export function SummaryPanel() {
         targets,
       }).unwrap();
 
-      // The server owns it now; the composer starts empty for the next one.
+      if (draftId) void deleteDraft(draftId);
       dispatch(clearVideo());
       dispatch(uploadReset());
       void navigate(`/publications/${publication.id}`);
@@ -105,8 +114,18 @@ export function SummaryPanel() {
     }
   }
 
+  async function save() {
+    const { draftId: id, ...content } = composer;
+    const draft = await saveDraft({ ...content, id }).unwrap();
+    setSavedAt(draft.updatedAt);
+    if (!id) {
+      await navigate(`/compose/${draft.id}`, { replace: true });
+      dispatch(draftSaved(draft.id));
+    }
+  }
+
   return (
-    <aside className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5">
+    <aside className="sticky top-0 flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5">
       <h2 className="font-display text-lg font-semibold tracking-tight">{t('summary.title')}</h2>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface-secondary">
@@ -168,6 +187,25 @@ export function SummaryPanel() {
         <Send className="size-4" />
         {publishAt ? t('summary.schedule') : t('summary.publish')}
       </Button>
+
+      <Button
+        variant="secondary"
+        fullWidth
+        isDisabled={isSaving || isPublishing}
+        onPress={() => void save()}
+      >
+        <Save className="size-4" />
+        {t('summary.saveDraft')}
+      </Button>
+
+      {savedAt && (
+        <p className="text-center text-xs text-muted">
+          {t('summary.draftSaved')} ·{' '}
+          <span className="tabular-nums">
+            {new Date(savedAt).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </p>
+      )}
 
       {selectedPlatforms.includes('tiktok') && <TikTokConsent />}
 
