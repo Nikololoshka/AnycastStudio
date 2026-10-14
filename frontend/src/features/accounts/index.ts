@@ -1,1 +1,1 @@
-export * from './AccountsScreen';
+export * from './PlatformsScreen';

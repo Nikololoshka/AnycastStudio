@@ -2,7 +2,7 @@ import { createBrowserRouter, Navigate, redirect, type LoaderFunctionArgs } from
 import { AppShell } from '../../components/AppShell';
 import { LoginScreen, ProtectedRoute } from '../../features/auth';
 import { ComposerScreen } from '../../features/composer';
-import { AccountsScreen } from '../../features/accounts';
+import { PlatformsScreen } from '../../features/accounts';
 import { LibraryScreen } from '../../features/media';
 import { PublicationScreen, PublicationsScreen } from '../../features/publications';
 
@@ -27,7 +27,7 @@ export const router = createBrowserRouter([
       { path: 'library', element: <LibraryScreen /> },
       { path: 'publications', element: <PublicationsScreen /> },
       { path: 'publications/:id', element: <PublicationScreen /> },
-      { path: 'platforms', element: <AccountsScreen /> },
+      { path: 'platforms', element: <PlatformsScreen /> },
       { path: 'account', element: <Navigate to="/platforms" replace /> },
       { path: 'files', element: <Navigate to="/library" replace /> },
       { path: 'settings/accounts', loader: redirectWithQuery('/platforms') },

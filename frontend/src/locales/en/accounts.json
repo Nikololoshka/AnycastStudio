@@ -1,21 +1,32 @@
 {
   "screen": {
-    "title": "Connected accounts",
-    "subtitle": "AnycastStudio publishes on behalf of these accounts."
+    "title": "Platforms",
+    "subtitle": "Connect the accounts AnycastStudio publishes to."
   },
-  "status": {
-    "waiting": "Waiting for browser…",
-    "disconnecting": "Disconnecting…",
-    "signedIn": "Signed in as {{name}}",
-    "none": "No account connected",
-    "needsReauth": "Access expired. Reconnect to keep publishing."
+  "list": {
+    "label": "Platforms"
+  },
+  "state": {
+    "connected": "Connected",
+    "needsReauth": "Sign in again",
+    "none": "Not connected"
+  },
+  "detail": {
+    "connectedAt": "connected {{date}}",
+    "expired": "Your {{platform}} session has expired, so publishing there is paused. Sign in again to continue.",
+    "settingsNote": "Publishing settings are chosen when you create a post.",
+    "compose": "New post",
+    "emptyTitle": "{{platform}} is not connected",
+    "emptyBody": "Sign in to publish your videos to this account."
   },
   "actions": {
-    "connect": "Connect {{platform}}",
+    "connect": "Connect",
     "disconnect": "Disconnect",
-    "disconnecting": "Disconnecting…",
-    "cancel": "Cancel",
-    "reconnect": "Reconnect"
+    "reconnect": "Sign in again"
+  },
+  "confirm": {
+    "heading": "Disconnect {{platform}}?",
+    "body": "AnycastStudio will stop publishing to {{name}}. You can connect it again at any time."
   },
   "callback": {
     "connected": "Account connected.",
