@@ -27,7 +27,7 @@ export function PublicationScreen() {
   }
 
   return (
-    <Card>
+    <Card className="rounded-[14px] bg-surface shadow-surface">
       <Card.Header>
         <Card.Title>{publication.title}</Card.Title>
         <Card.Description>{publication.filename}</Card.Description>

@@ -28,7 +28,7 @@ export function TargetRow({ target }: { target: PublicationTarget }) {
   const canCancel = target.isActive && target.status !== 'processing';
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border px-4 py-3">
+    <div className="flex flex-col gap-2 rounded-xl bg-surface-secondary px-4 py-3">
       <div className="flex items-center gap-3">
         <PlatformGlyph platform={target.platform as AvailablePlatform} size="sm" />
         <span className="font-medium">{getLabelFor(target.platform as AvailablePlatform)}</span>

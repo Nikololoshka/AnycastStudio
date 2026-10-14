@@ -6,7 +6,7 @@ export function AppShell() {
   return (
     <div className="flex min-h-dvh flex-col bg-window-backdrop text-foreground min-[900px]:flex-row">
       <AppSidebar />
-      <main className="min-w-0 flex-1">
+      <main className="min-w-0 flex-1 overflow-x-clip">
         <AppTopBar />
         <div className="px-4 pt-2 pb-12 sm:px-6 lg:px-10">
           <div className="mx-auto max-w-[1200px]">

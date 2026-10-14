@@ -26,18 +26,6 @@
       "ru": "Language: Russian"
     }
   },
-  "sidebar": {
-    "new": "New post",
-    "empty": "No posts or drafts yet.",
-    "untitled": "Untitled",
-    "draft": "Draft",
-    "delete": "Delete",
-    "confirm": {
-      "draftHeading": "Delete this draft?",
-      "publicationHeading": "Delete this post?",
-      "body": "“{{title}}” will be removed. This cannot be undone."
-    }
-  },
   "confirm": {
     "cancel": "Cancel"
   }

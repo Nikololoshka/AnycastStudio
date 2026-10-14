@@ -1,8 +1,58 @@
 {
   "screen": {
-    "title": "Publications",
-    "subtitle": "Everything you have sent to a platform, and how it went.",
-    "empty": "Nothing published yet. Compose a video to get started."
+    "title": "Posts",
+    "subtitle": "Post history, schedule and drafts.",
+    "new": "New post",
+    "untitled": "Untitled"
+  },
+  "tabs": {
+    "label": "Section",
+    "published": "Published",
+    "scheduled": "Scheduled",
+    "draft": "Drafts",
+    "error": "Errors"
+  },
+  "empty": {
+    "published": "Nothing published yet. Start with a new post.",
+    "scheduled": "Nothing is scheduled.",
+    "draft": "No drafts. Save a post to drafts to finish it later.",
+    "error": "No failed posts."
+  },
+  "column": {
+    "video": "Video",
+    "platforms": "Platforms",
+    "status": "Status",
+    "reason": "Reason",
+    "remaining": "What’s left",
+    "date": "Date",
+    "publishAt": "Goes out",
+    "updated": "Edited",
+    "actions": "Actions"
+  },
+  "row": {
+    "progress": "{{done}} of {{total}} ready",
+    "failedOn": "Failed: {{platforms}}",
+    "noVideo": "No video",
+    "noTitle": "No title",
+    "noPlatforms": "No platforms chosen",
+    "ready": "Ready to publish"
+  },
+  "pagination": {
+    "label": "Pages",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "rowsPerPage": "Rows per page"
+  },
+  "legend": {
+    "label": "Platform status",
+    "completed": "published",
+    "active": "in progress",
+    "scheduled": "scheduled",
+    "failed": "error"
+  },
+  "confirm": {
+    "draftHeading": "Delete this draft?",
+    "publicationHeading": "Delete this post?",
+    "body": "“{{title}}” will be removed. This cannot be undone."
   },
   "detail": {
     "immediate": "Published as soon as it was ready"
@@ -21,7 +71,10 @@
   "actions": {
     "cancel": "Cancel",
     "retry": "Retry",
-    "open": "Open"
+    "open": "Open",
+    "links": "Links",
+    "continue": "Continue",
+    "delete": "Delete"
   },
   "error": {
     "network": "The connection to the platform failed.",

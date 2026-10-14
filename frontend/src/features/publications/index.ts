@@ -1,3 +1,3 @@
 export * from './PublicationScreen';
-export * from './PublicationsSidebar';
+export * from './PublicationsScreen';
 export * from './TargetRow';
