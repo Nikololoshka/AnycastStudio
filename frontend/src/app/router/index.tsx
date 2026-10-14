@@ -3,7 +3,7 @@ import { AppShell } from '../../components/AppShell';
 import { LoginScreen, ProtectedRoute } from '../../features/auth';
 import { ComposerScreen } from '../../features/composer';
 import { AccountsScreen } from '../../features/accounts';
-import { FilesScreen } from '../../features/media';
+import { LibraryScreen } from '../../features/media';
 import { PublicationScreen, PublicationsScreen } from '../../features/publications';
 
 function redirectWithQuery(to: string) {
@@ -24,7 +24,7 @@ export const router = createBrowserRouter([
       { path: 'overview', element: <Navigate to="/compose" replace /> },
       { path: 'compose', element: <ComposerScreen /> },
       { path: 'compose/:draftId', element: <ComposerScreen /> },
-      { path: 'library', element: <FilesScreen /> },
+      { path: 'library', element: <LibraryScreen /> },
       { path: 'publications', element: <PublicationsScreen /> },
       { path: 'publications/:id', element: <PublicationScreen /> },
       { path: 'platforms', element: <AccountsScreen /> },

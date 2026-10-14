@@ -1,27 +1,48 @@
 {
   "storage": {
     "title": "Storage",
-    "usage": "{{used}} of {{quota}}"
+    "usage": "{{used}} of {{quota}}",
+    "ofQuota": "of {{quota}}, {{free}} free",
+    "autoCleanup": "Auto-delete source files"
   },
-  "files": {
-    "title": "Files",
-    "subtitle": "Videos stored on the server for your posts.",
-    "empty": "No files uploaded yet.",
-    "delete": "Delete file",
-    "column": {
-      "name": "Name",
-      "size": "Size",
-      "duration": "Duration",
-      "resolution": "Resolution",
-      "uploaded": "Uploaded"
-    },
+  "category": {
+    "published": "Published",
+    "draft": "Drafts",
+    "unused": "Unused"
+  },
+  "filter": {
+    "label": "Filter videos",
+    "all": "All",
+    "published": "Published",
+    "draft": "Drafts",
+    "unused": "Unused"
+  },
+  "sort": {
+    "label": "Sort videos",
+    "newest": "Newest first",
+    "largest": "Largest first",
+    "name": "By name"
+  },
+  "empty": {
+    "all": "No videos yet. Upload one to start a post.",
+    "published": "No published videos yet.",
+    "draft": "No videos are waiting in drafts.",
+    "unused": "Every video is in use."
+  },
+  "library": {
+    "title": "Media library",
+    "subtitle": "Every video currently stored on the server.",
+    "upload": "Upload video",
+    "actions": "Actions for {{name}}",
+    "compose": "Create post",
+    "delete": "Delete video",
     "confirm": {
-      "heading": "Delete this file?",
+      "heading": "Delete this video?",
       "body": "{{name}} will be removed from the server."
     },
     "error": {
       "inUse": "{{name}} is used by a post that is still in progress.",
-      "unknown": "Could not delete the file."
+      "unknown": "Could not delete the video."
     }
   }
 }
