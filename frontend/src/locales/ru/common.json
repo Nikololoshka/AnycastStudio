@@ -3,11 +3,18 @@
     "name": "AnycastStudio"
   },
   "nav": {
-    "compose": "Публикация",
-    "files": "Файлы",
-    "accounts": "Аккаунты"
+    "label": "Основное меню",
+    "overview": "Обзор",
+    "compose": "Новая публикация",
+    "library": "Медиатека",
+    "publications": "Публикации",
+    "platforms": "Платформы",
+    "account": "Аккаунт"
   },
   "topBar": {
+    "search": "Поиск видео",
+    "notifications": "Уведомления",
+    "notificationsEmpty": "Уведомлений пока нет.",
     "signOut": "Выйти",
     "theme": {
       "system": "Тема: как в системе",

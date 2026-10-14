@@ -3,11 +3,18 @@
     "name": "AnycastStudio"
   },
   "nav": {
-    "compose": "Compose",
-    "files": "Files",
-    "accounts": "Accounts"
+    "label": "Main menu",
+    "overview": "Overview",
+    "compose": "New post",
+    "library": "Library",
+    "publications": "Posts",
+    "platforms": "Platforms",
+    "account": "Account"
   },
   "topBar": {
+    "search": "Search videos",
+    "notifications": "Notifications",
+    "notificationsEmpty": "No notifications yet.",
     "signOut": "Sign out",
     "theme": {
       "system": "Theme: follow system",

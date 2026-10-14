@@ -125,7 +125,7 @@ export function SummaryPanel() {
   }
 
   return (
-    <aside className="sticky top-0 flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5">
+    <aside className="sticky top-20 flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5">
       <h2 className="font-display text-lg font-semibold tracking-tight">{t('summary.title')}</h2>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface-secondary">

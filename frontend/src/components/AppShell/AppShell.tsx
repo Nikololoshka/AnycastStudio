@@ -1,17 +1,19 @@
 import { Outlet } from 'react-router';
-import { PublicationsSidebar } from '../../features/publications';
+import { AppSidebar } from './AppSidebar';
 import { AppTopBar } from './AppTopBar';
 
 export function AppShell() {
   return (
-    <div className="flex h-dvh w-full flex-col overflow-hidden bg-window-backdrop text-foreground">
-      <AppTopBar />
-      <div className="flex min-h-0 flex-1">
-        <PublicationsSidebar />
-        <main className="min-w-0 flex-1 overflow-y-auto px-6 py-6">
-          <Outlet />
-        </main>
-      </div>
+    <div className="flex min-h-dvh flex-col bg-window-backdrop text-foreground min-[900px]:flex-row">
+      <AppSidebar />
+      <main className="min-w-0 flex-1">
+        <AppTopBar />
+        <div className="px-4 pt-2 pb-12 sm:px-6 lg:px-10">
+          <div className="mx-auto max-w-[1200px]">
+            <Outlet />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

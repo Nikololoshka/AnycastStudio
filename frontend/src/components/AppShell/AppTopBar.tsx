@@ -1,13 +1,14 @@
-import { Button, Separator, Tooltip } from '@heroui/react';
-import { Languages, LogOut, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
+import { Button, Popover, SearchField, Tooltip } from '@heroui/react';
+import { Bell, Languages, LogOut, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
-import { NavLink, useNavigate } from 'react-router';
-import { useGetSessionQuery, useLogoutMutation } from '../../api';
+import { useLocation, useNavigate } from 'react-router';
+import { useLogoutMutation } from '../../api';
 import { nextLanguage } from '../../app/i18n';
 import type { AppDispatch, RootState } from '../../app/store';
 import { changeLanguage, changeTheme, type ThemePreference } from '../../features/settings';
-import { AppMark } from './AppMark';
+import { NAV_ITEMS } from './navItems';
+import { useScrolled } from './useScrolled';
 
 const THEME_CYCLE: Record<ThemePreference, ThemePreference> = {
   system: 'light',
@@ -21,52 +22,65 @@ const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
   dark: Moon,
 };
 
-const NAV_ITEMS = [
-  { to: '/compose', key: 'nav.compose' },
-  { to: '/files', key: 'nav.files' },
-  { to: '/settings/accounts', key: 'nav.accounts' },
-] as const;
-
-function navClass({ isActive }: { isActive: boolean }): string {
-  return [
-    'rounded-lg px-3 py-1.5 text-sm transition-colors',
-    isActive ? 'bg-surface-secondary text-foreground' : 'text-muted hover:text-foreground',
-  ].join(' ');
-}
-
 export function AppTopBar() {
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const theme = useSelector((state: RootState) => state.settings.theme);
   const language = useSelector((state: RootState) => state.settings.language);
-  const { data: user } = useGetSessionQuery();
   const [logout] = useLogoutMutation();
+  const { pathname } = useLocation();
+  const scrolled = useScrolled(4);
+  const page = NAV_ITEMS.find((item) => pathname.startsWith(item.to));
 
   const ThemeIcon = THEME_ICONS[theme];
   const themeLabel = t(`topBar.theme.${theme}`);
   const languageLabel = t(`topBar.language.${language}`);
   const signOutLabel = t('topBar.signOut');
+  const notificationsLabel = t('topBar.notifications');
 
   async function signOut() {
-    await logout().unwrap().catch(() => undefined);
+    await logout()
+      .unwrap()
+      .catch(() => undefined);
     void navigate('/login', { replace: true });
   }
 
   return (
-    <header className="flex h-14 w-full shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
-      <AppMark />
-      <span className="font-display text-[17px] font-semibold tracking-tight">{t('app.name')}</span>
+    <header
+      className={[
+        'sticky top-0 z-30 flex h-16 items-center gap-2 border-b px-4 backdrop-blur-xl backdrop-saturate-150 transition-[background-color,border-color,box-shadow] motion-reduce:transition-none sm:px-6 lg:px-10',
+        scrolled ? 'border-border bg-surface/70 shadow-sm' : 'border-transparent',
+      ].join(' ')}
+    >
+      <span
+        aria-hidden={!scrolled}
+        className={[
+          'min-w-0 flex-1 truncate text-base font-semibold transition-opacity motion-reduce:transition-none',
+          scrolled ? 'opacity-100' : 'opacity-0',
+        ].join(' ')}
+      >
+        {page && t(page.key)}
+      </span>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+      <SearchField aria-label={t('topBar.search')} className="w-65 min-w-0 shrink">
+        <SearchField.Group>
+          <SearchField.SearchIcon />
+          <SearchField.Input placeholder={t('topBar.search')} />
+          <SearchField.ClearButton />
+        </SearchField.Group>
+      </SearchField>
 
-      <nav className="flex items-center gap-1">
-        {NAV_ITEMS.map((item) => (
-          <NavLink key={item.to} to={item.to} className={navClass}>
-            {t(item.key)}
-          </NavLink>
-        ))}
-      </nav>
+      <Popover>
+        <Button isIconOnly variant="ghost" aria-label={notificationsLabel}>
+          <Bell className="size-5" strokeWidth={1.8} />
+        </Button>
+        <Popover.Content placement="bottom end">
+          <Popover.Dialog aria-label={notificationsLabel} className="w-64 p-4 text-sm text-muted">
+            {t('topBar.notificationsEmpty')}
+          </Popover.Dialog>
+        </Popover.Content>
+      </Popover>
 
       <Tooltip delay={400}>
         <Button
@@ -74,7 +88,6 @@ export function AppTopBar() {
           size="sm"
           variant="ghost"
           aria-label={languageLabel}
-          className="ml-auto"
           onPress={() => dispatch(changeLanguage(nextLanguage(language)))}
         >
           <span className="relative grid place-items-center">
@@ -100,24 +113,18 @@ export function AppTopBar() {
         <Tooltip.Content placement="bottom end">{themeLabel}</Tooltip.Content>
       </Tooltip>
 
-      {user && (
-        <>
-          <Separator orientation="vertical" className="mx-1 h-6" />
-          <span className="max-w-40 truncate text-sm text-muted">{user.name}</span>
-          <Tooltip delay={400}>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              aria-label={signOutLabel}
-              onPress={() => void signOut()}
-            >
-              <LogOut className="size-4" />
-            </Button>
-            <Tooltip.Content placement="bottom end">{signOutLabel}</Tooltip.Content>
-          </Tooltip>
-        </>
-      )}
+      <Tooltip delay={400}>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-label={signOutLabel}
+          onPress={() => void signOut()}
+        >
+          <LogOut className="size-4" />
+        </Button>
+        <Tooltip.Content placement="bottom end">{signOutLabel}</Tooltip.Content>
+      </Tooltip>
     </header>
   );
 }

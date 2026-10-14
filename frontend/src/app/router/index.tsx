@@ -1,10 +1,14 @@
-import { createBrowserRouter, Navigate } from 'react-router';
+import { createBrowserRouter, Navigate, redirect, type LoaderFunctionArgs } from 'react-router';
 import { AppShell } from '../../components/AppShell';
 import { LoginScreen, ProtectedRoute } from '../../features/auth';
 import { ComposerScreen } from '../../features/composer';
 import { AccountsScreen } from '../../features/accounts';
 import { FilesScreen } from '../../features/media';
 import { PublicationScreen } from '../../features/publications';
+
+function redirectWithQuery(to: string) {
+  return ({ request }: LoaderFunctionArgs) => redirect(to + new URL(request.url).search);
+}
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginScreen /> },
@@ -16,13 +20,17 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/compose" replace /> },
+      { index: true, element: <Navigate to="/overview" replace /> },
+      { path: 'overview', element: <Navigate to="/compose" replace /> },
       { path: 'compose', element: <ComposerScreen /> },
       { path: 'compose/:draftId', element: <ComposerScreen /> },
-      { path: 'files', element: <FilesScreen /> },
+      { path: 'library', element: <FilesScreen /> },
       { path: 'publications', element: <Navigate to="/compose" replace /> },
       { path: 'publications/:id', element: <PublicationScreen /> },
-      { path: 'settings/accounts', element: <AccountsScreen /> },
+      { path: 'platforms', element: <AccountsScreen /> },
+      { path: 'account', element: <Navigate to="/platforms" replace /> },
+      { path: 'files', element: <Navigate to="/library" replace /> },
+      { path: 'settings/accounts', loader: redirectWithQuery('/platforms') },
     ],
   },
   { path: '*', element: <Navigate to="/compose" replace /> },

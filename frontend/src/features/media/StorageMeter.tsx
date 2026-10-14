@@ -1,5 +1,4 @@
 import { Meter, Skeleton } from '@heroui/react';
-import { HardDrive } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useGetMediaAssetsQuery } from '../../api';
 import { formatBytes } from './formatBytes';
@@ -18,10 +17,9 @@ export function StorageMeter() {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2 text-xs text-muted">
-        <HardDrive className="size-3.5" />
-        <span>{t('storage.title')}</span>
-        <span className="ml-auto tabular-nums">
+      <div className="flex items-center justify-between gap-2 text-[13px]">
+        <span className="text-muted">{t('storage.title')}</span>
+        <span className="font-medium whitespace-nowrap tabular-nums">
           {t('storage.usage', {
             used: formatBytes(data.usedBytes, i18n.language),
             quota: formatBytes(data.quotaBytes, i18n.language),
