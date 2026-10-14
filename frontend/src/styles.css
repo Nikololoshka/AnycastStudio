@@ -1,56 +1,100 @@
 @import 'tailwindcss';
 @import '@heroui/styles';
-@import '@fontsource-variable/bricolage-grotesque';
-@import '@fontsource-variable/figtree';
+@import '@fontsource-variable/inter';
 
 :root,
 [data-theme='light'] {
-  --background: oklch(0.945 0.028 245);
-  --foreground: oklch(0.22 0.02 265);
-  --surface: oklch(0.995 0.003 245);
-  --surface-secondary: oklch(0.972 0.012 245);
-  --surface-tertiary: oklch(0.945 0.02 245);
-  --muted: oklch(0.52 0.02 265);
-  --border: oklch(0.905 0.016 245);
-  --separator: oklch(0.92 0.014 245);
-  --field-background: oklch(0.978 0.008 245);
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.204 0.013 233);
+  --surface: oklch(1 0 0);
+  --surface-secondary: oklch(0.967 0.001 286);
+  --surface-tertiary: oklch(0.92 0.004 286);
+  --overlay: oklch(1 0 0);
+  --default: oklch(0.967 0.001 286);
+  --muted: oklch(0.552 0.014 286);
+  --muted-strong: oklch(0.37 0.012 286);
+  --border: oklch(0.92 0.004 286);
+  --separator: oklch(0.92 0.004 286);
+  --field-background: oklch(0.967 0.001 286);
   --field-border-width: 1px;
-  --field-border: oklch(0.89 0.018 245);
+  --field-border: oklch(0.92 0.004 286);
 
-  --accent: oklch(0.53 0.2 266);
-  --accent-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.567 0.209 258);
+  --accent-foreground: oklch(1 0 0);
+  --accent-hover: oklch(0.492 0.18 258);
+  --accent-soft: oklch(0.954 0.021 252);
+  --accent-soft-foreground: oklch(0.567 0.209 258);
 
-  --route-line: oklch(0.87 0.022 245);
+  --success: oklch(0.733 0.193 151);
+  --success-foreground: oklch(1 0 0);
+  --success-soft: oklch(0.969 0.023 162);
+  --success-soft-foreground: oklch(0.506 0.13 151);
+  --warning: oklch(0.782 0.158 72);
+  --warning-foreground: oklch(0.204 0.013 233);
+  --warning-soft: oklch(0.987 0.026 102);
+  --warning-soft-foreground: oklch(0.538 0.106 73);
+  --danger: oklch(0.619 0.242 11);
+  --danger-foreground: oklch(1 0 0);
+  --danger-soft: oklch(0.949 0.027 355);
+  --danger-soft-foreground: oklch(0.524 0.204 11);
+
+  --scrollbar-thumb: oklch(0.871 0.005 286);
+  --scrollbar-thumb-hover: oklch(0.712 0.013 286);
+
+  --route-line: oklch(0.871 0.005 286);
   --panel-shadow:
-    0 1px 2px oklch(0.22 0.02 265 / 0.08), 0 10px 26px -14px oklch(0.22 0.02 265 / 0.28);
+    0 0 5px 0 oklch(0 0 0 / 0.02), 0 2px 10px 0 oklch(0 0 0 / 0.06), 0 0 1px 0 oklch(0 0 0 / 0.3);
+  --surface-shadow: var(--panel-shadow);
   --brand-x: oklch(0.2 0 0);
   --brand-tiktok: oklch(0.2 0 0);
-  --window-backdrop: oklch(0.955 0.024 245);
+  --window-backdrop: oklch(0.985 0 0);
 }
 
 .dark,
 [data-theme='dark'] {
-  --background: oklch(0.19 0.012 265);
-  --foreground: oklch(0.94 0.006 264);
-  --surface: oklch(0.225 0.014 265);
-  --surface-secondary: oklch(0.255 0.015 265);
-  --surface-tertiary: oklch(0.285 0.016 265);
-  --overlay: oklch(0.25 0.015 265);
-  --muted: oklch(0.7 0.015 265);
-  --border: oklch(0.3 0.015 265);
-  --separator: oklch(0.28 0.014 265);
-  --field-background: oklch(0.255 0.015 265);
+  --background: oklch(0.16 0.006 286);
+  --foreground: oklch(0.967 0.001 286);
+  --surface: oklch(0.205 0.006 286);
+  --surface-secondary: oklch(0.245 0.006 286);
+  --surface-tertiary: oklch(0.29 0.006 286);
+  --overlay: oklch(0.225 0.006 286);
+  --default: oklch(0.274 0.006 286);
+  --muted: oklch(0.712 0.013 286);
+  --muted-strong: oklch(0.871 0.005 286);
+  --border: oklch(0.29 0.006 286);
+  --separator: oklch(0.26 0.006 286);
+  --field-background: oklch(0.245 0.006 286);
   --field-border-width: 1px;
-  --field-border: oklch(0.33 0.016 265);
+  --field-border: oklch(0.32 0.006 286);
 
-  --accent: oklch(0.68 0.16 266);
-  --accent-foreground: oklch(0.16 0.02 265);
+  --accent: oklch(0.64 0.19 258);
+  --accent-foreground: oklch(1 0 0);
+  --accent-hover: oklch(0.7 0.16 258);
+  --accent-soft: oklch(0.64 0.19 258 / 0.16);
+  --accent-soft-foreground: oklch(0.78 0.12 258);
 
-  --route-line: oklch(0.34 0.02 265);
-  --panel-shadow: 0 1px 2px oklch(0 0 0 / 0.4);
+  --success: oklch(0.733 0.193 151);
+  --success-foreground: oklch(0.16 0.006 286);
+  --success-soft: oklch(0.733 0.193 151 / 0.14);
+  --success-soft-foreground: oklch(0.8 0.15 151);
+  --warning: oklch(0.782 0.158 72);
+  --warning-foreground: oklch(0.16 0.006 286);
+  --warning-soft: oklch(0.782 0.158 72 / 0.14);
+  --warning-soft-foreground: oklch(0.84 0.13 80);
+  --danger: oklch(0.64 0.23 11);
+  --danger-foreground: oklch(1 0 0);
+  --danger-soft: oklch(0.64 0.23 11 / 0.16);
+  --danger-soft-foreground: oklch(0.76 0.16 11);
+
+  --scrollbar-thumb: oklch(0.37 0.012 286);
+  --scrollbar-thumb-hover: oklch(0.552 0.014 286);
+
+  --route-line: oklch(0.32 0.006 286);
+  --panel-shadow: 0 0 0 1px oklch(1 0 0 / 0.06), 0 2px 10px 0 oklch(0 0 0 / 0.4);
+  --surface-shadow: var(--panel-shadow);
   --brand-x: oklch(0.96 0 0);
   --brand-tiktok: oklch(0.96 0 0);
-  --window-backdrop: oklch(0.19 0.012 265);
+  --window-backdrop: oklch(0.16 0.006 286);
 }
 
 :root {
@@ -59,8 +103,9 @@
 }
 
 @theme inline {
-  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Bricolage Grotesque Variable', 'Figtree Variable', ui-sans-serif, sans-serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-muted-strong: var(--muted-strong);
   --color-route-line: var(--route-line);
   --color-window-backdrop: var(--window-backdrop);
 }
@@ -79,6 +124,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -92,12 +144,12 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb);
   background-clip: content-box;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklab, var(--foreground) 32%, transparent);
+  background-color: var(--scrollbar-thumb-hover);
 }
 
 @keyframes lamp-pulse {
