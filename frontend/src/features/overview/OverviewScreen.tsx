@@ -206,7 +206,7 @@ export function OverviewScreen() {
     },
     {
       key: 'drafts',
-      to: '/publications',
+      to: '/publications?tab=draft',
       label: t('stats.drafts'),
       value: stats.drafts,
       sub: t('stats.scheduled', { count: stats.scheduled }),
@@ -354,7 +354,7 @@ export function OverviewScreen() {
               <h2 id="drafts-heading" className="text-lg font-semibold">
                 {t('drafts.title')}
               </h2>
-              <Link to="/publications" className={LINK}>
+              <Link to="/publications?tab=draft" className={LINK}>
                 {t('drafts.all')}
               </Link>
             </div>

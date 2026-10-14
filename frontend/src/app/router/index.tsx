@@ -31,7 +31,6 @@ export const router = createBrowserRouter([
       { path: 'publications/:id', element: <PublicationScreen /> },
       { path: 'platforms', element: <PlatformsScreen /> },
       { path: 'account', element: <AccountScreen /> },
-      { path: 'files', element: <Navigate to="/library" replace /> },
       { path: 'settings/accounts', loader: redirectWithQuery('/platforms') },
     ],
   },

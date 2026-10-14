@@ -10,7 +10,11 @@ export function PublicationScreen() {
   const { id } = useParams();
   const publicationId = Number(id);
 
-  const { data: publication, isLoading, isError } = useGetPublicationQuery(publicationId, {
+  const {
+    data: publication,
+    isLoading,
+    isError,
+  } = useGetPublicationQuery(publicationId, {
     skip: !Number.isFinite(publicationId),
     pollingInterval: ACTIVE_POLL_MS,
     skipPollingIfUnfocused: true,

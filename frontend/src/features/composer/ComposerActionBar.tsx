@@ -23,8 +23,16 @@ export function ComposerActionBar() {
   const navigate = useNavigate();
 
   const composer = useSelector((state: RootState) => state.composer);
-  const { draftId, video, title, description, hashtags, publishAt, selectedPlatforms, platformSettings } =
-    composer;
+  const {
+    draftId,
+    video,
+    title,
+    description,
+    hashtags,
+    publishAt,
+    selectedPlatforms,
+    platformSettings,
+  } = composer;
   const uploadStatus = useSelector((state: RootState) => state.upload.status);
 
   const { data: accounts } = useGetAccountsQuery();

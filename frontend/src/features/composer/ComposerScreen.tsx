@@ -58,7 +58,7 @@ function ComposerForm() {
           <ComposerFileCard />
           <ComposerTextCard />
         </div>
-        <div className="flex min-w-0 flex-[2_1_340px] flex-col gap-6 min-[900px]:sticky min-[900px]:top-22">
+        <div className="flex min-w-0 flex-[2_1_340px] flex-col gap-6">
           <ComposerPlatformsCard />
           <ComposerTimingCard />
         </div>

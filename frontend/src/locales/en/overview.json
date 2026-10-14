@@ -14,7 +14,8 @@
     "platforms_one": "on {{count}} platform",
     "platforms_other": "on {{count}} platforms",
     "drafts": "Drafts",
-    "scheduled": "{{count}} scheduled",
+    "scheduled_one": "{{count}} scheduled",
+    "scheduled_other": "{{count}} scheduled",
     "storage": "Storage used",
     "quota": "of {{quota}}"
   },

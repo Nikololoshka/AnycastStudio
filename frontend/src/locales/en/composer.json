@@ -106,37 +106,5 @@
       "videoTooShort": "The video is too short for {{platform}}.",
       "videoTooLong": "The video is too long for {{platform}}."
     }
-  },
-  "progress": {
-    "enable": "Publish to {{platform}}",
-    "disable": "Do not publish to {{platform}}",
-    "barLabel": "{{platform}} progress",
-    "off": "Off",
-    "percent": "{{value}}%",
-    "status": {
-      "idle": "Ready",
-      "validating": "Checking",
-      "preparing": "Preparing",
-      "uploading": "Uploading",
-      "processing": "Processing",
-      "publishing": "Publishing",
-      "scheduled": "Scheduled",
-      "completed": "Published",
-      "failed": "Failed",
-      "cancelled": "Cancelled"
-    },
-    "scheduledFor": "at {{time}}",
-    "cancelSchedule": "Cancel the scheduled publish to {{platform}}",
-    "cancel": "Cancel"
-  },
-  "errors": {
-    "network": "Network",
-    "authentication": "Sign-in",
-    "authorization": "Permissions",
-    "validation": "Post settings",
-    "rate_limit": "Rate limit",
-    "platform": "Platform",
-    "file": "File",
-    "unknown": "Error"
   }
 }

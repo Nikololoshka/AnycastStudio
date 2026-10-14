@@ -14,7 +14,7 @@ import {
 import { ExternalLink, Film, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   ACTIVE_POLL_MS,
   publicationsApi,
@@ -99,7 +99,8 @@ export function PublicationsScreen() {
   const [deleteDraft, { isLoading: isDeletingDraft }] = useDeleteDraftMutation();
   const [deletePublication, { isLoading: isDeletingPublication }] = useDeletePublicationMutation();
 
-  const [tab, setTab] = useState<ScreenTab>('published');
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.find((key) => key === params.get('tab')) ?? 'published';
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [pending, setPending] = useState<Row>();
@@ -235,7 +236,9 @@ export function PublicationsScreen() {
       <Tabs
         selectedKey={tab}
         onSelectionChange={(key: Key) => {
-          setTab(key as ScreenTab);
+          const next = new URLSearchParams(params);
+          next.set('tab', String(key));
+          setParams(next, { replace: true });
           setPage(1);
         }}
         className="gap-1"

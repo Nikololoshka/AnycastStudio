@@ -24,6 +24,9 @@ persistMiddleware.startListening({
 persistMiddleware.startListening({
   matcher: isAnyOf(setPlatformSettings),
   effect: (_action, api) => {
-    writeStored(STORAGE_KEYS.platformSettings, (api.getState() as RootState).composer.platformSettings);
+    writeStored(
+      STORAGE_KEYS.platformSettings,
+      (api.getState() as RootState).composer.platformSettings,
+    );
   },
 });

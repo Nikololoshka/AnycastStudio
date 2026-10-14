@@ -18,7 +18,12 @@ import { normalizeHashtags } from '../../domain/publication/normalizeHashtags';
 import type { AppDispatch, RootState } from '../../app/store';
 import { setDescription, setHashtags, setTitle } from './composerSlice';
 
-const PLACEHOLDER_FRAMES = ['bg-muted-strong', 'bg-muted', 'bg-accent-soft-foreground', 'bg-surface-tertiary'];
+const PLACEHOLDER_FRAMES = [
+  'bg-muted-strong',
+  'bg-muted',
+  'bg-accent-soft-foreground',
+  'bg-surface-tertiary',
+];
 
 export function ComposerFileCard() {
   const { t } = useTranslation('composer');
@@ -56,7 +61,11 @@ export function ComposerTextCard() {
         <Input placeholder={t('text.titlePlaceholder')} />
       </TextField>
 
-      <TextField value={description} onChange={(value) => dispatch(setDescription(value))} fullWidth>
+      <TextField
+        value={description}
+        onChange={(value) => dispatch(setDescription(value))}
+        fullWidth
+      >
         <Label>{t('text.descriptionLabel')}</Label>
         <TextArea rows={5} placeholder={t('text.descriptionPlaceholder')} />
         <Description className="text-right tabular-nums">

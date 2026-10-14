@@ -18,7 +18,10 @@
     "platforms_many": "на {{count}} платформах",
     "platforms_other": "на {{count}} платформах",
     "drafts": "Черновики",
-    "scheduled": "{{count}} запланировано",
+    "scheduled_one": "{{count}} запланирована",
+    "scheduled_few": "{{count}} запланированы",
+    "scheduled_many": "{{count}} запланировано",
+    "scheduled_other": "{{count}} запланировано",
     "storage": "Занято места",
     "quota": "из {{quota}}"
   },

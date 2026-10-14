@@ -13,9 +13,7 @@ export const store = configureStore({
     upload: uploadReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware()
-      .prepend(persistMiddleware.middleware)
-      .concat(baseApi.middleware),
+    getDefaultMiddleware().prepend(persistMiddleware.middleware).concat(baseApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

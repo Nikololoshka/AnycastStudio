@@ -17,7 +17,8 @@
     "settingsNote": "Publishing settings are chosen when you create a post.",
     "compose": "New post",
     "emptyTitle": "{{platform}} is not connected",
-    "emptyBody": "Sign in to publish your videos to this account."
+    "emptyBody": "Sign in to publish your videos to this account.",
+    "connectFailed": "Couldn't start connecting {{platform}}. Try again in a moment."
   },
   "actions": {
     "connect": "Connect",

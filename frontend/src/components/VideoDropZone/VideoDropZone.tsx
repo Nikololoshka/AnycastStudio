@@ -15,7 +15,6 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearVideo } from '../../features/composer';
 import { useVideoUpload } from '../../features/upload';
-import { forgetFile } from '../../services/files';
 import type { RootState } from '../../app/store';
 
 const ACCEPTED_TYPES = 'video/*';
@@ -63,7 +62,6 @@ export function VideoDropZone() {
   }
 
   function remove() {
-    if (video) forgetFile(video.id);
     cancel();
     dispatch(clearVideo());
   }
@@ -84,7 +82,12 @@ export function VideoDropZone() {
               {t('video.sizeMegabytes', { value: megabytesOf(upload.totalBytes) })}
             </span>
           </div>
-          <ProgressBar aria-label={t('video.uploading')} value={upload.percent} size="sm" className="w-full">
+          <ProgressBar
+            aria-label={t('video.uploading')}
+            value={upload.percent}
+            size="sm"
+            className="w-full"
+          >
             <ProgressBar.Track>
               <ProgressBar.Fill />
             </ProgressBar.Track>
@@ -176,9 +179,7 @@ export function VideoDropZone() {
                 <VideoFact icon={Clock}>{formatDuration(video.duration)}</VideoFact>
               ) : null}
             </div>
-            {video.mediaAssetId && (
-              <p className="mt-1 text-xs text-success">{t('video.stored')}</p>
-            )}
+            {video.mediaAssetId && <p className="mt-1 text-xs text-success">{t('video.stored')}</p>}
           </div>
           <Tooltip delay={400}>
             <Button
@@ -228,7 +229,9 @@ export function VideoDropZone() {
             animate={{ y: isDragOver ? -4 : 0, scale: isDragOver ? 1.08 : 1 }}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
             className={`grid size-11 place-items-center rounded-xl ${
-              isDragOver ? 'bg-accent text-accent-foreground' : 'bg-surface-secondary text-muted-strong'
+              isDragOver
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-surface-secondary text-muted-strong'
             }`}
           >
             <Upload className="size-5" />

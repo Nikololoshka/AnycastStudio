@@ -7,11 +7,6 @@ import { defaultPlatformSettings, normalizeAllPlatformSettings } from '../../pla
 import { readStored, STORAGE_KEYS } from '../../services/storage';
 import type { Draft } from '../../api/draftsApi';
 
-/**
- * The publication being written. This is the one part of the application the
- * browser genuinely owns: it exists only until the person presses Publish,
- * after which the server holds it.
- */
 export interface ComposerState {
   draftId?: string;
 
@@ -35,9 +30,8 @@ function initialComposer(): ComposerState {
     description: '',
     hashtags: [],
     selectedPlatforms: [...AVAILABLE_PLATFORMS],
-    platformSettings: stored === undefined
-      ? defaultPlatformSettings()
-      : normalizeAllPlatformSettings(stored),
+    platformSettings:
+      stored === undefined ? defaultPlatformSettings() : normalizeAllPlatformSettings(stored),
   };
 }
 

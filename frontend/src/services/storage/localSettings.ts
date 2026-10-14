@@ -1,12 +1,3 @@
-/**
- * Per-viewer preferences kept in the browser.
- *
- * Only what is cheap to lose belongs here: the theme, the language and the
- * composer draft. Anything the server must know goes to the server. Every
- * access is guarded because storage throws in a private window and can come
- * back empty after the person clears site data.
- */
-
 const PREFIX = 'anycast:';
 
 export function readStored<T>(key: string): T | undefined {
@@ -21,16 +12,16 @@ export function readStored<T>(key: string): T | undefined {
 export function writeStored<T>(key: string, value: T): void {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify(value));
-  } catch {
-    // Storage is full or blocked. The preference is not worth failing over.
+  } catch (error) {
+    console.warn(`Preference "${key}" not saved: browser storage is full or blocked`, error);
   }
 }
 
 export function removeStored(key: string): void {
   try {
     localStorage.removeItem(PREFIX + key);
-  } catch {
-    // See writeStored.
+  } catch (error) {
+    console.warn(`Preference "${key}" not removed: browser storage is blocked`, error);
   }
 }
 

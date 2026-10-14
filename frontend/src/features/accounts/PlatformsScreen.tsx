@@ -84,14 +84,15 @@ function PlatformDetail({
   account?: ConnectedAccount;
 }) {
   const { t, i18n } = useTranslation('accounts');
-  const [startConnect, { isLoading: isConnecting }] = useStartConnectMutation();
+  const [startConnect, { isLoading: isConnecting, isError: connectFailed }] =
+    useStartConnectMutation();
   const [disconnect, { isLoading: isDisconnecting }] = useDisconnectAccountMutation();
   const [isConfirming, setIsConfirming] = useState(false);
   const label = getLabelFor(platform);
 
   async function connect() {
-    const authUrl = await startConnect(platform).unwrap();
-    window.location.assign(authUrl);
+    const { data: authUrl } = await startConnect(platform);
+    if (authUrl) window.location.assign(authUrl);
   }
 
   async function confirmDisconnect() {
@@ -149,6 +150,15 @@ function PlatformDetail({
           </Button>
         )}
       </div>
+
+      {connectFailed && (
+        <Alert status="danger" role="alert">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>{t('detail.connectFailed', { platform: label })}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      )}
 
       {account?.needsReauth && (
         <Alert status="danger">

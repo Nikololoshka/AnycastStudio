@@ -136,11 +136,7 @@ export function ComposerTimingCard() {
 
         <Tabs.Panel id="schedule" className="flex flex-col gap-3 p-0">
           <div className="grid grid-cols-2 items-start gap-3">
-            <DatePicker
-              minValue={today(getLocalTimeZone())}
-              value={date}
-              onChange={changeDate}
-            >
+            <DatePicker minValue={today(getLocalTimeZone())} value={date} onChange={changeDate}>
               <Label>{t('timing.publishOn')}</Label>
               <DateField.Group fullWidth>
                 <DateField.Input>
@@ -166,9 +162,7 @@ export function ComposerTimingCard() {
                     <Calendar.GridHeader>
                       {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
                     </Calendar.GridHeader>
-                    <Calendar.GridBody>
-                      {(day) => <Calendar.Cell date={day} />}
-                    </Calendar.GridBody>
+                    <Calendar.GridBody>{(day) => <Calendar.Cell date={day} />}</Calendar.GridBody>
                   </Calendar.Grid>
                   <Calendar.YearPickerGrid>
                     <Calendar.YearPickerGridBody>

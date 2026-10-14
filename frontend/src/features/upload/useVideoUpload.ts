@@ -79,9 +79,7 @@ export function useVideoUpload() {
           },
           onSession: (session) => {
             writeStored(PENDING_UPLOAD_KEY, session.uploadId);
-            dispatch(
-              uploadStarted({ uploadId: session.uploadId, totalBytes: session.sizeBytes }),
-            );
+            dispatch(uploadStarted({ uploadId: session.uploadId, totalBytes: session.sizeBytes }));
           },
           onProgress: (progress) => dispatch(uploadProgressed(progress)),
         });

@@ -1,14 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
 
-/**
- * One query layer for everything the server owns.
- *
- * The session cookie is the credential, so every request is sent with
- * credentials and every mutation carries the CSRF token Django set alongside
- * it. Components never call fetch directly.
- */
-
 const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 const UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
@@ -29,10 +21,6 @@ const rawBaseQuery = fetchBaseQuery({
   },
 });
 
-/**
- * Django only sets the CSRF cookie once something asks for it. A mutation
- * fired before that would be rejected, so the first one seeds the cookie.
- */
 const baseQueryWithCsrf: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
   args,
   api,

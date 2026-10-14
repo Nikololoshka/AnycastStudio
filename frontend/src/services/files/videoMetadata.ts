@@ -1,5 +1,4 @@
 import type { VideoFile } from '../../domain/video/types';
-import { rememberFile } from './selectedFiles';
 
 const THUMBNAIL_SECONDS = 1;
 
@@ -55,7 +54,6 @@ function readVideoDetails(file: File): Promise<VideoDetails> {
 
 export async function describeVideoFile(file: File): Promise<VideoFile> {
   const id = crypto.randomUUID();
-  rememberFile(id, file);
 
   const description: VideoFile = {
     id,
