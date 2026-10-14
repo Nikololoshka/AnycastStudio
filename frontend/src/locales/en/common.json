@@ -15,16 +15,7 @@
     "search": "Search videos",
     "notifications": "Notifications",
     "notificationsEmpty": "No notifications yet.",
-    "signOut": "Sign out",
-    "theme": {
-      "system": "Theme: follow system",
-      "light": "Theme: light",
-      "dark": "Theme: dark"
-    },
-    "language": {
-      "en": "Language: English",
-      "ru": "Language: Russian"
-    }
+    "signOut": "Sign out"
   },
   "confirm": {
     "cancel": "Cancel"

@@ -1,0 +1,67 @@
+{
+  "screen": {
+    "title": "Account",
+    "subtitle": "Profile, storage, notifications and security",
+    "signOut": "Sign out"
+  },
+  "toc": {
+    "label": "On this page"
+  },
+  "sections": {
+    "profile": "Profile",
+    "storage": "Storage",
+    "notifications": "Notifications",
+    "security": "Security",
+    "danger": "Delete account"
+  },
+  "profile": {
+    "managed": "Your name, email and password are managed by the administrator.",
+    "language": "Interface language",
+    "theme": "Theme",
+    "timeZone": "Time zone",
+    "timeZoneHint": "Scheduled posts go out at this time zone's clock."
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский"
+  },
+  "themes": {
+    "system": "Follow system",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "storage": {
+    "autoDelete": "Delete source files after publishing",
+    "autoDeleteHint": "Videos stay on the platforms; the file leaves the server and frees up space.",
+    "afterDays": "Delete after",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "openLibrary": "Open library",
+    "upgrade": "Get more space",
+    "upgradeSoon": "Coming soon"
+  },
+  "notifications": {
+    "label": "Notify me when",
+    "published": "A post is published",
+    "failed": "Publishing fails or a platform session expires",
+    "storageAlmostFull": "Storage is more than 90% full",
+    "weeklyDigest": "Weekly summary by email"
+  },
+  "security": {
+    "changePassword": "Change password",
+    "passwordHint": "Passwords are changed by the administrator.",
+    "sessions": "Signed-in devices",
+    "thisDevice": "This device",
+    "unknownDevice": "Unknown device",
+    "lastActive": "Last active {{date}}",
+    "activeNow": "Active now",
+    "endSession": "End session"
+  },
+  "danger": {
+    "body": "All videos on the server and every platform connection will be removed. This cannot be undone.",
+    "action": "Delete account",
+    "confirmHeading": "Delete your account?",
+    "confirmBody": "All videos on the server and every platform connection will be removed for good.",
+    "unavailable": "Account deletion isn't available yet. Ask the administrator to remove your account."
+  }
+}

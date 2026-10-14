@@ -1,3 +1,4 @@
+import enAccount from '../../locales/en/account.json';
 import enAccounts from '../../locales/en/accounts.json';
 import enAuth from '../../locales/en/auth.json';
 import enCommon from '../../locales/en/common.json';
@@ -5,6 +6,7 @@ import enComposer from '../../locales/en/composer.json';
 import enMedia from '../../locales/en/media.json';
 import enPlatforms from '../../locales/en/platforms.json';
 import enPublications from '../../locales/en/publications.json';
+import ruAccount from '../../locales/ru/account.json';
 import ruAccounts from '../../locales/ru/accounts.json';
 import ruAuth from '../../locales/ru/auth.json';
 import ruCommon from '../../locales/ru/common.json';
@@ -21,6 +23,7 @@ export const resources = {
     auth: enAuth,
     composer: enComposer,
     accounts: enAccounts,
+    account: enAccount,
     media: enMedia,
     platforms: enPlatforms,
     publications: enPublications,
@@ -30,6 +33,7 @@ export const resources = {
     auth: ruAuth,
     composer: ruComposer,
     accounts: ruAccounts,
+    account: ruAccount,
     media: ruMedia,
     platforms: ruPlatforms,
     publications: ruPublications,

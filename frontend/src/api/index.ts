@@ -5,3 +5,4 @@ export * from './publicationsApi';
 export * from './types';
 export * from './mediaApi';
 export * from './draftsApi';
+export * from './profileApi';

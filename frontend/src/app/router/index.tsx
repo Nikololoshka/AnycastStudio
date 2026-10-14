@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, redirect, type LoaderFunctionArgs } from 'react-router';
 import { AppShell } from '../../components/AppShell';
+import { AccountScreen } from '../../features/account';
 import { LoginScreen, ProtectedRoute } from '../../features/auth';
 import { ComposerScreen } from '../../features/composer';
 import { PlatformsScreen } from '../../features/accounts';
@@ -28,7 +29,7 @@ export const router = createBrowserRouter([
       { path: 'publications', element: <PublicationsScreen /> },
       { path: 'publications/:id', element: <PublicationScreen /> },
       { path: 'platforms', element: <PlatformsScreen /> },
-      { path: 'account', element: <Navigate to="/platforms" replace /> },
+      { path: 'account', element: <AccountScreen /> },
       { path: 'files', element: <Navigate to="/library" replace /> },
       { path: 'settings/accounts', loader: redirectWithQuery('/platforms') },
     ],

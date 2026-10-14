@@ -41,4 +41,6 @@ export const STORAGE_KEYS = {
   composerDraft: 'composerDraft',
   drafts: 'drafts',
   deletedPublications: 'deletedPublications',
+  profilePreferences: 'profilePreferences',
+  endedSessions: 'endedSessions',
 } as const;

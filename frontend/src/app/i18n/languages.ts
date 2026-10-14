@@ -11,7 +11,3 @@ export function toLanguage(value: unknown): Language {
 export function detectSystemLanguage(): Language {
   return toLanguage(navigator.language.split('-')[0]);
 }
-
-export function nextLanguage(current: Language): Language {
-  return LANGUAGES[(LANGUAGES.indexOf(current) + 1) % LANGUAGES.length];
-}
