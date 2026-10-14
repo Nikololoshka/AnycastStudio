@@ -21,27 +21,29 @@ import {
   useDeletePublicationMutation,
   useGetPublicationsQuery,
   type Publication,
-  type PublicationTarget,
 } from '../../api/publicationsApi';
 import { useDeleteDraftMutation, useGetDraftsQuery, type Draft } from '../../api/draftsApi';
 import type { AppDispatch } from '../../app/store';
 import { useScrolled } from '../../components/AppShell/useScrolled';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
-import { isAvailable, type AvailablePlatform } from '../../domain/platform/order';
+import type { AvailablePlatform } from '../../domain/platform/order';
 import { getLabelFor } from '../../platforms/registry';
 import { composerReset } from '../composer';
 import { uploadReset } from '../upload';
 import { publicationTab, type PublicationTab } from './publicationTab';
+import {
+  availableTargets,
+  DOT,
+  publicationChip,
+  targetMarks,
+  type StatusChip,
+  type TargetMark,
+  type Tone,
+} from './publicationMarks';
+import { TargetMarks } from './TargetMarks';
 
 type ScreenTab = PublicationTab | 'draft';
-type Tone = 'success' | 'warning' | 'accent' | 'danger' | 'default';
-
-interface TargetMark {
-  platform: AvailablePlatform;
-  tone: Tone;
-  status: string;
-}
 
 interface Row {
   key: string;
@@ -49,7 +51,7 @@ interface Row {
   id: string;
   title: string;
   marks: TargetMark[];
-  chip: { label: string; tone: Tone };
+  chip: StatusChip;
   date: string;
   action: { label: string; to: string } | { links: { platform: AvailablePlatform; url: string }[] };
 }
@@ -57,14 +59,6 @@ interface Row {
 const TABS: ScreenTab[] = ['published', 'scheduled', 'draft', 'error'];
 const PAGE_SIZES = [10, 25, 50];
 const STICKY_COLUMN = 'z-10 min-[900px]:sticky min-[900px]:top-33';
-
-const DOT: Record<Tone, string> = {
-  success: 'bg-success',
-  warning: 'bg-warning',
-  accent: 'bg-accent',
-  danger: 'bg-danger',
-  default: 'bg-muted',
-};
 
 const LEGEND: { key: 'completed' | 'active' | 'scheduled' | 'failed'; tone: Tone }[] = [
   { key: 'completed', tone: 'success' },
@@ -86,14 +80,6 @@ const DATE_COLUMN: Record<ScreenTab, 'date' | 'publishAt' | 'updated'> = {
   draft: 'updated',
   error: 'date',
 };
-
-function toneOf(target: PublicationTarget): Tone {
-  if (target.isActive) return 'warning';
-  if (target.status === 'completed') return 'success';
-  if (target.status === 'scheduled') return 'accent';
-  if (target.status === 'failed') return 'danger';
-  return 'default';
-}
 
 export function PublicationsScreen() {
   const { t, i18n } = useTranslation('publications');
@@ -138,58 +124,33 @@ export function PublicationsScreen() {
   };
 
   function publicationRow(publication: Publication): Row {
-    const targets = publication.targets.filter((target) => isAvailable(target.platform));
-    const done = targets.filter((target) => target.status === 'completed').length;
-    const failed = targets.filter((target) => target.status === 'failed');
-    const links = targets
+    const links = availableTargets(publication)
       .filter((target) => target.publishedUrl)
-      .map((target) => ({ platform: target.platform as AvailablePlatform, url: target.publishedUrl }));
+      .map((target) => ({
+        platform: target.platform as AvailablePlatform,
+        url: target.publishedUrl,
+      }));
     const open = { label: t('actions.open'), to: `/publications/${publication.id}` };
-
-    const byTab: Record<PublicationTab, Pick<Row, 'chip' | 'date' | 'action'>> = {
-      published: publication.isActive
-        ? {
-            chip: { label: t('row.progress', { done, total: targets.length }), tone: 'warning' },
-            date: publication.createdAt,
-            action: open,
-          }
-        : {
-            chip: { label: t('status.completed'), tone: 'success' },
-            date: publication.createdAt,
-            action: links.length ? { links } : open,
-          },
-      scheduled: {
-        chip: { label: t('status.scheduled'), tone: 'accent' },
-        date: publication.publishAt ?? publication.createdAt,
-        action: open,
-      },
-      error: {
-        chip: failed.length
-          ? {
-              label: t('row.failedOn', {
-                platforms: failed
-                  .map((target) => getLabelFor(target.platform as AvailablePlatform))
-                  .join(', '),
-              }),
-              tone: 'danger',
-            }
-          : { label: t('status.cancelled'), tone: 'default' },
-        date: publication.createdAt,
-        action: { label: t('actions.retry'), to: open.to },
-      },
-    };
+    const tab = publicationTab(publication);
+    const action: Row['action'] =
+      tab === 'error'
+        ? { label: t('actions.retry'), to: open.to }
+        : tab === 'published' && !publication.isActive && links.length
+          ? { links }
+          : open;
 
     return {
       key: `publication-${publication.id}`,
       kind: 'publication',
       id: String(publication.id),
       title: publication.title,
-      marks: targets.map((target) => ({
-        platform: target.platform as AvailablePlatform,
-        tone: toneOf(target),
-        status: t(`status.${target.status}`),
-      })),
-      ...byTab[publicationTab(publication)],
+      marks: targetMarks(publication, t),
+      chip: publicationChip(publication, t),
+      date:
+        tab === 'scheduled'
+          ? (publication.publishAt ?? publication.createdAt)
+          : publication.createdAt,
+      action,
     };
   }
 
@@ -346,22 +307,7 @@ export function PublicationsScreen() {
                           </span>
                         </Table.Cell>
                         <Table.Cell>
-                          <span className="flex gap-2">
-                            {row.marks.map((mark) => (
-                              <span
-                                key={mark.platform}
-                                role="img"
-                                aria-label={`${getLabelFor(mark.platform)}: ${mark.status}`}
-                                title={`${getLabelFor(mark.platform)}: ${mark.status}`}
-                                className="relative"
-                              >
-                                <PlatformGlyph platform={mark.platform} size="sm" />
-                                <span
-                                  className={`absolute -right-1 -bottom-1 size-2.5 rounded-full ring-2 ring-surface ${DOT[mark.tone]}`}
-                                />
-                              </span>
-                            ))}
-                          </span>
+                          <TargetMarks marks={row.marks} />
                         </Table.Cell>
                         <Table.Cell>
                           <Chip size="sm" variant="soft" color={row.chip.tone}>

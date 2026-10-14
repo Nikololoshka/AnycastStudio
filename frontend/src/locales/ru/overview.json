@@ -1,0 +1,53 @@
+{
+  "screen": {
+    "title": "Обзор",
+    "subtitle": "Что сейчас происходит с вашими видео.",
+    "new": "Новая публикация",
+    "untitled": "Без названия"
+  },
+  "stats": {
+    "label": "Сводка",
+    "videos": "Видео на сервере",
+    "unpublished_one": "{{count}} ещё не опубликовано",
+    "unpublished_few": "{{count}} ещё не опубликованы",
+    "unpublished_many": "{{count}} ещё не опубликованы",
+    "unpublished_other": "{{count}} ещё не опубликованы",
+    "publications": "Публикаций за 30 дней",
+    "platforms_one": "на {{count}} платформе",
+    "platforms_few": "на {{count}} платформах",
+    "platforms_many": "на {{count}} платформах",
+    "platforms_other": "на {{count}} платформах",
+    "drafts": "Черновики",
+    "scheduled": "{{count}} запланировано",
+    "storage": "Занято места",
+    "quota": "из {{quota}}"
+  },
+  "active": {
+    "title": "Сейчас публикуется",
+    "done": "Готово",
+    "emptyTitle": "Сейчас ничего не публикуется",
+    "emptyBody": "Здесь появляются публикации, пока они загружаются на платформы.",
+    "compose": "Начать публикацию"
+  },
+  "recent": {
+    "title": "Последние публикации",
+    "all": "Все публикации",
+    "empty": "Публикаций пока нет.",
+    "column": {
+      "video": "Видео",
+      "platforms": "Платформы",
+      "status": "Статус",
+      "when": "Когда"
+    }
+  },
+  "platforms": {
+    "title": "Платформы",
+    "manage": "Настроить"
+  },
+  "drafts": {
+    "title": "Черновики",
+    "all": "Все",
+    "edited": "изменён {{date}}",
+    "empty": "Черновиков нет."
+  }
+}

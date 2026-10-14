@@ -39,6 +39,16 @@ function stateOf(account?: ConnectedAccount): State {
   return account.needsReauth ? 'needsReauth' : 'connected';
 }
 
+export function AccountStateChip({ account }: { account?: ConnectedAccount }) {
+  const { t } = useTranslation('accounts');
+  const state = stateOf(account);
+  return (
+    <Chip size="sm" variant="soft" color={CHIP[state]}>
+      {t(`state.${state}`)}
+    </Chip>
+  );
+}
+
 function CallbackNotice() {
   const { t } = useTranslation('accounts');
   const [params, setParams] = useSearchParams();
@@ -248,9 +258,7 @@ export function PlatformsScreen() {
                       {account?.displayName || t('state.none')}
                     </span>
                   </span>
-                  <Chip size="sm" variant="soft" color={CHIP[state]}>
-                    {t(`state.${state}`)}
-                  </Chip>
+                  <AccountStateChip account={account} />
                 </ListBox.Item>
               );
             })}

@@ -1,0 +1,49 @@
+{
+  "screen": {
+    "title": "Overview",
+    "subtitle": "What’s happening with your videos right now.",
+    "new": "New post",
+    "untitled": "Untitled"
+  },
+  "stats": {
+    "label": "Summary",
+    "videos": "Videos on the server",
+    "unpublished_one": "{{count}} not published yet",
+    "unpublished_other": "{{count}} not published yet",
+    "publications": "Posts in 30 days",
+    "platforms_one": "on {{count}} platform",
+    "platforms_other": "on {{count}} platforms",
+    "drafts": "Drafts",
+    "scheduled": "{{count}} scheduled",
+    "storage": "Storage used",
+    "quota": "of {{quota}}"
+  },
+  "active": {
+    "title": "Publishing now",
+    "done": "Done",
+    "emptyTitle": "Nothing is publishing right now",
+    "emptyBody": "Posts appear here while they upload to the platforms.",
+    "compose": "Start a post"
+  },
+  "recent": {
+    "title": "Recent posts",
+    "all": "All posts",
+    "empty": "No posts yet.",
+    "column": {
+      "video": "Video",
+      "platforms": "Platforms",
+      "status": "Status",
+      "when": "When"
+    }
+  },
+  "platforms": {
+    "title": "Platforms",
+    "manage": "Manage"
+  },
+  "drafts": {
+    "title": "Drafts",
+    "all": "All",
+    "edited": "edited {{date}}",
+    "empty": "No drafts."
+  }
+}

@@ -5,6 +5,7 @@ import { LoginScreen, ProtectedRoute } from '../../features/auth';
 import { ComposerScreen } from '../../features/composer';
 import { PlatformsScreen } from '../../features/accounts';
 import { LibraryScreen } from '../../features/media';
+import { OverviewScreen } from '../../features/overview';
 import { PublicationScreen, PublicationsScreen } from '../../features/publications';
 
 function redirectWithQuery(to: string) {
@@ -22,7 +23,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="/overview" replace /> },
-      { path: 'overview', element: <Navigate to="/compose" replace /> },
+      { path: 'overview', element: <OverviewScreen /> },
       { path: 'compose', element: <ComposerScreen /> },
       { path: 'compose/:draftId', element: <ComposerScreen /> },
       { path: 'library', element: <LibraryScreen /> },
@@ -34,5 +35,5 @@ export const router = createBrowserRouter([
       { path: 'settings/accounts', loader: redirectWithQuery('/platforms') },
     ],
   },
-  { path: '*', element: <Navigate to="/compose" replace /> },
+  { path: '*', element: <Navigate to="/overview" replace /> },
 ]);
