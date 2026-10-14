@@ -14,7 +14,3 @@ export type AvailablePlatform = (typeof AVAILABLE_PLATFORMS)[number];
 export function isAvailable(platform: Platform): platform is AvailablePlatform {
   return (AVAILABLE_PLATFORMS as readonly Platform[]).includes(platform);
 }
-
-export function getShortcutFor(platform: AvailablePlatform): string {
-  return `Alt+${AVAILABLE_PLATFORMS.indexOf(platform) + 1}`;
-}

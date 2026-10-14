@@ -48,8 +48,6 @@ export function VideoDropZone() {
     setMismatch(false);
 
     if (resumable) {
-      // The same file continues where the interrupted transfer stopped; a
-      // different one would corrupt it, so say so instead.
       if (resumeWith(file)) return;
       setMismatch(true);
       return;
@@ -72,35 +70,46 @@ export function VideoDropZone() {
 
   if (isBusy) {
     return (
-      <div className="flex h-44 flex-col justify-center gap-3 rounded-2xl border border-border bg-surface-secondary px-6">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3.5 rounded-xl border border-surface-secondary bg-background p-3">
+        <span className="grid h-[54px] w-24 shrink-0 place-items-center rounded-[10px] bg-surface-tertiary">
           <Spinner size="sm" />
-          <span className="font-medium">
-            {upload.status === 'hashing' ? t('video.preparing') : t('video.uploading')}
-          </span>
-          <span className="ml-auto text-sm text-muted tabular-nums">{upload.percent}%</span>
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex justify-between gap-2 text-sm">
+            <span className="truncate font-medium">
+              {upload.status === 'hashing' ? t('video.preparing') : t('video.uploading')}
+            </span>
+            <span className="shrink-0 text-muted tabular-nums">
+              {t('video.sizeMegabytes', { value: megabytesOf(upload.uploadedBytes) })} /{' '}
+              {t('video.sizeMegabytes', { value: megabytesOf(upload.totalBytes) })}
+            </span>
+          </div>
+          <ProgressBar aria-label={t('video.uploading')} value={upload.percent} size="sm" className="w-full">
+            <ProgressBar.Track>
+              <ProgressBar.Fill />
+            </ProgressBar.Track>
+          </ProgressBar>
+          <span className="text-xs text-muted tabular-nums">{upload.percent}%</span>
         </div>
-        <ProgressBar
-          aria-label={t('video.uploading')}
-          value={upload.percent}
-          className="w-full"
-        />
-        <div className="flex items-center justify-between text-xs text-muted">
-          <span className="tabular-nums">
-            {t('video.sizeMegabytes', { value: megabytesOf(upload.uploadedBytes) })} /{' '}
-            {t('video.sizeMegabytes', { value: megabytesOf(upload.totalBytes) })}
-          </span>
-          <Button size="sm" variant="ghost" onPress={cancel}>
-            {t('video.cancelUpload')}
+        <Tooltip delay={400}>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={t('video.cancelUpload')}
+            onPress={cancel}
+          >
+            <X className="size-4" />
           </Button>
-        </div>
+          <Tooltip.Content>{t('video.cancelUpload')}</Tooltip.Content>
+        </Tooltip>
       </div>
     );
   }
 
   if (resumable) {
     return (
-      <div className="flex h-44 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface-secondary px-6 text-center">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-[14px] border-2 border-dashed border-border bg-background px-5 py-8 text-center">
         <RotateCcw className="size-6 text-muted" />
         <p className="font-medium">{t('video.resumeTitle', { name: resumable.filename })}</p>
         <p className="text-sm text-muted">
@@ -141,9 +150,9 @@ export function VideoDropZone() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={SWAP_TRANSITION}
-          className="flex h-44 items-center gap-5 rounded-2xl border border-border bg-surface-secondary px-5"
+          className="flex items-center gap-3.5 rounded-xl border border-surface-secondary bg-background p-3"
         >
-          <div className="relative aspect-video w-52 shrink-0 overflow-hidden rounded-xl bg-surface-tertiary">
+          <div className="relative h-[54px] w-24 shrink-0 overflow-hidden rounded-[10px] bg-surface-tertiary">
             {video.thumbnailDataUrl ? (
               <img src={video.thumbnailDataUrl} alt="" className="size-full object-cover" />
             ) : (
@@ -154,7 +163,7 @@ export function VideoDropZone() {
             <p className="truncate font-medium" title={video.name}>
               {video.name}
             </p>
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted">
               <VideoFact icon={HardDrive}>
                 {t('video.sizeMegabytes', { value: megabytesOf(video.size) })}
               </VideoFact>
@@ -168,7 +177,7 @@ export function VideoDropZone() {
               ) : null}
             </div>
             {video.mediaAssetId && (
-              <p className="mt-1.5 text-xs text-success">{t('video.stored')}</p>
+              <p className="mt-1 text-xs text-success">{t('video.stored')}</p>
             )}
           </div>
           <Tooltip delay={400}>
@@ -199,10 +208,10 @@ export function VideoDropZone() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={SWAP_TRANSITION}
-          className={`group flex h-44 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-[1.5px] border-dashed px-6 text-center outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
+          className={`group flex w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-[14px] border-2 border-dashed px-5 py-8 text-center outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
             isDragOver
-              ? 'border-accent bg-accent/8'
-              : 'border-border bg-surface-secondary/50 hover:border-muted/60'
+              ? 'border-accent bg-accent-soft'
+              : 'border-border bg-background hover:border-muted'
           }`}
         >
           <input
@@ -218,22 +227,23 @@ export function VideoDropZone() {
           <motion.span
             animate={{ y: isDragOver ? -4 : 0, scale: isDragOver ? 1.08 : 1 }}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className={`grid size-12 place-items-center rounded-2xl ${
-              isDragOver ? 'bg-accent text-accent-foreground' : 'bg-surface text-foreground'
+            className={`grid size-11 place-items-center rounded-xl ${
+              isDragOver ? 'bg-accent text-accent-foreground' : 'bg-surface-secondary text-muted-strong'
             }`}
           >
             <Upload className="size-5" />
           </motion.span>
-          <span className="font-display text-lg font-semibold tracking-tight">
-            {isDragOver ? t('video.release') : t('video.drop')}
+          <span className="text-[15px] font-semibold">
+            {isDragOver ? (
+              t('video.release')
+            ) : (
+              <>
+                {t('video.drop')}{' '}
+                <span className="text-accent group-hover:underline">{t('video.browse')}</span>
+              </>
+            )}
           </span>
-          <span className="text-sm text-muted">
-            {t('video.browsePrefix')}{' '}
-            <span className="font-medium text-accent group-hover:underline">
-              {t('video.browse')}
-            </span>
-            . {t('video.formats')}
-          </span>
+          <span className="text-[13px] text-muted">{t('video.formats')}</span>
           {upload.status === 'failed' && (
             <span className="text-sm text-danger">
               {t(`video.error.${upload.error}`, { defaultValue: t('video.error.unknown') })}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '@heroui/react';
-import { CalendarClock, Clapperboard, Save, Send, Zap } from 'lucide-react';
+import { Button, Spinner } from '@heroui/react';
+import { Check, Save, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
@@ -12,21 +12,12 @@ import {
 } from '../../api';
 import { messageOf, statusOf } from '../../api/errors';
 import type { AppDispatch, RootState } from '../../app/store';
-import { PlatformGlyph } from '../../components/PlatformGlyph';
 import { getDescriptorFor, getLabelFor } from '../../platforms/registry';
 import { TikTokConsent } from '../../platforms/tiktok';
 import { clearVideo, draftSaved } from './composerSlice';
 import { uploadReset } from '../upload';
 
-const SCHEDULE_FORMAT: Intl.DateTimeFormatOptions = {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-};
-
-export function SummaryPanel() {
+export function ComposerActionBar() {
   const { t, i18n } = useTranslation('composer');
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -125,72 +116,37 @@ export function SummaryPanel() {
   }
 
   return (
-    <aside className="sticky top-20 flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5">
-      <h2 className="font-display text-lg font-semibold tracking-tight">{t('summary.title')}</h2>
-
-      <div className="overflow-hidden rounded-xl border border-border bg-surface-secondary">
-        <div className="relative aspect-video bg-surface-tertiary">
-          {video?.thumbnailDataUrl ? (
-            <img src={video.thumbnailDataUrl} alt="" className="size-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted">
-              <Clapperboard className="size-6" />
-              <span className="text-sm">{t('summary.noVideo')}</span>
-            </div>
-          )}
-        </div>
-        <div className="px-4 py-3">
-          <p className={`truncate font-medium ${title ? '' : 'text-muted'}`}>
-            {title || t('summary.untitled')}
+    <div
+      className={[
+        'sticky bottom-0 z-20 -mb-12 flex flex-wrap items-center gap-3 py-3',
+        'before:absolute before:inset-y-0 before:-inset-x-[100vmax] before:-z-10 before:bg-surface/75 before:shadow-[0_-1px_0_var(--border)] before:backdrop-blur-xl before:backdrop-saturate-150',
+      ].join(' ')}
+    >
+      <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1 text-[13px]">
+        {savedAt && (
+          <p className="flex items-center gap-2 text-muted">
+            <Check className="size-4 text-success" />
+            {t('summary.draftSavedAt', {
+              time: new Date(savedAt).toLocaleTimeString(i18n.language, {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+            })}
           </p>
-          <p className="truncate text-xs text-muted">{video?.name ?? t('summary.chooseVideo')}</p>
-        </div>
-      </div>
-
-      {selectedPlatforms.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <p className="text-sm font-medium">{t('summary.platformsTitle')}</p>
-          <ul className="flex flex-col gap-1.5">
-            {selectedPlatforms.map((platform) => (
-              <li key={platform} className="flex items-center gap-2 text-sm text-muted">
-                <PlatformGlyph platform={platform} size="sm" />
-                {getLabelFor(platform)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <p className="flex items-center gap-2 text-sm text-muted">
-        {publishAt ? (
-          <>
-            <CalendarClock className="size-4" />
-            <span className="tabular-nums">
-              {new Date(publishAt).toLocaleString(i18n.language, SCHEDULE_FORMAT)}
-            </span>
-          </>
-        ) : (
-          <>
-            <Zap className="size-4" />
-            {t('summary.immediate')}
-          </>
         )}
-      </p>
-
-      <Button
-        variant="primary"
-        size="lg"
-        fullWidth
-        isDisabled={Boolean(blocker) || isUploading || isPublishing}
-        onPress={() => void publish()}
-      >
-        <Send className="size-4" />
-        {publishAt ? t('summary.schedule') : t('summary.publish')}
-      </Button>
+        {error ? (
+          <p role="alert" className="text-danger">
+            {error}
+          </p>
+        ) : (
+          blocker && <p className="text-muted">{blocker}</p>
+        )}
+        {selectedPlatforms.includes('tiktok') && <TikTokConsent />}
+      </div>
 
       <Button
         variant="secondary"
-        fullWidth
+        size="lg"
         isDisabled={isSaving || isPublishing}
         onPress={() => void save()}
       >
@@ -198,24 +154,17 @@ export function SummaryPanel() {
         {t('summary.saveDraft')}
       </Button>
 
-      {savedAt && (
-        <p className="text-center text-xs text-muted">
-          {t('summary.draftSaved')} ·{' '}
-          <span className="tabular-nums">
-            {new Date(savedAt).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </p>
-      )}
-
-      {selectedPlatforms.includes('tiktok') && <TikTokConsent />}
-
-      {error ? (
-        <p role="alert" className="text-center text-xs text-danger">
-          {error}
-        </p>
-      ) : (
-        blocker && <p className="text-center text-xs text-muted">{blocker}</p>
-      )}
-    </aside>
+      <Button
+        variant="primary"
+        size="lg"
+        isDisabled={Boolean(blocker) || isUploading || isPublishing}
+        onPress={() => void publish()}
+      >
+        {isPublishing ? <Spinner size="sm" color="current" /> : <Send className="size-4" />}
+        {publishAt
+          ? t('summary.schedule', { count: selectedPlatforms.length })
+          : t('summary.publish', { count: selectedPlatforms.length })}
+      </Button>
+    </div>
   );
 }

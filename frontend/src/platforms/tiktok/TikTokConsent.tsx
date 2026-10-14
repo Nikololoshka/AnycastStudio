@@ -22,7 +22,7 @@ export function TikTokConsent() {
   const isBranded = settings.discloseContent && settings.brandContent;
 
   return (
-    <p className="text-center text-xs text-muted">
+    <p className="text-xs text-muted">
       <Trans
         t={t}
         i18nKey={isBranded ? 'tiktok.consent.withBrandedContent' : 'tiktok.consent.music'}

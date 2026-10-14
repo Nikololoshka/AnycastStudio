@@ -1,14 +1,12 @@
 {
   "screen": {
-    "title": "Новый пост",
-    "subtitle": "Напишите один раз, затем настройте выход на каждой площадке.",
-    "tabsLabel": "Настройки поста",
-    "postTab": "Пост"
+    "title": "Новая публикация",
+    "subtitle": "Загрузите видео один раз — оно уйдёт на все выбранные платформы."
   },
   "sections": {
-    "video": "Видео",
-    "text": "Текст",
-    "timing": "Публикация"
+    "video": "Файл",
+    "text": "Описание",
+    "timing": "Когда"
   },
   "text": {
     "titleLabel": "Заголовок",
@@ -25,8 +23,8 @@
   },
   "timing": {
     "modeLabel": "Когда публиковать",
-    "now": "Опубликовать сразу",
-    "schedule": "Запланировать",
+    "now": "Сразу",
+    "schedule": "По расписанию",
     "publishOn": "Дата",
     "publishAt": "Время",
     "calendarLabel": "Дата публикации",
@@ -37,12 +35,12 @@
     "openTimeSlots": "Выбрать время",
     "nativePlan": "{{platform}} опубликует сам в нужный момент. Вкладку можно закрыть.",
     "serverPlan": "AnycastStudio опубликует в нужный момент. Вкладку можно закрыть.",
-    "deferredPlan": "AnycastStudio начнёт загрузку в {{platform}} в это время; пост появится через несколько минут. Вкладку можно закрыть."
+    "deferredPlan": "AnycastStudio начнёт загрузку в {{platform}} в это время; пост появится через несколько минут. Вкладку можно закрыть.",
+    "immediate": "Выйдет сразу после публикации."
   },
   "video": {
-    "drop": "Перетащите видео сюда",
+    "drop": "Перетащите видео сюда или",
     "release": "Отпустите, чтобы добавить видео",
-    "browsePrefix": "или",
     "browse": "выберите файл",
     "formats": "MP4, MOV, WebM, AVI или MKV.",
     "remove": "Удалить видео",
@@ -66,27 +64,36 @@
       "unknown": "Загрузка не удалась. Попробуйте ещё раз."
     }
   },
-  "platformTab": {
+  "cover": {
+    "label": "Обложка",
+    "frame": "Кадр {{number}}",
+    "custom": "Своя картинка"
+  },
+  "platforms": {
+    "title": "Куда публикуем",
+    "selected": "выбрано {{count}}",
+    "notConnected": "Не подключено",
+    "connect": "Подключить",
+    "expired": "Сессия истекла",
+    "reconnect": "Войти снова",
     "publishTo": "Публиковать в {{platform}}",
-    "publishToHint": "Включить {{platform}} при нажатии «Опубликовать». Переключение: {{shortcut}}.",
-    "connectHint": "Подключите аккаунт {{platform}}, чтобы включить.",
-    "options": "Настройки {{platform}}"
+    "settings": "Настройки {{platform}}"
   },
   "summary": {
-    "title": "Сводка",
-    "noVideo": "Видео не выбрано",
-    "untitled": "Пост без заголовка",
-    "chooseVideo": "Выберите видео на вкладке «Пост»",
-    "immediate": "Выйдет сразу после публикации",
-    "publish": "Опубликовать",
-    "publishing": "Публикуем…",
-    "schedule": "Запланировать",
-    "scheduling": "Планируем…",
     "needsVideo": "Добавьте видео для публикации.",
-    "needsPlatform": "Включите хотя бы одну площадку на её вкладке.",
-    "platformsTitle": "Уйдёт в",
+    "needsPlatform": "Включите хотя бы одну платформу.",
     "needsUpload": "Дождитесь окончания загрузки.",
     "needsAccount": "Подключите аккаунт {{platform}} или отключите {{platform}}.",
+    "saveDraft": "В черновики",
+    "publish_one": "Опубликовать на {{count}} платформу",
+    "publish_few": "Опубликовать на {{count}} платформы",
+    "publish_many": "Опубликовать на {{count}} платформ",
+    "publish_other": "Опубликовать на {{count}} платформы",
+    "schedule_one": "Запланировать на {{count}} платформу",
+    "schedule_few": "Запланировать на {{count}} платформы",
+    "schedule_many": "Запланировать на {{count}} платформ",
+    "schedule_other": "Запланировать на {{count}} платформы",
+    "draftSavedAt": "Черновик сохранён в {{time}}",
     "error": {
       "dailyLimit": "Дневной лимит публикаций исчерпан.",
       "accountNeedsReauth": "Аккаунт нужно подключить заново.",
@@ -98,15 +105,13 @@
       "fileTooLarge": "Видео слишком большое для {{platform}}.",
       "unsupportedType": "{{platform}} не принимает этот формат видео.",
       "captionTooLong": "Заголовок, описание и хэштеги вместе слишком длинные для {{platform}}.",
-      "privacyRequired": "Выберите, кто может смотреть видео, на вкладке {{platform}}.",
+      "privacyRequired": "Выберите, кто может смотреть видео, в настройках {{platform}}.",
       "commercialContentUnspecified": "Укажите, чей бренд продвигает пост в {{platform}}.",
       "brandedContentCannotBePrivate": "Брендированный контент в {{platform}} не может быть приватным.",
       "tooManyHashtags": "{{platform}} допускает не больше 30 хештегов в подписи.",
       "videoTooShort": "Видео слишком короткое для {{platform}}.",
       "videoTooLong": "Видео слишком длинное для {{platform}}."
-    },
-    "saveDraft": "Сохранить черновик",
-    "draftSaved": "Черновик сохранён"
+    }
   },
   "progress": {
     "enable": "Публиковать в {{platform}}",

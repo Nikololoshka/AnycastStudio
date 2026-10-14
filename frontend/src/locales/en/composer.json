@@ -1,14 +1,12 @@
 {
   "screen": {
     "title": "New post",
-    "subtitle": "Write it once, then adjust how it goes out on each platform.",
-    "tabsLabel": "Post settings",
-    "postTab": "Post"
+    "subtitle": "Upload the video once and it goes out to every platform you turn on."
   },
   "sections": {
-    "video": "Video",
-    "text": "Text",
-    "timing": "Publishing"
+    "video": "File",
+    "text": "Description",
+    "timing": "When"
   },
   "text": {
     "titleLabel": "Title",
@@ -23,8 +21,8 @@
   },
   "timing": {
     "modeLabel": "When to publish",
-    "now": "Publish right away",
-    "schedule": "Schedule for later",
+    "now": "Right away",
+    "schedule": "On a schedule",
     "publishOn": "Date",
     "publishAt": "Time",
     "calendarLabel": "Publish date",
@@ -35,13 +33,13 @@
     "openTimeSlots": "Choose a time",
     "nativePlan": "{{platform}} schedules it on its side. You can close the tab.",
     "serverPlan": "AnycastStudio publishes it at that moment. You can close the tab.",
-    "deferredPlan": "AnycastStudio starts the upload to {{platform}} at that moment; the post appears a few minutes later. You can close the tab."
+    "deferredPlan": "AnycastStudio starts the upload to {{platform}} at that moment; the post appears a few minutes later. You can close the tab.",
+    "immediate": "Goes out as soon as you publish."
   },
   "video": {
-    "drop": "Drop a video here",
+    "drop": "Drop a video here or",
     "release": "Release to add video",
-    "browsePrefix": "or",
-    "browse": "browse files",
+    "browse": "choose a file",
     "formats": "MP4, MOV, WebM, AVI or MKV.",
     "remove": "Remove video",
     "sizeMegabytes": "{{value}} MB",
@@ -64,27 +62,32 @@
       "unknown": "The upload failed. Try again."
     }
   },
-  "platformTab": {
+  "cover": {
+    "label": "Cover",
+    "frame": "Frame {{number}}",
+    "custom": "Own image"
+  },
+  "platforms": {
+    "title": "Where to publish",
+    "selected": "{{count}} selected",
+    "notConnected": "Not connected",
+    "connect": "Connect",
+    "expired": "Session expired",
+    "reconnect": "Sign in again",
     "publishTo": "Publish to {{platform}}",
-    "publishToHint": "Include {{platform}} when you press Publish. Toggle with {{shortcut}}.",
-    "connectHint": "Connect your {{platform}} account to turn this on.",
-    "options": "{{platform}} options"
+    "settings": "{{platform}} settings"
   },
   "summary": {
-    "title": "Summary",
-    "noVideo": "No video yet",
-    "untitled": "Untitled post",
-    "chooseVideo": "Choose a video in Post",
-    "immediate": "Goes out as soon as you publish",
-    "publish": "Publish",
-    "publishing": "Publishing…",
-    "schedule": "Schedule",
-    "scheduling": "Scheduling…",
     "needsVideo": "Add a video to publish.",
-    "needsPlatform": "Turn on at least one platform in its tab.",
-    "platformsTitle": "Goes to",
+    "needsPlatform": "Turn on at least one platform.",
     "needsUpload": "Wait for the upload to finish.",
     "needsAccount": "Connect a {{platform}} account or turn {{platform}} off.",
+    "saveDraft": "Save to drafts",
+    "publish_one": "Publish to {{count}} platform",
+    "publish_other": "Publish to {{count}} platforms",
+    "schedule_one": "Schedule on {{count}} platform",
+    "schedule_other": "Schedule on {{count}} platforms",
+    "draftSavedAt": "Draft saved at {{time}}",
     "error": {
       "dailyLimit": "You have reached today's publication limit.",
       "accountNeedsReauth": "The account needs reconnecting.",
@@ -96,15 +99,13 @@
       "fileTooLarge": "The video is too large for {{platform}}.",
       "unsupportedType": "{{platform}} does not accept this video format.",
       "captionTooLong": "Title, description and hashtags together are too long for {{platform}}.",
-      "privacyRequired": "Choose who can watch the video in the {{platform}} tab.",
+      "privacyRequired": "Choose who can watch the video in {{platform}} settings.",
       "commercialContentUnspecified": "Say whose brand the {{platform}} post promotes.",
       "brandedContentCannotBePrivate": "Branded content on {{platform}} cannot be private.",
       "tooManyHashtags": "{{platform}} allows at most 30 hashtags in the caption.",
       "videoTooShort": "The video is too short for {{platform}}.",
       "videoTooLong": "The video is too long for {{platform}}."
-    },
-    "saveDraft": "Save draft",
-    "draftSaved": "Draft saved"
+    }
   },
   "progress": {
     "enable": "Publish to {{platform}}",
