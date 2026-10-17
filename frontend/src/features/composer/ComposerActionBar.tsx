@@ -126,7 +126,7 @@ export function ComposerActionBar() {
   return (
     <div
       className={[
-        'sticky bottom-0 z-20 -mb-12 flex flex-wrap items-center gap-3 py-3',
+        'sticky bottom-0 z-20 mt-auto -mb-12 flex flex-wrap items-center gap-3 py-3',
         'before:absolute before:inset-y-0 before:-inset-x-[100vmax] before:-z-10 before:bg-surface/75 before:shadow-[0_-1px_0_var(--border)] before:backdrop-blur-xl before:backdrop-saturate-150',
       ].join(' ')}
     >
