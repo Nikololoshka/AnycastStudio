@@ -34,5 +34,4 @@ export const STORAGE_KEYS = {
   drafts: 'drafts',
   deletedPublications: 'deletedPublications',
   profilePreferences: 'profilePreferences',
-  endedSessions: 'endedSessions',
 } as const;

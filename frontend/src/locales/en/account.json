@@ -1,7 +1,7 @@
 {
   "screen": {
     "title": "Account",
-    "subtitle": "Profile, storage, notifications and security",
+    "subtitle": "Profile and storage",
     "signOut": "Sign out"
   },
   "toc": {
@@ -9,10 +9,7 @@
   },
   "sections": {
     "profile": "Profile",
-    "storage": "Storage",
-    "notifications": "Notifications",
-    "security": "Security",
-    "danger": "Delete account"
+    "storage": "Storage"
   },
   "profile": {
     "managed": "Your name, email and password are managed by the administrator.",
@@ -39,29 +36,5 @@
     "openLibrary": "Open library",
     "upgrade": "Get more space",
     "upgradeSoon": "Coming soon"
-  },
-  "notifications": {
-    "label": "Notify me when",
-    "published": "A post is published",
-    "failed": "Publishing fails or a platform session expires",
-    "storageAlmostFull": "Storage is more than 90% full",
-    "weeklyDigest": "Weekly summary by email"
-  },
-  "security": {
-    "changePassword": "Change password",
-    "passwordHint": "Passwords are changed by the administrator.",
-    "sessions": "Signed-in devices",
-    "thisDevice": "This device",
-    "unknownDevice": "Unknown device",
-    "lastActive": "Last active {{date}}",
-    "activeNow": "Active now",
-    "endSession": "End session"
-  },
-  "danger": {
-    "body": "All videos on the server and every platform connection will be removed. This cannot be undone.",
-    "action": "Delete account",
-    "confirmHeading": "Delete your account?",
-    "confirmBody": "All videos on the server and every platform connection will be removed for good.",
-    "unavailable": "Account deletion isn't available yet. Ask the administrator to remove your account."
   }
 }

@@ -14,8 +14,7 @@
   "topBar": {
     "search": "Поиск видео",
     "notifications": "Уведомления",
-    "notificationsEmpty": "Уведомлений пока нет.",
-    "signOut": "Выйти"
+    "notificationsEmpty": "Уведомлений пока нет."
   },
   "confirm": {
     "cancel": "Отмена"

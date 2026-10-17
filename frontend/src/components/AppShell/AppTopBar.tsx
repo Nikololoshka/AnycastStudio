@@ -1,16 +1,14 @@
-import { Button, Popover, SearchField, Tooltip } from '@heroui/react';
-import { Bell, LogOut } from 'lucide-react';
+import { Button, Popover, SearchField } from '@heroui/react';
+import { Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { ACCOUNT_SECTIONS } from '../../features/account';
-import { useSignOut } from '../../features/auth';
 import { NAV_ITEMS } from './navItems';
 import { useScrolled } from './useScrolled';
 
 export function AppTopBar() {
   const { t } = useTranslation();
   const { t: tAccount } = useTranslation('account');
-  const signOut = useSignOut();
   const { pathname, hash } = useLocation();
   const scrolled = useScrolled(4);
   const page = NAV_ITEMS.find((item) => pathname.startsWith(item.to));
@@ -19,7 +17,6 @@ export function AppTopBar() {
       ? ACCOUNT_SECTIONS.find((section) => `#${section}` === hash)
       : undefined;
 
-  const signOutLabel = t('topBar.signOut');
   const notificationsLabel = t('topBar.notifications');
 
   return (
@@ -36,7 +33,7 @@ export function AppTopBar() {
           scrolled ? 'opacity-100' : 'opacity-0',
         ].join(' ')}
       >
-        {page && t(page.key)}
+        {page ? t(page.key) : pathname === '/account' && t('nav.account')}
         {accountSection && ` · ${tAccount(`sections.${accountSection}`)}`}
       </span>
 
@@ -59,18 +56,6 @@ export function AppTopBar() {
         </Popover.Content>
       </Popover>
 
-      <Tooltip delay={400}>
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          aria-label={signOutLabel}
-          onPress={() => void signOut()}
-        >
-          <LogOut className="size-4" />
-        </Button>
-        <Tooltip.Content placement="bottom end">{signOutLabel}</Tooltip.Content>
-      </Tooltip>
     </header>
   );
 }

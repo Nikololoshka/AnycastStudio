@@ -43,7 +43,6 @@ export const baseApi = createApi({
     'Publication',
     'Draft',
     'ProfilePreferences',
-    'UserSession',
     'PlatformDefaults',
   ],
   endpoints: () => ({}),

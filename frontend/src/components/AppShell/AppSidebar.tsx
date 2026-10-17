@@ -44,9 +44,14 @@ export function AppSidebar() {
         </Link>
 
         {user && (
-          <Link
+          <NavLink
             to="/account"
-            className="flex items-center gap-2.5 rounded-xl p-2 transition-colors hover:bg-surface-secondary"
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-2.5 rounded-xl p-2 transition-colors',
+                isActive ? 'bg-accent-soft' : 'hover:bg-surface-secondary',
+              ].join(' ')
+            }
           >
             <Avatar color="accent" variant="soft" className="shrink-0">
               <Avatar.Fallback>{user.name.charAt(0).toUpperCase()}</Avatar.Fallback>
@@ -55,7 +60,7 @@ export function AppSidebar() {
               <span className="block truncate text-sm font-medium">{user.name}</span>
               <span className="block truncate text-xs text-muted">{user.email}</span>
             </span>
-          </Link>
+          </NavLink>
         )}
       </div>
     </aside>

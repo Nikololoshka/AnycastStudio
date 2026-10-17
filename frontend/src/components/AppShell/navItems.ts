@@ -4,13 +4,12 @@ import {
   Plug,
   Send,
   SquarePlus,
-  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
   to: string;
-  key: `nav.${'overview' | 'compose' | 'library' | 'publications' | 'platforms' | 'account'}`;
+  key: `nav.${'overview' | 'compose' | 'library' | 'publications' | 'platforms'}`;
   icon: LucideIcon;
 }
 
@@ -20,5 +19,4 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/library', key: 'nav.library', icon: FolderOpen },
   { to: '/publications', key: 'nav.publications', icon: Send },
   { to: '/platforms', key: 'nav.platforms', icon: Plug },
-  { to: '/account', key: 'nav.account', icon: UserRound },
 ];

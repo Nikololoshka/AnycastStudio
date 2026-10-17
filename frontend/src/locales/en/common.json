@@ -14,8 +14,7 @@
   "topBar": {
     "search": "Search videos",
     "notifications": "Notifications",
-    "notificationsEmpty": "No notifications yet.",
-    "signOut": "Sign out"
+    "notificationsEmpty": "No notifications yet."
   },
   "confirm": {
     "cancel": "Cancel"
