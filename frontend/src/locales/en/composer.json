@@ -75,7 +75,16 @@
     "expired": "Session expired",
     "reconnect": "Sign in again",
     "publishTo": "Publish to {{platform}}",
-    "settings": "{{platform}} settings"
+    "defaultsFrom": "defaults from",
+    "defaultsLink": "Platforms",
+    "configure": "Configure",
+    "configureAria": "Configure {{platform}}",
+    "chip": {
+      "skipped": "Not publishing",
+      "needsPrivacy": "Choose who can watch",
+      "changed": "Changed",
+      "defaults": "Defaults"
+    }
   },
   "summary": {
     "needsVideo": "Add a video to publish.",
@@ -105,6 +114,26 @@
       "tooManyHashtags": "{{platform}} allows at most 30 hashtags in the caption.",
       "videoTooShort": "The video is too short for {{platform}}.",
       "videoTooLong": "The video is too long for {{platform}}."
+    }
+  },
+  "drawer": {
+    "subtitle": "settings for this post",
+    "close": "Close",
+    "switcher": "Selected platforms",
+    "changed": "Has changes",
+    "only": "Only on {{platform}}",
+    "exclude": "Don't publish to {{platform}}",
+    "reset": "Reset all",
+    "next": "Next",
+    "done": "Done",
+    "preview": "Preview",
+    "previewLead": "This is how the post will look on {{platform}}.",
+    "noTitle": "Untitled",
+    "note": {
+      "youtube": "Horizontal 16:9. The feed shows the cover and the title.",
+      "tiktok": "TikTok shows no title: the title, description and hashtags go into the caption.",
+      "instagram": "Reels: the title, description and hashtags go into the caption.",
+      "x": "The post text is the title, description and hashtags, up to 280 characters."
     }
   }
 }

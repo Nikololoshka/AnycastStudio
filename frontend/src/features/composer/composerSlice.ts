@@ -1,11 +1,9 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { PlatformSettings } from '../../domain/platform/types';
 import type { AvailablePlatform } from '../../domain/platform/order';
-import { AVAILABLE_PLATFORMS } from '../../domain/platform/order';
 import type { VideoFile } from '../../domain/video/types';
-import { defaultPlatformSettings, normalizeAllPlatformSettings } from '../../platforms/settings';
-import { readStored, STORAGE_KEYS } from '../../services/storage';
 import type { Draft } from '../../api/draftsApi';
+import { readPlatformDefaults } from '../../api/platformDefaultsApi';
 
 export interface ComposerState {
   draftId?: string;
@@ -23,15 +21,21 @@ export interface ComposerState {
   platformSettings: Record<AvailablePlatform, PlatformSettings>;
 }
 
+export function isChangedFrom(settings: PlatformSettings, defaults?: PlatformSettings): boolean {
+  if (!defaults) return false;
+  return Object.keys(defaults).some(
+    (key) => defaults[key] !== null && settings[key] !== defaults[key],
+  );
+}
+
 function initialComposer(): ComposerState {
-  const stored = readStored<unknown>(STORAGE_KEYS.platformSettings);
+  const defaults = readPlatformDefaults();
   return {
     title: '',
     description: '',
     hashtags: [],
-    selectedPlatforms: [...AVAILABLE_PLATFORMS],
-    platformSettings:
-      stored === undefined ? defaultPlatformSettings() : normalizeAllPlatformSettings(stored),
+    selectedPlatforms: defaults.selected,
+    platformSettings: defaults.settings,
   };
 }
 

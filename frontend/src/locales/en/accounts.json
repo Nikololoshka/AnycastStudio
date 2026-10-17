@@ -14,11 +14,17 @@
   "detail": {
     "connectedAt": "connected {{date}}",
     "expired": "Your {{platform}} session has expired, so publishing there is paused. Sign in again to continue.",
-    "settingsNote": "Publishing settings are chosen when you create a post.",
-    "compose": "New post",
     "emptyTitle": "{{platform}} is not connected",
     "emptyBody": "Sign in to publish your videos to this account.",
     "connectFailed": "Couldn't start connecting {{platform}}. Try again in a moment."
+  },
+  "defaults": {
+    "selected": "Select by default",
+    "selectedHint": "The platform is turned on in every new post",
+    "visibility": "Default privacy",
+    "visibilityHint": "You can change it in any post",
+    "tiktokVisibility": "TikTok asks who can watch for every post, so there is no default here.",
+    "perPost": "Cover, interactions and everything else that only {{platform}} has are set in each post, with the Configure button on the platform card."
   },
   "actions": {
     "connect": "Connect",

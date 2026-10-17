@@ -29,6 +29,7 @@ export const STORAGE_KEYS = {
   language: 'language',
   theme: 'theme',
   platformSettings: 'platformSettings',
+  defaultPlatforms: 'defaultPlatforms',
   composerDraft: 'composerDraft',
   drafts: 'drafts',
   deletedPublications: 'deletedPublications',

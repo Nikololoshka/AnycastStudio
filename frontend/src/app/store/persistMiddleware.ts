@@ -1,6 +1,5 @@
 import { createListenerMiddleware, isAnyOf } from '@reduxjs/toolkit';
 import { changeLanguage, changeTheme } from '../../features/settings';
-import { setPlatformSettings } from '../../features/composer';
 import { STORAGE_KEYS, writeStored } from '../../services/storage';
 import type { RootState } from './index';
 
@@ -18,15 +17,5 @@ persistMiddleware.startListening({
     const { language, theme } = (api.getState() as RootState).settings;
     writeStored(STORAGE_KEYS.language, language);
     writeStored(STORAGE_KEYS.theme, theme);
-  },
-});
-
-persistMiddleware.startListening({
-  matcher: isAnyOf(setPlatformSettings),
-  effect: (_action, api) => {
-    writeStored(
-      STORAGE_KEYS.platformSettings,
-      (api.getState() as RootState).composer.platformSettings,
-    );
   },
 });

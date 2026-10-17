@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Alert, Avatar, Button, Chip, ListBox, Spinner } from '@heroui/react';
-import { Plug, Send } from 'lucide-react';
+import { Info, Plug } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import {
   useDisconnectAccountMutation,
   useGetAccountsQuery,
+  useGetPlatformDefaultsQuery,
   useStartConnectMutation,
+  useUpdatePlatformDefaultsMutation,
   type ConnectedAccount,
 } from '../../api';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
+import { SettingSelect } from '../../components/SettingSelect';
+import { SettingSwitch } from '../../components/SettingSwitch';
 import { AVAILABLE_PLATFORMS, type AvailablePlatform } from '../../domain/platform/order';
 import { getLabelFor } from '../../platforms/registry';
+import { toSelectOptions } from '../../platforms/selectOptions';
+import { YOUTUBE_PRIVACY_OPTIONS, youtubeSettingsOf } from '../../platforms/youtube';
 
 const OUTCOMES = ['connected', 'cancelled', 'failed', 'invalid'] as const;
 
@@ -178,16 +184,7 @@ function PlatformDetail({
       )}
 
       {account ? (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-surface-secondary px-4 py-3 text-sm text-muted">
-          {t('detail.settingsNote')}
-          <Link
-            to="/compose"
-            className="flex items-center gap-1.5 font-medium text-accent hover:text-accent-hover"
-          >
-            <Send className="size-3.5" />
-            {t('detail.compose')}
-          </Link>
-        </p>
+        <PlatformDefaults platform={platform} />
       ) : (
         <div className="flex flex-col items-center gap-2 rounded-xl bg-surface-secondary px-6 py-7 text-center">
           <p className="text-[15px] font-semibold">{t('detail.emptyTitle', { platform: label })}</p>
@@ -205,6 +202,70 @@ function PlatformDetail({
         onCancel={() => setIsConfirming(false)}
       />
     </section>
+  );
+}
+
+function PlatformDefaults({ platform }: { platform: AvailablePlatform }) {
+  const { t } = useTranslation('accounts');
+  const { t: tPlatforms } = useTranslation('platforms');
+  const { data: defaults } = useGetPlatformDefaultsQuery();
+  const [updateDefaults] = useUpdatePlatformDefaultsMutation();
+  const label = getLabelFor(platform);
+
+  if (!defaults) return null;
+
+  const isDefault = defaults.selected.includes(platform);
+
+  function changeSelected(isSelected: boolean) {
+    if (!defaults) return;
+    void updateDefaults({
+      ...defaults,
+      selected: AVAILABLE_PLATFORMS.filter((candidate) =>
+        candidate === platform ? isSelected : defaults.selected.includes(candidate),
+      ),
+    });
+  }
+
+  function changeYouTubePrivacy(privacyStatus: string) {
+    if (!defaults) return;
+    void updateDefaults({
+      ...defaults,
+      settings: { ...defaults.settings, youtube: { ...defaults.settings.youtube, privacyStatus } },
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="rounded-xl border border-separator bg-background px-4 py-2.5">
+        <SettingSwitch
+          label={t('defaults.selected')}
+          description={t('defaults.selectedHint')}
+          isSelected={isDefault}
+          onChange={changeSelected}
+        />
+      </div>
+
+      {platform === 'youtube' && (
+        <div className="max-w-80">
+          <SettingSelect
+            label={t('defaults.visibility')}
+            description={t('defaults.visibilityHint')}
+            value={youtubeSettingsOf(defaults.settings.youtube).privacyStatus}
+            options={toSelectOptions(YOUTUBE_PRIVACY_OPTIONS, tPlatforms)}
+            onChange={changeYouTubePrivacy}
+          />
+        </div>
+      )}
+
+      {platform === 'tiktok' && (
+        <p className="text-sm text-muted">{t('defaults.tiktokVisibility')}</p>
+      )}
+
+      <p className="flex items-start gap-3 rounded-xl bg-accent-soft px-3.5 py-3 text-[13px] text-accent-soft-foreground">
+        <Info className="mt-px size-4.5 flex-none" />
+        <span>{t('defaults.perPost', { platform: label })}</span>
+      </p>
+    </div>
   );
 }
 

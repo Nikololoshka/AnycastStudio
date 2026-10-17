@@ -23,15 +23,6 @@ export function normalizePlatformSettings(
   return normalizers[platform](isPlatformSettings(raw) ? raw : {});
 }
 
-export function defaultPlatformSettings(): Record<AvailablePlatform, PlatformSettings> {
-  return {
-    youtube: normalizePlatformSettings('youtube', undefined),
-    tiktok: normalizePlatformSettings('tiktok', undefined),
-    instagram: normalizePlatformSettings('instagram', undefined),
-    x: normalizePlatformSettings('x', undefined),
-  };
-}
-
 export function normalizeAllPlatformSettings(
   raw: unknown,
 ): Record<AvailablePlatform, PlatformSettings> {

@@ -47,11 +47,13 @@ function ComposerForm() {
   const { t } = useTranslation('composer');
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">{t('screen.title')}</h1>
         <p className="mt-1 text-[15px] text-muted">{t('screen.subtitle')}</p>
       </header>
+
+      <ComposerPlatformsCard />
 
       <div className="flex flex-wrap items-start gap-6">
         <div className="flex min-w-0 flex-[3_1_520px] flex-col gap-6">
@@ -59,7 +61,6 @@ function ComposerForm() {
           <ComposerTextCard />
         </div>
         <div className="flex min-w-0 flex-[2_1_340px] flex-col gap-6">
-          <ComposerPlatformsCard />
           <ComposerTimingCard />
         </div>
       </div>
