@@ -89,3 +89,18 @@ export function youtubeSettingsOf(settings: PlatformSettings): YouTubeSettings {
     ),
   };
 }
+
+const YOUTUBE_MAX_DESCRIPTION_HASHTAGS = 15;
+
+export function youtubeDescriptionOf(
+  description: string,
+  hashtags: string[],
+  settings: YouTubeSettings,
+): string {
+  if (!settings.hashtagsInDescription || hashtags.length === 0) return description;
+  const tags = hashtags
+    .slice(0, YOUTUBE_MAX_DESCRIPTION_HASHTAGS)
+    .map((tag) => `#${tag}`)
+    .join(' ');
+  return [description, tags].filter(Boolean).join('\n\n');
+}

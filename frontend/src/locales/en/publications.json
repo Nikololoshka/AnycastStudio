@@ -55,7 +55,30 @@
     "body": "“{{title}}” will be removed. This cannot be undone."
   },
   "detail": {
-    "immediate": "Published as soon as it was ready"
+    "immediate": "Published as soon as it was ready",
+    "back": "Posts",
+    "created": "Created {{time}}",
+    "finalText": "Final text",
+    "settings": "{{platform}} settings",
+    "text": {
+      "title": "Title",
+      "description": "Description",
+      "caption": "Caption"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "seconds": "{{seconds}} s",
+    "changed": "set in this post",
+    "legend": "differs from the defaults in Platforms; unmarked values match them",
+    "video": "Video",
+    "common": "Shared description",
+    "hashtags": "Hashtags",
+    "history": "History",
+    "event": {
+      "created": "Post created",
+      "started": "{{platform}}: started",
+      "finished": "{{platform}}: {{status}}"
+    }
   },
   "status": {
     "queued": "Waiting",
