@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 *.local
+compose.override.yaml
 
 # Databases
 *.sqlite3
