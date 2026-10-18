@@ -9,7 +9,7 @@ from publishing.models import Draft
 
 from .base import CHUNK_SIZE, CONTENT, UploadTestCase
 
-LONG_AGO = timedelta(days=30)
+LONG_AGO = timedelta(days=31)
 
 
 class SessionSweepScenarios(UploadTestCase):
@@ -64,6 +64,32 @@ class AssetSweepScenarios(UploadTestCase):
         self.given_a_publication_of(asset, finished_at=timezone.now() - timedelta(hours=1))
 
         # When / Then: it stays, so a failed target can still be retried
+        self.assert_kept(asset)
+
+    def test_the_retention_period_is_the_owners_choice(self):
+        # Given: a person who keeps files for 7 days, whose publication finished 8 days ago
+        self.user.media_retention_days = 7
+        self.user.save(update_fields=["media_retention_days"])
+        asset = self.given_an_old_asset()
+        self.given_a_publication_of(asset, finished_at=timezone.now() - timedelta(days=8))
+
+        # When / Then: the file goes, though the default 30 days are not over
+        self.assertEqual(sweep_unused_assets(), 1)
+
+    def test_a_longer_retention_keeps_the_file(self):
+        self.user.media_retention_days = 90
+        self.user.save(update_fields=["media_retention_days"])
+        asset = self.given_an_old_asset()
+        self.given_a_publication_of(asset, finished_at=timezone.now() - timedelta(days=60))
+
+        self.assert_kept(asset)
+
+    def test_a_person_who_turned_retention_off_keeps_published_files(self):
+        self.user.media_retention_days = None
+        self.user.save(update_fields=["media_retention_days"])
+        asset = self.given_an_old_asset()
+        self.given_a_publication_of(asset, finished_at=timezone.now() - timedelta(days=365))
+
         self.assert_kept(asset)
 
     def test_a_published_asset_goes_once_the_retention_period_is_over(self):

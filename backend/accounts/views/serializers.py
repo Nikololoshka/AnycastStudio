@@ -1,3 +1,7 @@
+from platforms import PlatformCatalog
+from platforms.core import PlatformType
+
+
 def user_json(user) -> dict:
     return {
         "id": user.id,
@@ -8,6 +12,12 @@ def user_json(user) -> dict:
         "locale": user.locale,
         "timezone": user.timezone,
         "theme": user.theme,
+        "mediaRetentionDays": user.media_retention_days,
+        "defaultPlatforms": [*PlatformType] if user.default_platforms is None else user.default_platforms,
+        "platformDefaults": {
+            platform: PlatformCatalog.normalized_settings(platform, user.platform_defaults.get(platform, {}))
+            for platform in PlatformType
+        },
         "quota": {
             "maxStorageBytes": user.max_storage_bytes,
             "maxMediaAssetBytes": user.max_media_asset_bytes,

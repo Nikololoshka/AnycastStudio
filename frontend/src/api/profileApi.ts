@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi';
+import type { CurrentUser } from './types';
 import { readStored, STORAGE_KEYS, writeStored } from '../services/storage';
 
 export const AUTO_DELETE_DAYS = [7, 30, 90] as const;
@@ -10,36 +11,50 @@ export interface ProfilePreferences {
   autoDeleteSources: { enabled: boolean; afterDays: AutoDeleteDays };
 }
 
-function defaultPreferences(): ProfilePreferences {
+interface UserResponse {
+  status: string;
+  user: CurrentUser;
+}
+
+function storedTimeZone(): string {
+  return (
+    readStored<string>(STORAGE_KEYS.timeZone) ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
+}
+
+function preferencesOf({ user }: UserResponse): ProfilePreferences {
   return {
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    autoDeleteSources: { enabled: false, afterDays: 30 },
+    timeZone: storedTimeZone(),
+    autoDeleteSources:
+      user.mediaRetentionDays === null
+        ? { enabled: false, afterDays: 30 }
+        : { enabled: true, afterDays: user.mediaRetentionDays },
   };
 }
 
 export const profileApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getProfilePreferences: build.query<ProfilePreferences, void>({
-      queryFn: () => ({
-        data: {
-          ...defaultPreferences(),
-          ...readStored<ProfilePreferences>(STORAGE_KEYS.profilePreferences),
-        },
-      }),
+      query: () => '/auth/me',
+      transformResponse: preferencesOf,
       providesTags: ['ProfilePreferences'],
     }),
 
     updateProfilePreferences: build.mutation<ProfilePreferences, ProfilePreferences>({
-      queryFn: (preferences) => {
-        writeStored(STORAGE_KEYS.profilePreferences, preferences);
-        return { data: preferences };
+      query: ({ timeZone, autoDeleteSources }) => {
+        writeStored(STORAGE_KEYS.timeZone, timeZone);
+        return {
+          url: '/auth/me/preferences',
+          method: 'PATCH',
+          body: {
+            mediaRetentionDays: autoDeleteSources.enabled ? autoDeleteSources.afterDays : null,
+          },
+        };
       },
-      invalidatesTags: ['ProfilePreferences'],
+      transformResponse: preferencesOf,
+      invalidatesTags: ['ProfilePreferences', 'Session'],
     }),
   }),
 });
 
-export const {
-  useGetProfilePreferencesQuery,
-  useUpdateProfilePreferencesMutation,
-} = profileApi;
+export const { useGetProfilePreferencesQuery, useUpdateProfilePreferencesMutation } = profileApi;

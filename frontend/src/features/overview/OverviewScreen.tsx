@@ -19,7 +19,7 @@ import { INDETERMINATE_STATUSES } from '../../domain/publication/status';
 import { AVAILABLE_PLATFORMS, type AvailablePlatform } from '../../domain/platform/order';
 import { getLabelFor } from '../../platforms/registry';
 import { AccountStateChip } from '../accounts';
-import { composerReset } from '../composer';
+import { resetComposer } from '../composer';
 import { formatBytes } from '../media';
 import { availableTargets, publicationChip, TargetMarks, targetMarks } from '../publications';
 import { uploadReset } from '../upload';
@@ -162,7 +162,7 @@ export function OverviewScreen() {
   const { data: accounts, isLoading: isLoadingAccounts } = useGetAccountsQuery();
 
   function startNew() {
-    dispatch(composerReset());
+    dispatch(resetComposer());
     dispatch(uploadReset());
     void navigate('/compose');
   }

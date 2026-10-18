@@ -40,6 +40,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     max_concurrent_uploads = models.PositiveSmallIntegerField(default=settings.MAX_CONCURRENT_UPLOADS)
     max_publications_per_day = models.PositiveSmallIntegerField(default=settings.MAX_PUBLICATIONS_PER_DAY)
 
+    media_retention_days = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        default=settings.MEDIA_RETENTION_DAYS,
+        choices=[(days, f"{days} days") for days in settings.MEDIA_RETENTION_DAYS_CHOICES],
+    )
+    default_platforms = models.JSONField(null=True, blank=True)
+    platform_defaults = models.JSONField(default=dict, blank=True)
+
     objects = UserManager()
 
     USERNAME_FIELD = "email"

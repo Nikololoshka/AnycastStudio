@@ -28,9 +28,7 @@ export function removeStored(key: string): void {
 export const STORAGE_KEYS = {
   language: 'language',
   theme: 'theme',
-  platformSettings: 'platformSettings',
-  defaultPlatforms: 'defaultPlatforms',
   composerDraft: 'composerDraft',
   deletedPublications: 'deletedPublications',
-  profilePreferences: 'profilePreferences',
+  timeZone: 'timeZone',
 } as const;

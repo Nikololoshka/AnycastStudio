@@ -25,7 +25,7 @@ import { useDeleteDraftMutation, useGetDraftsQuery, type Draft } from '../../api
 import type { AppDispatch } from '../../app/store';
 import { useScrolled } from '../../components/AppShell/useScrolled';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { composerReset } from '../composer';
+import { resetComposer } from '../composer';
 import { uploadReset } from '../upload';
 import { publicationTab, type PublicationTab } from './publicationTab';
 import {
@@ -171,7 +171,7 @@ export function PublicationsScreen() {
   const visible = rows.slice(from, from + pageSize);
 
   function startNew() {
-    dispatch(composerReset());
+    dispatch(resetComposer());
     dispatch(uploadReset());
     void navigate('/compose');
   }

@@ -49,8 +49,10 @@ A file is deleted only when nothing can need it again:
 
 - never used by a publication, and older than `ORPHAN_ASSET_TTL_HOURS`;
 - used by publications whose targets have all finished, and the last one
-  finished more than `MEDIA_RETENTION_HOURS` ago — long enough to retry a
-  failed target.
+  finished more than the owner's `User.media_retention_days` ago (7, 30 or 90,
+  `MEDIA_RETENTION_DAYS` for new users; `null` keeps it) — long enough to retry
+  a failed target;
+- not held by a draft.
 
 While any target of a publication has no `finished_at` (queued, uploading,
 retried), the file stays, and a person's request to delete it is answered

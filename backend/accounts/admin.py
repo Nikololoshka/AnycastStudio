@@ -11,7 +11,7 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ["email", "display_name"]
     fieldsets = [
         (None, {"fields": ["email", "password"]}),
-        ("Profile", {"fields": ["display_name", "locale", "timezone", "theme"]}),
+        ("Profile", {"fields": ["display_name", "locale", "timezone", "theme", "media_retention_days"]}),
         (
             "Limits",
             {

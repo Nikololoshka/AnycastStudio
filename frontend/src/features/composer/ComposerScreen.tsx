@@ -10,7 +10,7 @@ import { ComposerActionBar } from './ComposerActionBar';
 import { ComposerFileCard, ComposerTextCard } from './ComposerContentCards';
 import { ComposerPlatformsCard } from './ComposerPlatformsCard';
 import { ComposerTimingCard } from './ComposerTimingCard';
-import { composerReset, draftLoaded } from './composerSlice';
+import { draftLoaded, resetComposer } from './composerSlice';
 import { uploadReset } from '../upload';
 
 export function ComposerScreen() {
@@ -23,7 +23,7 @@ export function ComposerScreen() {
   useEffect(() => {
     if (draftId === loadedDraftId) return;
     if (!draftId) {
-      dispatch(composerReset());
+      dispatch(resetComposer());
       dispatch(uploadReset());
     } else if (draft?.id === draftId) {
       dispatch(draftLoaded(draft));

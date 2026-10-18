@@ -1,38 +1,46 @@
 import { baseApi } from './baseApi';
+import type { CurrentUser } from './types';
 import { AVAILABLE_PLATFORMS, type AvailablePlatform } from '../domain/platform/order';
 import type { PlatformSettings } from '../domain/platform/types';
 import { normalizeAllPlatformSettings } from '../platforms/settings';
-import { readStored, STORAGE_KEYS, writeStored } from '../services/storage';
 
 export interface PlatformDefaults {
   selected: AvailablePlatform[];
   settings: Record<AvailablePlatform, PlatformSettings>;
 }
 
-export function readPlatformDefaults(): PlatformDefaults {
-  const selected = readStored<unknown>(STORAGE_KEYS.defaultPlatforms);
+interface UserResponse {
+  status: string;
+  user: CurrentUser;
+}
+
+export function builtInPlatformDefaults(): PlatformDefaults {
+  return { selected: [...AVAILABLE_PLATFORMS], settings: normalizeAllPlatformSettings({}) };
+}
+
+function defaultsOf({ user }: UserResponse): PlatformDefaults {
   return {
-    selected: Array.isArray(selected)
-      ? AVAILABLE_PLATFORMS.filter((platform) => selected.includes(platform))
-      : [...AVAILABLE_PLATFORMS],
-    settings: normalizeAllPlatformSettings(readStored<unknown>(STORAGE_KEYS.platformSettings)),
+    selected: AVAILABLE_PLATFORMS.filter((platform) => user.defaultPlatforms.includes(platform)),
+    settings: normalizeAllPlatformSettings(user.platformDefaults),
   };
 }
 
 export const platformDefaultsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getPlatformDefaults: build.query<PlatformDefaults, void>({
-      queryFn: () => ({ data: readPlatformDefaults() }),
+      query: () => '/auth/me',
+      transformResponse: defaultsOf,
       providesTags: ['PlatformDefaults'],
     }),
 
     updatePlatformDefaults: build.mutation<PlatformDefaults, PlatformDefaults>({
-      queryFn: (defaults) => {
-        writeStored(STORAGE_KEYS.defaultPlatforms, defaults.selected);
-        writeStored(STORAGE_KEYS.platformSettings, defaults.settings);
-        return { data: defaults };
-      },
-      invalidatesTags: ['PlatformDefaults'],
+      query: ({ selected, settings }) => ({
+        url: '/auth/me/preferences',
+        method: 'PATCH',
+        body: { defaultPlatforms: selected, platformDefaults: settings },
+      }),
+      transformResponse: defaultsOf,
+      invalidatesTags: ['PlatformDefaults', 'Session'],
     }),
   }),
 });

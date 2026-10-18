@@ -199,7 +199,11 @@ def published_and_done_since(cutoff):
 def unused_assets():
     now = timezone.now()
     orphans = never_published_since(now - timedelta(hours=settings.ORPHAN_ASSET_TTL_HOURS))
-    retired = published_and_done_since(now - timedelta(hours=settings.MEDIA_RETENTION_HOURS))
+    retired = [
+        asset
+        for days in settings.MEDIA_RETENTION_DAYS_CHOICES
+        for asset in published_and_done_since(now - timedelta(days=days)).filter(user__media_retention_days=days)
+    ]
     return [*orphans, *retired]
 
 

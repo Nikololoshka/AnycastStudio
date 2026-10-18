@@ -18,7 +18,7 @@ import { useScrolled } from '../../components/AppShell/useScrolled';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
 import { getLabelFor } from '../../platforms/registry';
-import { composerReset, setVideo } from '../composer';
+import { resetComposer, setVideo } from '../composer';
 import { uploadReset } from '../upload';
 import { formatBytes } from './formatBytes';
 import {
@@ -91,7 +91,7 @@ export function LibraryScreen() {
   }
 
   function compose(asset: MediaAsset) {
-    dispatch(composerReset());
+    dispatch(resetComposer());
     dispatch(uploadReset());
     dispatch(setVideo(videoFileOf(asset)));
     void navigate('/compose');

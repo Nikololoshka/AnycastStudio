@@ -14,6 +14,9 @@ export interface CurrentUser {
   locale: string;
   timezone: string;
   theme: string;
+  mediaRetentionDays: 7 | 30 | 90 | null;
+  defaultPlatforms: string[];
+  platformDefaults: Record<string, Record<string, unknown>>;
   quota: Quota;
 }
 

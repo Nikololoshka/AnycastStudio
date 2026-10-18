@@ -1,9 +1,14 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, isAnyOf, type PayloadAction } from '@reduxjs/toolkit';
 import type { PlatformSettings } from '../../domain/platform/types';
 import type { AvailablePlatform } from '../../domain/platform/order';
 import type { VideoFile } from '../../domain/video/types';
 import type { Draft } from '../../api/draftsApi';
-import { platformDefaultsApi, readPlatformDefaults } from '../../api/platformDefaultsApi';
+import {
+  builtInPlatformDefaults,
+  platformDefaultsApi,
+  type PlatformDefaults,
+} from '../../api/platformDefaultsApi';
+import type { AppDispatch, RootState } from '../../app/store';
 
 export interface ComposerState {
   draftId?: number;
@@ -30,8 +35,7 @@ export function isChangedFrom(settings: PlatformSettings, defaults?: PlatformSet
   );
 }
 
-function initialComposer(): ComposerState {
-  const defaults = readPlatformDefaults();
+function initialComposer(defaults = builtInPlatformDefaults()): ComposerState {
   return {
     title: '',
     description: '',
@@ -46,8 +50,8 @@ const composerSlice = createSlice({
   name: 'composer',
   initialState: initialComposer,
   reducers: {
-    composerReset() {
-      return initialComposer();
+    composerReset(_state, action: PayloadAction<PlatformDefaults | undefined>) {
+      return initialComposer(action.payload);
     },
     draftLoaded(_state, action: PayloadAction<Draft>) {
       const { id, updatedAt: _updatedAt, ...content } = action.payload;
@@ -105,7 +109,10 @@ const composerSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder.addMatcher(
-      platformDefaultsApi.endpoints.updatePlatformDefaults.matchFulfilled,
+      isAnyOf(
+        platformDefaultsApi.endpoints.getPlatformDefaults.matchFulfilled,
+        platformDefaultsApi.endpoints.updatePlatformDefaults.matchFulfilled,
+      ),
       (state, action) => {
         if (state.draftId || state.dirty) return;
         state.selectedPlatforms = action.payload.selected;
@@ -116,7 +123,6 @@ const composerSlice = createSlice({
 });
 
 export const {
-  composerReset,
   draftLoaded,
   draftSaved,
   setVideo,
@@ -129,5 +135,12 @@ export const {
   togglePlatform,
   setPlatformSettings,
 } = composerSlice.actions;
+
+export function resetComposer() {
+  return (dispatch: AppDispatch, getState: () => RootState) => {
+    const { data } = platformDefaultsApi.endpoints.getPlatformDefaults.select()(getState());
+    dispatch(composerSlice.actions.composerReset(data));
+  };
+}
 
 export default composerSlice.reducer;
