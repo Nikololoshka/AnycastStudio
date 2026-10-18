@@ -1,18 +1,20 @@
 import type { VideoFile } from '../../domain/video/types';
 
 const THUMBNAIL_SECONDS = 1;
+const THUMBNAIL_MAX_WIDTH = 640;
 
 interface VideoDetails {
   duration: number;
   width: number;
   height: number;
-  thumbnailDataUrl?: string;
+  thumbnailUrl?: string;
 }
 
 function captureFrame(video: HTMLVideoElement): string | undefined {
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const scale = Math.min(1, THUMBNAIL_MAX_WIDTH / video.videoWidth);
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
   const context = canvas.getContext('2d');
   if (!context) return undefined;
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -41,7 +43,7 @@ function readVideoDetails(file: File): Promise<VideoDetails> {
         duration: video.duration,
         width: video.videoWidth,
         height: video.videoHeight,
-        thumbnailDataUrl: captureFrame(video),
+        thumbnailUrl: captureFrame(video),
       });
     };
 

@@ -133,7 +133,9 @@ def _claim_for_completion(session: UploadSession) -> bool:
     )
 
 
-def complete(session: UploadSession, duration=None, width=None, height=None) -> MediaAsset:
+def complete(
+    session: UploadSession, duration=None, width=None, height=None, thumbnail: bytes | None = None
+) -> MediaAsset:
     if not _claim_for_completion(session):
         raise AlreadyFinished()
 
@@ -157,7 +159,10 @@ def complete(session: UploadSession, duration=None, width=None, height=None) -> 
 
     asset.storage_path = storage.asset_path(session.user_id, asset.pk, session.filename)
     storage.move(session.storage_path, asset.storage_path)
-    asset.save(update_fields=["storage_path"])
+    if thumbnail:
+        asset.thumbnail_path = storage.thumbnail_path(session.user_id, asset.pk)
+        storage.write_bytes(asset.thumbnail_path, thumbnail)
+    asset.save(update_fields=["storage_path", "thumbnail_path"])
 
     UploadSession.objects.filter(pk=session.pk).update(asset=asset)
     logger.info("Upload %s completed as asset %s", session.upload_id, asset.pk)
@@ -208,8 +213,12 @@ def unused_assets():
 
 
 def delete_asset(asset: MediaAsset) -> None:
+    if asset.thumbnail_path:
+        storage.delete(asset.thumbnail_path)
     storage.delete(asset.storage_path)
-    MediaAsset.objects.filter(pk=asset.pk).update(status=MediaAsset.Status.DELETED, storage_path="")
+    MediaAsset.objects.filter(pk=asset.pk).update(
+        status=MediaAsset.Status.DELETED, storage_path="", thumbnail_path=""
+    )
     logger.info("Deleted the file of media asset %s", asset.pk)
 
 

@@ -156,8 +156,8 @@ export function VideoDropZone() {
           className="flex items-center gap-3.5 rounded-xl border border-surface-secondary bg-background p-3"
         >
           <div className="relative h-[54px] w-24 shrink-0 overflow-hidden rounded-[10px] bg-surface-tertiary">
-            {video.thumbnailDataUrl ? (
-              <img src={video.thumbnailDataUrl} alt="" className="size-full object-cover" />
+            {video.thumbnailUrl ? (
+              <img src={video.thumbnailUrl} alt="" className="size-full object-cover" />
             ) : (
               <Clapperboard className="absolute inset-0 m-auto size-6 text-muted" />
             )}

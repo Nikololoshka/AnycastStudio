@@ -1,6 +1,8 @@
 import { baseApi } from './baseApi';
 import type { VideoFile } from '../domain/video/types';
 
+const API_URL = import.meta.env.VITE_API_URL ?? '';
+
 export interface MediaAsset {
   id: number;
   filename: string;
@@ -11,6 +13,7 @@ export interface MediaAsset {
   height: number | null;
   status: string;
   createdAt: string;
+  thumbnailUrl: string | null;
 }
 
 export function videoFileOf(asset: MediaAsset): VideoFile {
@@ -22,6 +25,7 @@ export function videoFileOf(asset: MediaAsset): VideoFile {
     duration: asset.durationSeconds ?? undefined,
     width: asset.width ?? undefined,
     height: asset.height ?? undefined,
+    thumbnailUrl: asset.thumbnailUrl ? `${API_URL}${asset.thumbnailUrl}` : undefined,
     mediaAssetId: String(asset.id),
   };
 }

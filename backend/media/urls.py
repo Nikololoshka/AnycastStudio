@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("assets", views.media_assets, name="media-assets"),
     path("assets/<int:pk>", views.media_asset, name="media-asset"),
+    path("assets/<int:pk>/thumbnail", views.media_asset_thumbnail, name="media-asset-thumbnail"),
     path("uploads", views.media_upload_start, name="media-upload-start"),
     path("uploads/<uuid:upload_id>", views.media_upload_chunk, name="media-upload-chunk"),
     path("uploads/<uuid:upload_id>/status", views.media_upload_status, name="media-upload-status"),

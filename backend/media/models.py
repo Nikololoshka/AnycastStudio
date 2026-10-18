@@ -21,6 +21,7 @@ class MediaAsset(models.Model):
     sha256 = models.CharField(max_length=64, blank=True)
 
     storage_path = models.CharField(max_length=500)
+    thumbnail_path = models.CharField(max_length=500, blank=True)
 
     duration_seconds = models.FloatField(null=True, blank=True)
     width = models.PositiveIntegerField(null=True, blank=True)

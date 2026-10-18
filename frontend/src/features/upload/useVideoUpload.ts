@@ -76,6 +76,7 @@ export function useVideoUpload() {
             durationSeconds: video.duration,
             width: video.width,
             height: video.height,
+            thumbnailJpeg: video.thumbnailUrl?.split(',')[1],
           },
           onSession: (session) => {
             writeStored(PENDING_UPLOAD_KEY, session.uploadId);

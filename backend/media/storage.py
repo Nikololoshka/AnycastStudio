@@ -21,6 +21,10 @@ def asset_path(user_id: int, asset_id: int, filename: str) -> str:
     return str(Path(str(user_id)) / str(asset_id) / f"source{suffix}")
 
 
+def thumbnail_path(user_id: int, asset_id: int) -> str:
+    return str(Path(str(user_id)) / str(asset_id) / "thumbnail.jpg")
+
+
 def absolute(relative: str) -> Path:
     return _root() / relative
 
@@ -35,6 +39,12 @@ def write_at(relative: str, offset: int, pieces: Iterable[bytes]) -> int:
             handle.write(piece)
             written += len(piece)
     return written
+
+
+def write_bytes(relative: str, data: bytes) -> None:
+    path = absolute(relative)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
 
 
 def move(source: str, destination: str) -> None:

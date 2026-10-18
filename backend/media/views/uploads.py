@@ -89,7 +89,7 @@ def media_upload_complete(request, data: CompleteUploadSchema, upload_id):
         return api_response("conflict", offset=session.received_bytes, expected=session.declared_size)
 
     try:
-        asset = services.complete(session, data.durationSeconds, data.width, data.height)
+        asset = services.complete(session, data.durationSeconds, data.width, data.height, data.thumbnailJpeg)
     except services.AlreadyFinished:
         return api_response("expired")
     except services.ChecksumMismatch:

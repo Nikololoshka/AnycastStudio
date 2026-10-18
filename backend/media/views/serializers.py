@@ -1,3 +1,5 @@
+from django.urls import reverse
+
 from ..models import UploadSession, MediaAsset
 
 
@@ -22,4 +24,5 @@ def asset_json(asset: MediaAsset) -> dict:
         "height": asset.height,
         "status": asset.status,
         "createdAt": asset.created_at.isoformat(),
+        "thumbnailUrl": reverse("media-asset-thumbnail", args=[asset.pk]) if asset.thumbnail_path else None,
     }

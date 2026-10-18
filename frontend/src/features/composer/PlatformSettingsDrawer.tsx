@@ -168,9 +168,9 @@ function PostPreview({
     <div
       className={`relative grid flex-none place-items-center overflow-hidden bg-surface-tertiary ${className}`}
     >
-      {video?.thumbnailDataUrl ? (
+      {video?.thumbnailUrl ? (
         <img
-          src={video.thumbnailDataUrl}
+          src={video.thumbnailUrl}
           alt=""
           className="absolute inset-0 size-full object-cover"
         />

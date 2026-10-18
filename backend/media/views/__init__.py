@@ -1,4 +1,4 @@
-from .assets import media_asset, media_assets
+from .assets import media_asset, media_asset_thumbnail, media_assets
 from .uploads import (
     media_upload_abort,
     media_upload_chunk,
@@ -9,6 +9,7 @@ from .uploads import (
 
 __all__ = [
     "media_asset",
+    "media_asset_thumbnail",
     "media_assets",
     "media_upload_abort",
     "media_upload_chunk",

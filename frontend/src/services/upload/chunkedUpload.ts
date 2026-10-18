@@ -30,6 +30,7 @@ export interface UploadedAsset {
   height: number | null;
   status: string;
   createdAt: string;
+  thumbnailUrl: string | null;
 }
 
 export interface UploadProgress {
@@ -42,6 +43,7 @@ export interface VideoDetails {
   durationSeconds?: number;
   width?: number;
   height?: number;
+  thumbnailJpeg?: string;
 }
 
 export class UploadError extends Error {

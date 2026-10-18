@@ -1,7 +1,9 @@
+from django.http import FileResponse
+
 from common.access import require_auth, require_delete, require_get
 from common.responses import api_response
 
-from .. import services
+from .. import services, storage
 from ..models import MediaAsset
 from .serializers import asset_json
 
@@ -33,3 +35,12 @@ def media_asset(request, pk: int):
 
     services.delete_asset(row)
     return api_response("ok")
+
+
+@require_get
+@require_auth
+def media_asset_thumbnail(request, pk: int):
+    row = _ready_assets_of(request.user).filter(pk=pk).exclude(thumbnail_path="").first()
+    if row is None:
+        return api_response("not_found")
+    return FileResponse(storage.absolute(row.thumbnail_path).open("rb"), content_type="image/jpeg")
