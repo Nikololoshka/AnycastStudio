@@ -16,7 +16,7 @@ services:
   web:
     <<: *app
     ports:
-      - "${BACKEND_BIND:-127.0.0.1}:8000:8000"
+      - "127.0.0.1:8000:8000"
 
   worker:
     <<: *app
@@ -30,5 +30,21 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
 
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      API_HOST: ${API_HOST:?set API_HOST in .env}
+      FRONTEND_IP: ${FRONTEND_IP:?set FRONTEND_IP in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+    depends_on:
+      - web
+    restart: unless-stopped
+
 volumes:
   data:
+  caddy:

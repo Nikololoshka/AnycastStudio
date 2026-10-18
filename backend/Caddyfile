@@ -1,0 +1,5 @@
+{$API_HOST} {
+	@outside not remote_ip {$FRONTEND_IP}
+	abort @outside
+	reverse_proxy web:8000
+}
