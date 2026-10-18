@@ -43,7 +43,7 @@ type ScreenTab = PublicationTab | 'draft';
 interface Row {
   key: string;
   kind: 'draft' | 'publication';
-  id: string;
+  id: number;
   title: string;
   marks: TargetMark[];
   chip: StatusChip;
@@ -126,7 +126,7 @@ export function PublicationsScreen() {
     return {
       key: `publication-${publication.id}`,
       kind: 'publication',
-      id: String(publication.id),
+      id: publication.id,
       title: publication.title,
       marks: targetMarks(publication, t),
       chip: publicationChip(publication, t),
@@ -181,7 +181,7 @@ export function PublicationsScreen() {
     if (pending.kind === 'draft') {
       await deleteDraft(pending.id);
     } else {
-      await deletePublication(Number(pending.id));
+      await deletePublication(pending.id);
     }
     setPending(undefined);
   }

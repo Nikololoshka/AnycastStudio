@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Publication, PublicationTarget
+from .models import Draft, Publication, PublicationTarget
 
 
 class TargetInline(admin.TabularInline):
@@ -20,3 +20,9 @@ class PublicationAdmin(admin.ModelAdmin):
 class PublicationTargetAdmin(admin.ModelAdmin):
     list_display = ["publication", "platform", "status", "progress", "attempt_count"]
     list_filter = ["platform", "status"]
+
+
+@admin.register(Draft)
+class DraftAdmin(admin.ModelAdmin):
+    list_display = ["title", "user", "asset", "updated_at"]
+    search_fields = ["title", "user__email"]

@@ -9,6 +9,7 @@ import {
   useGetDraftsQuery,
   useGetMediaAssetsQuery,
   useGetPublicationsQuery,
+  videoFileOf,
   type MediaAsset,
 } from '../../api';
 import { messageOf, statusOf } from '../../api/errors';
@@ -92,18 +93,7 @@ export function LibraryScreen() {
   function compose(asset: MediaAsset) {
     dispatch(composerReset());
     dispatch(uploadReset());
-    dispatch(
-      setVideo({
-        id: String(asset.id),
-        name: asset.filename,
-        size: asset.sizeBytes,
-        mimeType: asset.mimeType,
-        duration: asset.durationSeconds ?? undefined,
-        width: asset.width ?? undefined,
-        height: asset.height ?? undefined,
-        mediaAssetId: String(asset.id),
-      }),
-    );
+    dispatch(setVideo(videoFileOf(asset)));
     void navigate('/compose');
   }
 

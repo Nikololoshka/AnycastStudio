@@ -5,6 +5,7 @@ from django.utils import timezone
 from media import storage
 from media.models import MediaAsset, UploadSession
 from media.services import sweep_unused_assets, sweep_upload_sessions
+from publishing.models import Draft
 
 from .base import CHUNK_SIZE, CONTENT, UploadTestCase
 
@@ -75,4 +76,33 @@ class AssetSweepScenarios(UploadTestCase):
 
         # Then: nothing needs the file any more, so it is deleted
         self.assertEqual(swept, 1)
+        self.assertFalse(storage.absolute(asset.storage_path).exists())
+
+
+class DraftAssetSweepScenarios(UploadTestCase):
+    def given_an_old_asset_in_a_draft(self) -> MediaAsset:
+        asset = self.given_an_asset()
+        MediaAsset.objects.update(created_at=timezone.now() - LONG_AGO)
+        Draft.objects.create(user=self.user, asset=asset, title="Later")
+        return asset
+
+    def test_an_old_asset_a_draft_holds_is_kept(self):
+        # Given: an old asset nobody published, but a draft is waiting for it
+        asset = self.given_an_old_asset_in_a_draft()
+
+        # When / Then: the sweep leaves it, so the draft can still be published
+        self.assertEqual(sweep_unused_assets(), 0)
+        self.assertTrue(storage.absolute(asset.storage_path).exists())
+
+    def test_a_published_asset_a_draft_holds_is_kept_after_the_retention_period(self):
+        asset = self.given_an_old_asset_in_a_draft()
+        self.given_a_publication_of(asset, finished_at=timezone.now() - LONG_AGO)
+
+        self.assertEqual(sweep_unused_assets(), 0)
+
+    def test_the_asset_goes_once_the_draft_is_deleted(self):
+        asset = self.given_an_old_asset_in_a_draft()
+        Draft.objects.all().delete()
+
+        self.assertEqual(sweep_unused_assets(), 1)
         self.assertFalse(storage.absolute(asset.storage_path).exists())

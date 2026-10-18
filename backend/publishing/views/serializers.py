@@ -1,3 +1,7 @@
+from media.models import MediaAsset
+from media.views.serializers import asset_json
+
+
 def target_json(target) -> dict:
     return {
         "id": target.pk,
@@ -30,4 +34,20 @@ def publication_json(publication) -> dict:
         "filename": publication.asset.filename,
         "targets": [target_json(target) for target in targets],
         "isActive": any(target.is_active for target in targets),
+    }
+
+
+def draft_json(draft) -> dict:
+    asset = draft.asset
+    return {
+        "id": draft.pk,
+        "video": asset_json(asset) if asset and asset.status == MediaAsset.Status.READY else None,
+        "title": draft.title,
+        "description": draft.description,
+        "hashtags": draft.hashtags,
+        "publishAt": draft.publish_at.isoformat() if draft.publish_at else None,
+        "selectedPlatforms": draft.selected_platforms,
+        "platformSettings": draft.platform_settings,
+        "createdAt": draft.created_at.isoformat(),
+        "updatedAt": draft.updated_at.isoformat(),
     }

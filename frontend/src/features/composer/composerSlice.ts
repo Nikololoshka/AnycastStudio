@@ -6,7 +6,7 @@ import type { Draft } from '../../api/draftsApi';
 import { platformDefaultsApi, readPlatformDefaults } from '../../api/platformDefaultsApi';
 
 export interface ComposerState {
-  draftId?: string;
+  draftId?: number;
 
   video?: VideoFile;
 
@@ -53,7 +53,7 @@ const composerSlice = createSlice({
       const { id, updatedAt: _updatedAt, ...content } = action.payload;
       return { ...content, draftId: id, dirty: false };
     },
-    draftSaved(state, action: PayloadAction<string>) {
+    draftSaved(state, action: PayloadAction<number>) {
       state.draftId = action.payload;
       state.dirty = false;
     },

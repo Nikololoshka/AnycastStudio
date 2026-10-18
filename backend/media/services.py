@@ -171,18 +171,21 @@ def abort(session: UploadSession) -> None:
 
 
 def is_in_use(asset: MediaAsset) -> bool:
-    return asset.publications.filter(targets__isnull=False, targets__finished_at__isnull=True).exists()
+    return (
+        asset.drafts.exists()
+        or asset.publications.filter(targets__isnull=False, targets__finished_at__isnull=True).exists()
+    )
 
 
 def never_published_since(cutoff):
     return MediaAsset.objects.filter(
-        status=MediaAsset.Status.READY, created_at__lt=cutoff, publications__isnull=True
+        status=MediaAsset.Status.READY, created_at__lt=cutoff, publications__isnull=True, drafts__isnull=True
     )
 
 
 def published_and_done_since(cutoff):
     return (
-        MediaAsset.objects.filter(status=MediaAsset.Status.READY, publications__isnull=False)
+        MediaAsset.objects.filter(status=MediaAsset.Status.READY, publications__isnull=False, drafts__isnull=True)
         .annotate(
             last_finished=Max("publications__targets__finished_at"),
             unfinished=Count(

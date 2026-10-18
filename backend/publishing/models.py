@@ -26,6 +26,28 @@ class Publication(models.Model):
         return self.title or f"publication {self.pk}"
 
 
+class Draft(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="drafts")
+    asset = models.ForeignKey(
+        "media.MediaAsset", on_delete=models.SET_NULL, null=True, blank=True, related_name="drafts"
+    )
+
+    title = models.CharField(max_length=300, blank=True)
+    description = models.TextField(blank=True)
+    hashtags = models.JSONField(default=list, blank=True)
+
+    publish_at = models.DateTimeField(null=True, blank=True)
+
+    selected_platforms = models.JSONField(default=list, blank=True)
+    platform_settings = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    def __str__(self) -> str:
+        return self.title or f"draft {self.pk}"
+
+
 class PublicationTarget(models.Model):
     Status = models.TextChoices("Status", [(status.name, status.value) for status in TargetStatus])
 

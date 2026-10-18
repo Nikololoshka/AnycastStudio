@@ -15,9 +15,10 @@ import { uploadReset } from '../upload';
 
 export function ComposerScreen() {
   const dispatch = useDispatch<AppDispatch>();
-  const { draftId } = useParams();
+  const { draftId: draftParam } = useParams();
+  const draftId = draftParam ? Number(draftParam) : undefined;
   const loadedDraftId = useSelector((state: RootState) => state.composer.draftId);
-  const { data: draft, isError } = useGetDraftQuery(draftId ?? skipToken);
+  const { data: draft, isError } = useGetDraftQuery(draftId || skipToken);
 
   useEffect(() => {
     if (draftId === loadedDraftId) return;
@@ -30,7 +31,7 @@ export function ComposerScreen() {
     }
   }, [dispatch, draft, draftId, loadedDraftId]);
 
-  if (isError) return <Navigate to="/compose" replace />;
+  if (isError || Number.isNaN(draftId)) return <Navigate to="/compose" replace />;
 
   if (draftId !== loadedDraftId) {
     return (

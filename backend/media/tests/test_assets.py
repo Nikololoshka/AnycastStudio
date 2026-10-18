@@ -1,5 +1,6 @@
 from media import storage
 from media.models import MediaAsset
+from publishing.models import Draft
 
 from .base import ASSETS_URL, CONTENT, UploadTestCase
 
@@ -58,3 +59,13 @@ class AssetScenarios(UploadTestCase):
         self.assertEqual(self.body(response)["message"], "asset_in_use")
         self.assertTrue(storage.absolute(asset.storage_path).exists())
         self.assertEqual(MediaAsset.objects.get().status, MediaAsset.Status.READY)
+
+    def test_an_asset_a_draft_holds_cannot_be_deleted(self):
+        asset = self.given_an_asset()
+        Draft.objects.create(user=self.user, asset=asset)
+
+        response = self.client.delete(f"{ASSETS_URL}/{asset.pk}")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.body(response)["message"], "asset_in_use")
+        self.assertTrue(storage.absolute(asset.storage_path).exists())

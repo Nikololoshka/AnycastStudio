@@ -31,7 +31,6 @@ export const STORAGE_KEYS = {
   platformSettings: 'platformSettings',
   defaultPlatforms: 'defaultPlatforms',
   composerDraft: 'composerDraft',
-  drafts: 'drafts',
   deletedPublications: 'deletedPublications',
   profilePreferences: 'profilePreferences',
 } as const;

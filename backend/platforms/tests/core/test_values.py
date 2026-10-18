@@ -121,3 +121,27 @@ class CatalogScenarios(PlatformTestCase):
         self.assertEqual(capabilities["scheduling"], Scheduling.DEFERRED_UPLOAD.value)
         self.assertEqual(capabilities["maxFileSize"], 4 * 1024**3)
         self.assertIn("video/mp4", capabilities["supportedMimeTypes"])
+
+
+class SettingsScenarios(PlatformTestCase):
+    def test_the_defaults_of_every_platform_are_exact(self):
+        for platform_type in PlatformType:
+            with self.subTest(platform=platform_type):
+                defaults = PlatformCatalog.normalized_settings(platform_type, {})
+                self.assertTrue(PlatformCatalog.is_exact_settings(platform_type, defaults))
+
+    def test_a_partial_but_valid_set_of_settings_is_exact(self):
+        self.assertTrue(PlatformCatalog.is_exact_settings(PlatformType.X, {"replyAudience": "following"}))
+
+    def test_an_unknown_key_is_not_exact(self):
+        self.assertFalse(PlatformCatalog.is_exact_settings(PlatformType.X, {"pinned": True}))
+
+    def test_a_value_the_platform_does_not_offer_is_not_exact(self):
+        self.assertFalse(PlatformCatalog.is_exact_settings(PlatformType.YOUTUBE, {"privacyStatus": "secret"}))
+
+    def test_a_number_in_place_of_a_flag_is_not_exact(self):
+        # Given: 1 == True in Python, so a plain comparison would let it through
+        self.assertFalse(PlatformCatalog.is_exact_settings(PlatformType.TIKTOK, {"disableComment": 1}))
+
+    def test_whole_seconds_are_as_good_as_fractional_ones(self):
+        self.assertTrue(PlatformCatalog.is_exact_settings(PlatformType.INSTAGRAM, {"coverFrameSeconds": 2}))

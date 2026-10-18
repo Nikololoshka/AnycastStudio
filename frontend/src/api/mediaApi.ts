@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi';
+import type { VideoFile } from '../domain/video/types';
 
 export interface MediaAsset {
   id: number;
@@ -10,6 +11,19 @@ export interface MediaAsset {
   height: number | null;
   status: string;
   createdAt: string;
+}
+
+export function videoFileOf(asset: MediaAsset): VideoFile {
+  return {
+    id: String(asset.id),
+    name: asset.filename,
+    size: asset.sizeBytes,
+    mimeType: asset.mimeType,
+    duration: asset.durationSeconds ?? undefined,
+    width: asset.width ?? undefined,
+    height: asset.height ?? undefined,
+    mediaAssetId: String(asset.id),
+  };
 }
 
 export interface MediaLibrary {
