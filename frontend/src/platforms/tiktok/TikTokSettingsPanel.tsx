@@ -64,10 +64,6 @@ function CreatorSettings({ creator }: { creator: CreatorInfo }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted">
-        {t('tiktok.creator.postingAs', { name: creator.nickname || creator.username })}
-      </p>
-
       {isTooLong && (
         <Alert status="warning">
           <Alert.Indicator />

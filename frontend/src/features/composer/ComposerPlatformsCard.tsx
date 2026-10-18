@@ -91,9 +91,11 @@ function PlatformCard({
           isDisabled={!isUsable}
           onChange={() => dispatch(togglePlatform(platform))}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
         </Switch>
       </div>
 

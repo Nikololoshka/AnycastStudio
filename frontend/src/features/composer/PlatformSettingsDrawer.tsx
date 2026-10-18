@@ -12,7 +12,7 @@ import { getLabelFor } from '../../platforms/registry';
 import { TikTokSettingsPanel } from '../../platforms/tiktok';
 import { XSettingsPanel } from '../../platforms/x';
 import { YouTubeSettingsPanel } from '../../platforms/youtube';
-import { isChangedFrom, setPlatformSettings, togglePlatform } from './composerSlice';
+import { isChangedFrom, setPlatformSettings } from './composerSlice';
 import { usePublishablePlatforms } from './usePublishablePlatforms';
 
 const PLATFORM_PANELS: Record<AvailablePlatform, () => ReactElement> = {
@@ -83,11 +83,6 @@ function DrawerPanel({
     dispatch(setPlatformSettings({ platform, settings: defaults.settings[platform] }));
   }
 
-  function exclude() {
-    dispatch(togglePlatform(platform));
-    onClose();
-  }
-
   return (
     <Tabs
       selectedKey={platform}
@@ -130,16 +125,7 @@ function DrawerPanel({
         <Tabs.Panel id={platform} className="flex flex-col gap-7 p-5">
           <PostPreview platform={platform} accountName={account?.displayName} />
 
-          <section aria-labelledby="platform-only" className="flex flex-col gap-2">
-            <h3 id="platform-only" className={SECTION}>
-              {t('drawer.only', { platform: label })}
-            </h3>
-            <SettingsPanel />
-          </section>
-
-          <Button variant="ghost" size="sm" className="self-start text-danger" onPress={exclude}>
-            {t('drawer.exclude', { platform: label })}
-          </Button>
+          <SettingsPanel />
         </Tabs.Panel>
       </Drawer.Body>
 

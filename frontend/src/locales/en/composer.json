@@ -111,8 +111,6 @@
     "close": "Close",
     "switcher": "Selected platforms",
     "changed": "Has changes",
-    "only": "Only on {{platform}}",
-    "exclude": "Don't publish to {{platform}}",
     "reset": "Reset all",
     "next": "Next",
     "done": "Done",

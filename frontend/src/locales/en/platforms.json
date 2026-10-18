@@ -84,7 +84,6 @@
   },
   "tiktok": {
     "creator": {
-      "postingAs": "Posting as {{name}}",
       "notConnected": "Connect a TikTok account in Settings to choose these options.",
       "unavailable": "TikTok did not answer. Reload the page to try again.",
       "tooLong": "This account can post videos up to {{seconds}} seconds long. Shorten the video or turn TikTok off.",
