@@ -47,8 +47,6 @@ export const accountsApi = baseApi.injectEndpoints({
       providesTags: ['Account'],
     }),
 
-    // Returns the consent URL; the caller sends the browser there. A full
-    // redirect rather than a popup, so it survives blocked third-party cookies.
     startConnect: build.mutation<string, Platform>({
       query: (platform) => ({ url: `/social/${platform}/connect`, method: 'POST' }),
       transformResponse: (response: ConnectResponse) => response.authUrl,

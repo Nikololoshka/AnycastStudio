@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Alert, Avatar, Button, Chip, ListBox, Spinner } from '@heroui/react';
 import { Info, Plug } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router';
 import {
+  accountsApi,
   useDisconnectAccountMutation,
   useGetAccountsQuery,
   useGetPlatformDefaultsQuery,
@@ -11,6 +13,7 @@ import {
   useUpdatePlatformDefaultsMutation,
   type ConnectedAccount,
 } from '../../api';
+import type { AppDispatch } from '../../app/store';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
 import { SettingSelect } from '../../components/SettingSelect';
@@ -19,6 +22,10 @@ import { AVAILABLE_PLATFORMS, type AvailablePlatform } from '../../domain/platfo
 import { getLabelFor } from '../../platforms/registry';
 import { toSelectOptions } from '../../platforms/selectOptions';
 import { YOUTUBE_PRIVACY_OPTIONS, youtubeSettingsOf } from '../../platforms/youtube';
+
+const CONNECT_CHANNEL = 'anycast-connect';
+const CLOSE_POPUP = 'close';
+const POPUP_FEATURES = 'popup,width=520,height=720';
 
 const OUTCOMES = ['connected', 'cancelled', 'failed', 'invalid'] as const;
 
@@ -55,6 +62,27 @@ export function AccountStateChip({ account }: { account?: ConnectedAccount }) {
   );
 }
 
+function useConnectPopupChannel() {
+  const dispatch = useDispatch<AppDispatch>();
+  const [params, setParams] = useSearchParams();
+  const [landedWith] = useState(() => (toOutcome(params.get('result')) ? params.toString() : ''));
+
+  useEffect(() => {
+    const channel = new BroadcastChannel(CONNECT_CHANNEL);
+    channel.onmessage = ({ data }: MessageEvent<string>) => {
+      if (data === CLOSE_POPUP) {
+        if (landedWith) window.close();
+        return;
+      }
+      setParams(new URLSearchParams(data), { replace: true });
+      dispatch(accountsApi.util.invalidateTags(['Account']));
+      channel.postMessage(CLOSE_POPUP);
+    };
+    if (landedWith) channel.postMessage(landedWith);
+    return () => channel.close();
+  }, [dispatch, setParams, landedWith]);
+}
+
 function CallbackNotice() {
   const { t } = useTranslation('accounts');
   const [params, setParams] = useSearchParams();
@@ -67,7 +95,8 @@ function CallbackNotice() {
     setParams(next, { replace: true });
   }, [outcome, params, setParams]);
 
-  const [shown] = useState(outcome);
+  const [shown, setShown] = useState(outcome);
+  if (outcome && outcome !== shown) setShown(outcome);
   if (!shown) return null;
 
   const isGood = shown === 'connected';
@@ -97,8 +126,15 @@ function PlatformDetail({
   const label = getLabelFor(platform);
 
   async function connect() {
+    const popup = window.open('', CONNECT_CHANNEL, POPUP_FEATURES);
+    if (popup) popup.opener = null;
     const { data: authUrl } = await startConnect(platform);
-    if (authUrl) window.location.assign(authUrl);
+    if (!authUrl) {
+      popup?.close();
+      return;
+    }
+    if (popup) popup.location.assign(authUrl);
+    else window.location.assign(authUrl);
   }
 
   async function confirmDisconnect() {
@@ -273,6 +309,7 @@ export function PlatformsScreen() {
   const { t } = useTranslation('accounts');
   const { data: accounts, isLoading } = useGetAccountsQuery();
   const [params, setParams] = useSearchParams();
+  useConnectPopupChannel();
   const selected = toPlatform(params.get('platform'));
   const accountOf = (platform: AvailablePlatform) =>
     accounts?.find((candidate) => candidate.platform === platform);
