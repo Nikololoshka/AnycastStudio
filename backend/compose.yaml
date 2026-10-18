@@ -16,7 +16,7 @@ services:
   web:
     <<: *app
     ports:
-      - "127.0.0.1:8000:8000"
+      - "${BACKEND_BIND:-127.0.0.1}:8000:8000"
 
   worker:
     <<: *app
