@@ -21,6 +21,7 @@ class Publication(models.Model):
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
+    hidden_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.title or f"publication {self.pk}"

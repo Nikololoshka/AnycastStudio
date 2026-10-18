@@ -120,7 +120,9 @@ class DjangoTargetRepository(TargetRepository):
 
     @sync_to_async
     def ensure_target_owned(self, owner_id: int, target_id: int) -> None:
-        if not PublicationTarget.objects.filter(publication__user_id=owner_id, pk=target_id).exists():
+        if not PublicationTarget.objects.filter(
+            publication__user_id=owner_id, publication__hidden_at__isnull=True, pk=target_id
+        ).exists():
             raise NotFound()
 
     @sync_to_async

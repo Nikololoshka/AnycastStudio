@@ -11,7 +11,7 @@ class TargetInline(admin.TabularInline):
 
 @admin.register(Publication)
 class PublicationAdmin(admin.ModelAdmin):
-    list_display = ["title", "user", "publish_at", "created_at"]
+    list_display = ["title", "user", "publish_at", "created_at", "hidden_at"]
     search_fields = ["title", "user__email"]
     inlines = [TargetInline]
 

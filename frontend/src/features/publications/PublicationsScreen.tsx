@@ -49,6 +49,7 @@ interface Row {
   chip: StatusChip;
   date: string;
   action: { label?: string; to: string };
+  canDelete: boolean;
 }
 
 const TABS: ScreenTab[] = ['published', 'scheduled', 'draft', 'error'];
@@ -135,6 +136,7 @@ export function PublicationsScreen() {
           ? (publication.publishAt ?? publication.createdAt)
           : publication.createdAt,
       action: { label: tab === 'error' ? t('actions.retry') : undefined, to },
+      canDelete: !publication.isActive,
     };
   }
 
@@ -161,6 +163,7 @@ export function PublicationsScreen() {
         : { label: t('row.ready'), tone: 'success' },
       date: draft.updatedAt,
       action: { label: t('actions.continue'), to: `/compose/${draft.id}` },
+      canDelete: true,
     };
   }
 
@@ -320,15 +323,17 @@ export function PublicationsScreen() {
                                 {row.action.label}
                               </Button>
                             )}
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="ghost"
-                              aria-label={t('actions.delete')}
-                              onPress={() => setPending(row)}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
+                            {row.canDelete && (
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="ghost"
+                                aria-label={t('actions.delete')}
+                                onPress={() => setPending(row)}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            )}
                           </span>
                         </Table.Cell>
                       </Table.Row>

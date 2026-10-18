@@ -1,7 +1,6 @@
 import { baseApi } from './baseApi';
 import type { Platform, PlatformCapabilities } from '../domain/platform/types';
 import type { PublicationError, PublicationStatus } from '../domain/publication/types';
-import { readStored, STORAGE_KEYS, writeStored } from '../services/storage';
 
 export interface PublicationTarget {
   id: number;
@@ -58,18 +57,11 @@ interface PlatformsResponse {
   platforms: Record<string, PlatformCapabilities>;
 }
 
-function deletedPublicationIds(): number[] {
-  return readStored<number[]>(STORAGE_KEYS.deletedPublications) ?? [];
-}
-
 export const publicationsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getPublications: build.query<Publication[], void>({
       query: () => '/publications',
-      transformResponse: (response: PublicationsResponse) => {
-        const deleted = deletedPublicationIds();
-        return response.publications.filter((publication) => !deleted.includes(publication.id));
-      },
+      transformResponse: (response: PublicationsResponse) => response.publications,
       providesTags: ['Publication'],
     }),
 
@@ -86,10 +78,8 @@ export const publicationsApi = baseApi.injectEndpoints({
     }),
 
     deletePublication: build.mutation<null, number>({
-      queryFn: (id) => {
-        writeStored(STORAGE_KEYS.deletedPublications, [...deletedPublicationIds(), id]);
-        return { data: null };
-      },
+      query: (id) => ({ url: `/publications/${id}/delete`, method: 'DELETE' }),
+      transformResponse: () => null,
       invalidatesTags: ['Publication'],
     }),
 

@@ -1,17 +1,19 @@
-from common.access import require_auth, require_get, require_post
+from django.utils import timezone
+
+from common.access import require_auth, require_delete, require_get, require_post
 from common.rate_limit import rate_limit
 from common.request_body import validate
 from common.responses import api_response, domain_errors
 from services.core.domain import NotFound
 from services.wiring import container
 
-from ..models import Publication
+from ..models import Publication, PublicationTarget
 from .schemas import CreatePublicationSchema
 from .serializers import publication_json
 
 
 def _owned_publications(user):
-    return Publication.objects.filter(user=user).prefetch_related("targets").select_related("asset")
+    return Publication.objects.filter(user=user, hidden_at__isnull=True).prefetch_related("targets").select_related("asset")
 
 
 @require_post
@@ -40,6 +42,18 @@ def publishing_get_publication(request, pk: int):
     if publication is None:
         raise NotFound()
     return api_response("ok", publication=publication_json(publication))
+
+
+@require_delete
+@require_auth
+def publishing_delete_publication(request, pk: int):
+    visible = Publication.objects.filter(user=request.user, pk=pk, hidden_at__isnull=True)
+    hidden = visible.exclude(targets__status__in=PublicationTarget.ACTIVE).update(hidden_at=timezone.now())
+    if hidden:
+        return api_response("ok")
+    if visible.exists():
+        return api_response("conflict", message="publication_active")
+    return api_response("not_found")
 
 
 @require_post

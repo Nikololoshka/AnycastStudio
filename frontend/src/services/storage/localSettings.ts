@@ -29,6 +29,5 @@ export const STORAGE_KEYS = {
   language: 'language',
   theme: 'theme',
   composerDraft: 'composerDraft',
-  deletedPublications: 'deletedPublications',
   timeZone: 'timeZone',
 } as const;
