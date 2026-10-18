@@ -13,6 +13,7 @@ import { TikTokSettingsPanel } from '../../platforms/tiktok';
 import { XSettingsPanel } from '../../platforms/x';
 import { YouTubeSettingsPanel } from '../../platforms/youtube';
 import { isChangedFrom, setPlatformSettings, togglePlatform } from './composerSlice';
+import { usePublishablePlatforms } from './usePublishablePlatforms';
 
 const PLATFORM_PANELS: Record<AvailablePlatform, () => ReactElement> = {
   youtube: YouTubeSettingsPanel,
@@ -65,7 +66,7 @@ function DrawerPanel({
 }) {
   const { t } = useTranslation('composer');
   const dispatch = useDispatch<AppDispatch>();
-  const selectedPlatforms = useSelector((state: RootState) => state.composer.selectedPlatforms);
+  const selectedPlatforms = usePublishablePlatforms();
   const platformSettings = useSelector((state: RootState) => state.composer.platformSettings);
   const { data: defaults } = useGetPlatformDefaultsQuery();
   const { data: accounts } = useGetAccountsQuery();

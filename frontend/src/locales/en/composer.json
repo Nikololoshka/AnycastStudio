@@ -62,21 +62,12 @@
       "unknown": "The upload failed. Try again."
     }
   },
-  "cover": {
-    "label": "Cover",
-    "frame": "Frame {{number}}",
-    "custom": "Own image"
-  },
   "platforms": {
     "title": "Where to publish",
-    "selected": "{{count}} selected",
     "notConnected": "Not connected",
-    "connect": "Connect",
     "expired": "Session expired",
     "reconnect": "Sign in again",
     "publishTo": "Publish to {{platform}}",
-    "defaultsFrom": "defaults from",
-    "defaultsLink": "Platforms",
     "configure": "Configure",
     "configureAria": "Configure {{platform}}",
     "chip": {
@@ -90,7 +81,6 @@
     "needsVideo": "Add a video to publish.",
     "needsPlatform": "Turn on at least one platform.",
     "needsUpload": "Wait for the upload to finish.",
-    "needsAccount": "Connect a {{platform}} account or turn {{platform}} off.",
     "saveDraft": "Save to drafts",
     "publish_one": "Publish to {{count}} platform",
     "publish_other": "Publish to {{count}} platforms",

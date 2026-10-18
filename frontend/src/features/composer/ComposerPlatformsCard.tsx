@@ -13,30 +13,20 @@ import { toSelectOptions } from '../../platforms/selectOptions';
 import { YOUTUBE_PRIVACY_OPTIONS, youtubeSettingsOf } from '../../platforms/youtube';
 import { isChangedFrom, togglePlatform } from './composerSlice';
 import { PlatformSettingsDrawer } from './PlatformSettingsDrawer';
-
-const PLATFORMS_LINK = 'font-medium text-accent hover:underline';
+import { usePublishablePlatforms } from './usePublishablePlatforms';
 
 export function ComposerPlatformsCard() {
   const { t } = useTranslation('composer');
-  const selectedPlatforms = useSelector((state: RootState) => state.composer.selectedPlatforms);
+  const selectedPlatforms = usePublishablePlatforms();
   const [openPlatform, setOpenPlatform] = useState<AvailablePlatform>();
   const visiblePlatform =
     openPlatform && selectedPlatforms.includes(openPlatform) ? openPlatform : undefined;
 
   return (
     <section aria-labelledby="platforms-heading" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="platforms-heading" className="text-lg font-semibold">
-          {t('platforms.title')}
-        </h2>
-        <span className="text-[13px] text-muted">
-          {t('platforms.selected', { count: selectedPlatforms.length })} ·{' '}
-          {t('platforms.defaultsFrom')}{' '}
-          <Link to="/platforms" className={PLATFORMS_LINK}>
-            {t('platforms.defaultsLink')}
-          </Link>
-        </span>
-      </div>
+      <h2 id="platforms-heading" className="text-lg font-semibold">
+        {t('platforms.title')}
+      </h2>
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
         {AVAILABLE_PLATFORMS.map((platform) => (
           <PlatformCard
@@ -95,17 +85,16 @@ function PlatformCard({
             <span className="truncate text-xs text-muted">{account.displayName}</span>
           )}
         </div>
-        {(isUsable || isSelected) && (
-          <Switch
-            aria-label={t('platforms.publishTo', { platform: label })}
-            isSelected={isSelected}
-            onChange={() => dispatch(togglePlatform(platform))}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
-        )}
+        <Switch
+          aria-label={t('platforms.publishTo', { platform: label })}
+          isSelected={isSelected}
+          isDisabled={!isUsable}
+          onChange={() => dispatch(togglePlatform(platform))}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch>
       </div>
 
       <PlatformSummary platform={platform} isSelected={isSelected} />
@@ -122,14 +111,6 @@ function PlatformCard({
             <SlidersHorizontal className="size-4" />
             {t('platforms.configure')}
           </Button>
-        )}
-        {!account && (
-          <Link
-            to="/platforms"
-            className="grid h-8 place-items-center rounded-xl bg-default text-sm font-medium hover:bg-surface-tertiary"
-          >
-            {t('platforms.connect')}
-          </Link>
         )}
         {account?.needsReauth && (
           <Link

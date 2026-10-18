@@ -16,6 +16,7 @@ import { getDescriptorFor, getLabelFor } from '../../platforms/registry';
 import { TikTokConsent } from '../../platforms/tiktok';
 import { clearVideo, draftSaved } from './composerSlice';
 import { uploadReset } from '../upload';
+import { usePublishablePlatforms } from './usePublishablePlatforms';
 
 export function ComposerActionBar() {
   const { t, i18n } = useTranslation('composer');
@@ -30,12 +31,12 @@ export function ComposerActionBar() {
     description,
     hashtags,
     publishAt,
-    selectedPlatforms,
     platformSettings,
   } = composer;
   const uploadStatus = useSelector((state: RootState) => state.upload.status);
 
   const { data: accounts } = useGetAccountsQuery();
+  const selectedPlatforms = usePublishablePlatforms();
   const [createPublication, { isLoading: isPublishing }] = useCreatePublicationMutation();
   const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
   const [deleteDraft] = useDeleteDraftMutation();
@@ -52,10 +53,6 @@ export function ComposerActionBar() {
   });
 
   const isUploading = uploadStatus === 'hashing' || uploadStatus === 'uploading';
-
-  const withoutAccount = selectedPlatforms.find(
-    (platform) => !targets.some((target) => target.platform === platform),
-  );
 
   const draftError = selectedPlatforms.flatMap((platform) =>
     getDescriptorFor(platform)
@@ -76,13 +73,11 @@ export function ComposerActionBar() {
       ? t('summary.needsUpload')
       : selectedPlatforms.length === 0
         ? t('summary.needsPlatform')
-        : withoutAccount
-          ? t('summary.needsAccount', { platform: getLabelFor(withoutAccount) })
-          : draftError
-            ? t(`summary.invalid.${draftError.code}`, {
-                platform: getLabelFor(draftError.platform),
-              })
-            : undefined;
+        : draftError
+          ? t(`summary.invalid.${draftError.code}`, {
+              platform: getLabelFor(draftError.platform),
+            })
+          : undefined;
 
   async function publish() {
     if (!video?.mediaAssetId) return;

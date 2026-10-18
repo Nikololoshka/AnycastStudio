@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Button,
   Card,
   Description,
   Input,
@@ -10,7 +9,7 @@ import {
   TextArea,
   TextField,
 } from '@heroui/react';
-import { Hash, ImagePlus } from 'lucide-react';
+import { Hash } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import { VideoDropZone } from '../../components/VideoDropZone';
@@ -18,12 +17,6 @@ import { normalizeHashtags } from '../../domain/publication/normalizeHashtags';
 import type { AppDispatch, RootState } from '../../app/store';
 import { setDescription, setHashtags, setTitle } from './composerSlice';
 
-const PLACEHOLDER_FRAMES = [
-  'bg-muted-strong',
-  'bg-muted',
-  'bg-accent-soft-foreground',
-  'bg-surface-tertiary',
-];
 
 export function ComposerFileCard() {
   const { t } = useTranslation('composer');
@@ -102,43 +95,6 @@ export function ComposerTextCard() {
         )}
       </div>
 
-      <CoverPicker />
     </Card>
-  );
-}
-
-function CoverPicker() {
-  const { t } = useTranslation('composer');
-  const thumbnail = useSelector((state: RootState) => state.composer.video?.thumbnailDataUrl);
-  const [cover, setCover] = useState(0);
-
-  return (
-    <div role="group" aria-labelledby="composer-cover" className="flex flex-col gap-2">
-      <span id="composer-cover" className="text-sm font-medium">
-        {t('cover.label')}
-      </span>
-      <div className="flex flex-wrap gap-2.5">
-        {PLACEHOLDER_FRAMES.map((background, index) => (
-          <button
-            key={background}
-            type="button"
-            aria-pressed={cover === index}
-            aria-label={t('cover.frame', { number: index + 1 })}
-            onClick={() => setCover(index)}
-            className={`h-16 w-28 cursor-pointer overflow-hidden rounded-xl outline-none ring-offset-2 ring-offset-surface transition-shadow focus-visible:ring-2 focus-visible:ring-focus ${background} ${
-              cover === index ? 'ring-3 ring-accent' : ''
-            }`}
-          >
-            {index === 0 && thumbnail && (
-              <img src={thumbnail} alt="" className="size-full object-cover" />
-            )}
-          </button>
-        ))}
-        <Button variant="secondary" isDisabled className="h-16 rounded-xl">
-          <ImagePlus className="size-4" />
-          {t('cover.custom')}
-        </Button>
-      </div>
-    </div>
   );
 }

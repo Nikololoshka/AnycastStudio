@@ -20,6 +20,7 @@ import { getCapabilitiesFor } from '../../platforms/registry';
 import type { AvailablePlatform } from '../../domain/platform/order';
 import type { AppDispatch, RootState } from '../../app/store';
 import { setPublishAt } from './composerSlice';
+import { usePublishablePlatforms } from './usePublishablePlatforms';
 
 type ScheduleMode = 'now' | 'schedule';
 
@@ -34,7 +35,7 @@ function combine(date: CalendarDate, time: Time): string {
 
 function SchedulePlan() {
   const { t } = useTranslation('composer');
-  const selectedPlatforms = useSelector((state: RootState) => state.composer.selectedPlatforms);
+  const selectedPlatforms = usePublishablePlatforms();
 
   if (selectedPlatforms.length === 0) return null;
 
