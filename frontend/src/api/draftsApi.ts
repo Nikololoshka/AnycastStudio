@@ -2,7 +2,7 @@ import { baseApi } from './baseApi';
 import type { ComposerState } from '../features/composer/composerSlice';
 import { readStored, STORAGE_KEYS, writeStored } from '../services/storage';
 
-export type DraftContent = Omit<ComposerState, 'draftId'>;
+export type DraftContent = Omit<ComposerState, 'draftId' | 'dirty'>;
 
 export interface Draft extends DraftContent {
   id: string;

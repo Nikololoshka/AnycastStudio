@@ -17,6 +17,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { TimePicker } from '../../components/TimePicker';
 import { PlatformGlyph } from '../../components/PlatformGlyph';
 import { getCapabilitiesFor } from '../../platforms/registry';
+import { TikTokConsent } from '../../platforms/tiktok';
 import type { AvailablePlatform } from '../../domain/platform/order';
 import type { AppDispatch, RootState } from '../../app/store';
 import { setPublishAt } from './composerSlice';
@@ -65,6 +66,7 @@ export function ComposerTimingCard() {
   const { t } = useTranslation('composer');
   const dispatch = useDispatch<AppDispatch>();
   const publishAt = useSelector((state: RootState) => state.composer.publishAt);
+  const selectedPlatforms = usePublishablePlatforms();
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>(publishAt ? 'schedule' : 'now');
 
   const scheduled = publishAt ? parseAbsoluteToLocal(publishAt) : undefined;
@@ -189,6 +191,8 @@ export function ComposerTimingCard() {
           <SchedulePlan />
         </Tabs.Panel>
       </Tabs>
+
+      {selectedPlatforms.includes('tiktok') && <TikTokConsent />}
     </Card>
   );
 }

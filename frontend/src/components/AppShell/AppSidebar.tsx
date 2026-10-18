@@ -1,7 +1,9 @@
 import { Avatar } from '@heroui/react';
 import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
 import { Link, NavLink } from 'react-router';
 import { useGetSessionQuery } from '../../api';
+import type { RootState } from '../../app/store';
 import { StorageMeter } from '../../features/media';
 import { AppMark } from './AppMark';
 import { NAV_ITEMS } from './navItems';
@@ -18,6 +20,7 @@ function navClass({ isActive }: { isActive: boolean }): string {
 export function AppSidebar() {
   const { t } = useTranslation();
   const { data: user } = useGetSessionQuery();
+  const composerDirty = useSelector((state: RootState) => state.composer.dirty);
 
   return (
     <aside className="flex flex-col gap-6 border-b border-border bg-surface px-3 py-5 min-[900px]:sticky min-[900px]:top-0 min-[900px]:h-dvh min-[900px]:w-62 min-[900px]:shrink-0 min-[900px]:overflow-y-auto min-[900px]:border-r min-[900px]:border-b-0">
@@ -31,6 +34,11 @@ export function AppSidebar() {
           <NavLink key={to} to={to} className={navClass}>
             <Icon className="size-5 shrink-0" strokeWidth={1.8} />
             {t(key)}
+            {to === '/compose' && composerDirty && (
+              <span className="ml-auto size-2 rounded-full bg-warning">
+                <span className="sr-only">{t('nav.unsaved')}</span>
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

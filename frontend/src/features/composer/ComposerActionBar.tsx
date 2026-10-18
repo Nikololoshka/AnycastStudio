@@ -13,8 +13,7 @@ import {
 import { messageOf, statusOf } from '../../api/errors';
 import type { AppDispatch, RootState } from '../../app/store';
 import { getDescriptorFor, getLabelFor } from '../../platforms/registry';
-import { TikTokConsent } from '../../platforms/tiktok';
-import { clearVideo, draftSaved } from './composerSlice';
+import { draftSaved, publicationCreated } from './composerSlice';
 import { uploadReset } from '../upload';
 import { usePublishablePlatforms } from './usePublishablePlatforms';
 
@@ -24,15 +23,8 @@ export function ComposerActionBar() {
   const navigate = useNavigate();
 
   const composer = useSelector((state: RootState) => state.composer);
-  const {
-    draftId,
-    video,
-    title,
-    description,
-    hashtags,
-    publishAt,
-    platformSettings,
-  } = composer;
+  const { draftId, video, title, description, hashtags, publishAt, platformSettings, dirty } =
+    composer;
   const uploadStatus = useSelector((state: RootState) => state.upload.status);
 
   const { data: accounts } = useGetAccountsQuery();
@@ -93,7 +85,7 @@ export function ComposerActionBar() {
       }).unwrap();
 
       if (draftId) void deleteDraft(draftId);
-      dispatch(clearVideo());
+      dispatch(publicationCreated());
       dispatch(uploadReset());
       void navigate(`/publications/${publication.id}`);
     } catch (cause) {
@@ -109,13 +101,11 @@ export function ComposerActionBar() {
   }
 
   async function save() {
-    const { draftId: id, ...content } = composer;
+    const { draftId: id, dirty: _dirty, ...content } = composer;
     const draft = await saveDraft({ ...content, id }).unwrap();
     setSavedAt(draft.updatedAt);
-    if (!id) {
-      await navigate(`/compose/${draft.id}`, { replace: true });
-      dispatch(draftSaved(draft.id));
-    }
+    if (!id) await navigate(`/compose/${draft.id}`, { replace: true });
+    dispatch(draftSaved(draft.id));
   }
 
   return (
@@ -126,16 +116,23 @@ export function ComposerActionBar() {
       ].join(' ')}
     >
       <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1 text-[13px]">
-        {savedAt && (
+        {dirty ? (
           <p className="flex items-center gap-2 text-muted">
-            <Check className="size-4 text-success" />
-            {t('summary.draftSavedAt', {
-              time: new Date(savedAt).toLocaleTimeString(i18n.language, {
-                hour: '2-digit',
-                minute: '2-digit',
-              }),
-            })}
+            <span className="mx-[3px] size-2.5 rounded-full bg-warning" />
+            {t('summary.unsaved')}
           </p>
+        ) : (
+          savedAt && (
+            <p className="flex items-center gap-2 text-muted">
+              <Check className="size-4 text-success" />
+              {t('summary.draftSavedAt', {
+                time: new Date(savedAt).toLocaleTimeString(i18n.language, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+              })}
+            </p>
+          )
         )}
         {error ? (
           <p role="alert" className="text-danger">
@@ -144,7 +141,6 @@ export function ComposerActionBar() {
         ) : (
           blocker && <p className="text-muted">{blocker}</p>
         )}
-        {selectedPlatforms.includes('tiktok') && <TikTokConsent />}
       </div>
 
       <Button

@@ -1,14 +1,5 @@
 import { useState } from 'react';
-import {
-  Card,
-  Description,
-  Input,
-  Label,
-  Tag,
-  TagGroup,
-  TextArea,
-  TextField,
-} from '@heroui/react';
+import { Card, Description, Input, Label, Tag, TagGroup, TextArea, TextField } from '@heroui/react';
 import { Hash } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,7 +7,6 @@ import { VideoDropZone } from '../../components/VideoDropZone';
 import { normalizeHashtags } from '../../domain/publication/normalizeHashtags';
 import type { AppDispatch, RootState } from '../../app/store';
 import { setDescription, setHashtags, setTitle } from './composerSlice';
-
 
 export function ComposerFileCard() {
   const { t } = useTranslation('composer');
@@ -94,7 +84,6 @@ export function ComposerTextCard() {
           </TagGroup>
         )}
       </div>
-
     </Card>
   );
 }
