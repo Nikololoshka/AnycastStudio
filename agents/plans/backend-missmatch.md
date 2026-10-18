@@ -8,15 +8,24 @@
 
 Найдено при разборе:
 - `User` уже хранит `locale`, `timezone`, `theme` и отдаёт их в `/api/auth/me`
-  (`accounts/views/serializers.py::user_json`), но записать их нельзя, а SPA держит
-  язык/тему только в `localStorage`.
+  (`accounts/views/serializers.py::user_json`). Язык, тема и часовой пояс — локальные
+  настройки браузера: SPA держит их в `localStorage`, на сервер они не пишутся.
 - Черновики живут только в `localStorage` (`frontend/src/api/draftsApi.ts`). При этом
   сервер сам удаляет файлы, на которые нет публикаций, через `ORPHAN_ASSET_TTL_HOURS = 48`
   (`media/services.py::never_published_since`). **Видео черновика пропадает через двое
   суток** — это баг, а не просто отсутствующая фича.
 - Автоочистка уже есть и глобальная: `MEDIA_RETENTION_HOURS = 48` после публикации
-  (`media/services.py::unused_assets`, команда `sweep_media`, Celery beat).
+  (`media/services.py::unused_assets`, команда `sweep_media`, Celery beat). Настройка
+  автоочистки в UI — мок в `profileApi.ts`.
 - Удаление публикации — мок: скрытие id в `localStorage` (`publicationsApi.ts`).
+- Настройки платформ по умолчанию (какие платформы выбирать в новой публикации и их
+  настройки) — мок в `localStorage` (`frontend/src/api/platformDefaultsApi.ts`, ключи
+  `defaultPlatforms`, `platformSettings`). Composer подхватывает новые значения через
+  matcher на `updatePlatformDefaults.matchFulfilled` в `composerSlice.ts`, если
+  публикация ещё не тронута.
+- В composer есть флаг `dirty` («несохранённые изменения»). Он только клиентский и
+  исключён из `DraftContent` (`draftsApi.ts`); сбрасывается через `draftSaved` после
+  каждого сохранения черновика.
 - Обложка: у TikTok и Instagram уже есть `coverFrameSeconds` в настройках платформы
   (`platforms/{tiktok,instagram}/publish/*_options.py`) — бэкенд не нужен.
 
@@ -34,59 +43,44 @@
 - `media/services.py::never_published_since` и `is_in_use`: исключить ассеты, на
   которые ссылается черновик. Удаление ассета черновика → 409 `asset_in_use`, как сейчас.
 - При создании публикации из черновика фронтенд и так удаляет черновик — оставить.
+- Схема черновика повторяет `DraftContent` без `draftId` и `dirty`; `dirty` на сервер
+  не уходит. После ответа сервера по-прежнему `dispatch(draftSaved(draft.id))` — это
+  снимает индикатор несохранённых изменений.
 - Фронтенд: `draftsApi.ts` с `queryFn` → обычные `query` к API; одноразовый перенос
   старых черновиков из `localStorage` (POST каждого, потом очистка ключа).
 - Тесты: CRUD, изоляция пользователей (404), sweep не трогает ассет черновика.
 
-### 2. Настройки пользователя — P1
-- `PATCH /api/auth/me` в `accounts/views/auth.py`: `locale`, `timezone` (проверка через
-  `zoneinfo.available_timezones()`), `theme` (имя и почту меняет админ). Плюс новое поле `media_retention_hours` (выбор 168/720/2160 или «не удалять» = null).
-- `User.media_retention_hours = PositiveIntegerField(null=True, default=48)`; миграция.
-  `published_and_done_since` считает срок по пользователю вместо глобальной
-  `MEDIA_RETENTION_HOURS` (её оставить как значение по умолчанию поля).
-- Фронтенд: язык/тема/часовой пояс/автоочистка берутся из `/me` и пишутся через PATCH;
-  `localStorage` остаётся только как кэш до логина. Мок автоочистки и часового пояса
-  из `api/profileApi.ts` убрать.
-- Часовой пояс сервер пока ни для чего не использует (время приходит в ISO с зоной) —
-  он нужен фронтенду для отображения и подписи в DatePicker. Это нормально.
-- Тесты: валидация зоны и enum, sweep с персональным сроком.
+### 2. Настройки пользователя: автоочистка и платформы по умолчанию — P1
+- `PATCH /api/auth/me` в `accounts/views/auth.py` принимает только
+  `media_retention_hours` и настройки платформ по умолчанию. Язык, тема и часовой пояс
+  остаются в `localStorage` и через API не меняются.
+- `User.media_retention_hours = PositiveIntegerField(null=True, default=48)`, выбор
+  168/720/2160 или «не удалять» = null; миграция. `published_and_done_since` считает
+  срок по пользователю вместо глобальной `MEDIA_RETENTION_HOURS` (её оставить как
+  значение по умолчанию поля).
+- Настройки платформ по умолчанию: `User.default_platforms` (JSON, список из
+  `AVAILABLE_PLATFORMS`) и `User.platform_defaults` (JSON, по платформе). Отдаются в
+  `/me`, пишутся тем же `PATCH`. Каждая платформа проверяется своей схемой опций
+  (`platforms/*/publish/*_options.py`), неизвестные платформы и ключи → `invalid`.
+- Фронтенд: автоочистка берётся из `/me` и пишется через PATCH, её мок из
+  `api/profileApi.ts` убрать; `timeZone` в `profileApi.ts` остаётся локальным.
+- Фронтенд: `platformDefaultsApi.ts` с `queryFn` → запросы к API. Имя и форму мутации
+  `updatePlatformDefaults` (`{ selected, settings }`) сохранить, иначе отвалится
+  matcher в `composerSlice.ts`. Перенос значений из `localStorage` — как у черновиков.
+- Тесты: enum автоочистки, sweep с персональным сроком, отказ на неизвестную платформу
+  и неверные опции в настройках по умолчанию.
 
 ### 3. Удаление публикации — P1
 - `DELETE /api/publications/<id>`: разрешено, только если нет активных целей
   (`PublicationTarget.ACTIVE`), иначе 409. Мягкое удаление: `Publication.hidden_at`
   (видео на платформах не трогаем, история публикации для ассета сохраняется, `PROTECT`
   на ассете не мешает). Список и detail фильтруют `hidden_at__isnull=True`.
-- Фронтенд: убрать `deletedPublicationIds` из `publicationsApi.ts`.
+- Фронтенд: убрать `deletedPublicationIds` из `publicationsApi.ts`. В списке
+  публикаций клик по строке открывает `/publications/<id>`, попапа «Ссылки» больше нет:
+  ссылки на платформы смотрят на странице публикации, отдельного API не нужно.
 - Тесты: 404 чужая, 409 активная, исчезает из списка.
 
-### 4. Сессии и пароль — P2
-- Модель `accounts.UserSession(user, session_key unique, user_agent, created_at,
-  last_seen_at)`: запись создаётся в `account_login`, `last_seen_at` обновляет
-  middleware не чаще раза в 5 минут (правило про троттлинг записей в SQLite).
-  IP не храним.
-- `GET /api/auth/sessions` (с флагом `current`), `DELETE /api/auth/sessions/<id>`:
-  удаляет строку и `SessionStore(session_key).delete()` (сессии `cached_db` — удалить
-  и из кэша). Текущую завершать нельзя (для этого есть logout).
-- `POST /api/auth/password` (`old_password`, `new_password`, валидаторы Django,
-  `rate_limit`), затем `update_session_auth_hash`; остальные сессии пользователя
-  завершаются.
-- Фронтенд: `getSessions`/`endSession` из `profileApi.ts` → API; включить «Сменить пароль»
-  (диалог).
-- Тесты: чужая сессия 404, завершённая сессия больше не авторизует, неверный старый
-  пароль, rate limit.
-
-### 5. Уведомления в приложении — P3
-- Почты в проекте нет, поэтому только колокольчик. Модель `Notification(user, kind,
-  publication FK null, payload JSON, created_at, read_at)`; создаётся в
-  `services/usecases/publications/` через новый порт (use cases не знают Django) в
-  момент, когда цель публикации завершилась или упала, и при `needs_reauth` аккаунта.
-- Настройки (какие виды присылать) — JSON-поле `User.notification_prefs`, пишется тем же
-  `PATCH /me`. «Еженедельная сводка на почту» и «хранилище > 90%» — убрать из UI,
-  пока нет почты (или 90% считать на клиенте из `usedBytes/quotaBytes`).
-- `GET /api/notifications` (последние 50), `POST /api/notifications/read`.
-  Фронтенд опрашивает раз в 30–60 с — как с публикациями, без websocket.
-
-### 6. Превью видео — P3
+### 4. Превью видео — P3
 - Браузер уже делает кадр (`VideoFile.thumbnailDataUrl`). Отправлять его JPEG вместе с
   `uploads/<id>/complete` (до 200 КБ, проверка сигнатуры JPEG), хранить рядом с файлом,
   отдавать `GET /api/media/assets/<id>/thumbnail` с проверкой владельца.
@@ -95,11 +89,17 @@
 
 ## Что НЕ делаем на бэкенде
 
+- **Язык, тема, часовой пояс** — локальные настройки браузера, остаются в
+  `localStorage`. Поля `User.locale/timezone/theme` на сервере не используются.
+- **Сессии и смена пароля** — в UI их нет; пароль меняет админ.
+- **Уведомления в приложении** — пока не нужны.
 - **Обложка в composer** — фронтенд: выбранный кадр пишется в `coverFrameSeconds`
   TikTok/Instagram. Своя картинка для YouTube требует загрузки thumbnail через API
   канала — отдельная задача, когда понадобится.
 - **Поиск в шапке, сводка «Обзора», категории медиатеки, пагинация** — данных мало,
   клиент считает сам. Серверная пагинация — когда публикаций станут сотни.
+- **Согласие с правилами TikTok** — только текст в карточке «Время публикации»
+  (`platforms/tiktok/TikTokConsent.tsx`); бэкенд согласие не хранит.
 - **«Увеличить место»** — квоту меняет админ (`User.max_storage_bytes`); кнопку оставить
   неактивной или убрать.
 - **Удаление аккаунта** — удаление пользовательских данных, по CLAUDE.md только с
@@ -116,7 +116,9 @@
 - `backend/accounts/{models.py,urls.py,views/auth.py,views/schemas.py,views/serializers.py}`
 - `backend/common/responses/contract.py` — новых статусов не нужно (`conflict`,
   `not_found`, `invalid` уже есть); проверить при реализации.
-- `frontend/src/api/{draftsApi,profileApi,publicationsApi,authApi}.ts`
+- `frontend/src/api/{draftsApi,profileApi,publicationsApi,authApi,platformDefaultsApi}.ts`
+- `frontend/src/features/composer/composerSlice.ts` (флаг `dirty`, matcher на
+  `updatePlatformDefaults`)
 
 ## Проверка
 
@@ -130,6 +132,7 @@
 Из `frontend/`: `npx tsc --noEmit && npm run lint && npm test`.
 
 Вручную: сохранить черновик с видео, прогнать `manage.py sweep_media` с подставленным
-временем — видео черновика остаётся; сменить язык/тему/зону — переживает перелогин и
-другой браузер; удалить завершённую публикацию; войти с двух браузеров и завершить одну
-сессию из другой.
+временем — видео черновика остаётся; сменить автоочистку и платформы по умолчанию —
+переживает перелогин и другой браузер; после смены платформ по умолчанию нетронутая
+«Новая публикация» показывает новые значения, а начатая — свои; сохранение черновика
+снимает точку «несохранённые изменения»; удалить завершённую публикацию.
