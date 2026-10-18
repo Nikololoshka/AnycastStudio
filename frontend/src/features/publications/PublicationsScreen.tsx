@@ -5,13 +5,12 @@ import {
   Label,
   ListBox,
   Pagination,
-  Popover,
   Select,
   Spinner,
   Table,
   Tabs,
 } from '@heroui/react';
-import { ExternalLink, Film, Plus, Trash2 } from 'lucide-react';
+import { Film, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -26,14 +25,10 @@ import { useDeleteDraftMutation, useGetDraftsQuery, type Draft } from '../../api
 import type { AppDispatch } from '../../app/store';
 import { useScrolled } from '../../components/AppShell/useScrolled';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { PlatformGlyph } from '../../components/PlatformGlyph';
-import type { AvailablePlatform } from '../../domain/platform/order';
-import { getLabelFor } from '../../platforms/registry';
 import { composerReset } from '../composer';
 import { uploadReset } from '../upload';
 import { publicationTab, type PublicationTab } from './publicationTab';
 import {
-  availableTargets,
   DOT,
   publicationChip,
   targetMarks,
@@ -53,7 +48,7 @@ interface Row {
   marks: TargetMark[];
   chip: StatusChip;
   date: string;
-  action: { label: string; to: string } | { links: { platform: AvailablePlatform; url: string }[] };
+  action: { label?: string; to: string };
 }
 
 const TABS: ScreenTab[] = ['published', 'scheduled', 'draft', 'error'];
@@ -125,20 +120,8 @@ export function PublicationsScreen() {
   };
 
   function publicationRow(publication: Publication): Row {
-    const links = availableTargets(publication)
-      .filter((target) => target.publishedUrl)
-      .map((target) => ({
-        platform: target.platform as AvailablePlatform,
-        url: target.publishedUrl,
-      }));
-    const open = { label: t('actions.open'), to: `/publications/${publication.id}` };
+    const to = `/publications/${publication.id}`;
     const tab = publicationTab(publication);
-    const action: Row['action'] =
-      tab === 'error'
-        ? { label: t('actions.retry'), to: open.to }
-        : tab === 'published' && !publication.isActive && links.length
-          ? { links }
-          : open;
 
     return {
       key: `publication-${publication.id}`,
@@ -151,7 +134,7 @@ export function PublicationsScreen() {
         tab === 'scheduled'
           ? (publication.publishAt ?? publication.createdAt)
           : publication.createdAt,
-      action,
+      action: { label: tab === 'error' ? t('actions.retry') : undefined, to },
     };
   }
 
@@ -293,12 +276,18 @@ export function PublicationsScreen() {
                     </Table.Column>
                   </Table.Header>
                   <Table.Body
+                    className="before:block before:h-1.5"
                     renderEmptyState={() => (
                       <p className="py-12 text-center text-sm text-muted">{t(`empty.${tab}`)}</p>
                     )}
                   >
                     {visible.map((row) => (
-                      <Table.Row key={row.key} id={row.key}>
+                      <Table.Row
+                        key={row.key}
+                        id={row.key}
+                        onAction={() => void navigate(row.action.to)}
+                        className="cursor-pointer"
+                      >
                         <Table.Cell>
                           <span className="flex items-center gap-3">
                             <span className="grid h-9 w-16 shrink-0 place-items-center rounded-lg bg-surface-tertiary text-muted">
@@ -322,39 +311,11 @@ export function PublicationsScreen() {
                         </Table.Cell>
                         <Table.Cell>
                           <span className="flex items-center justify-end gap-1">
-                            {'links' in row.action ? (
-                              <Popover>
-                                <Button size="sm" variant="tertiary">
-                                  {t('actions.links')}
-                                </Button>
-                                <Popover.Content placement="bottom end">
-                                  <Popover.Dialog
-                                    aria-label={t('actions.links')}
-                                    className="flex min-w-48 flex-col gap-0.5 p-1.5"
-                                  >
-                                    {row.action.links.map((link) => (
-                                      <a
-                                        key={link.platform}
-                                        href={link.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-surface-secondary"
-                                      >
-                                        <PlatformGlyph platform={link.platform} size="sm" />
-                                        {getLabelFor(link.platform)}
-                                        <ExternalLink className="ml-auto size-3.5 text-muted" />
-                                      </a>
-                                    ))}
-                                  </Popover.Dialog>
-                                </Popover.Content>
-                              </Popover>
-                            ) : (
+                            {row.action.label && (
                               <Button
                                 size="sm"
                                 variant="tertiary"
-                                onPress={() => {
-                                  if ('to' in row.action) void navigate(row.action.to);
-                                }}
+                                onPress={() => void navigate(row.action.to)}
                               >
                                 {row.action.label}
                               </Button>
