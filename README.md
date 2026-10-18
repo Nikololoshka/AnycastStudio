@@ -184,8 +184,8 @@ mocked at the HTTP layer, so the real chunking, offsets and retry policy run.
   token.
 - An OAuth callback's `state` is checked both for being one we issued and for
   belonging to the person whose session is on the request.
-- Uploaded video is deleted `MEDIA_RETENTION_HOURS` after everything using it
-  finished, and an unused upload is swept sooner.
+- Uploaded video is deleted the owner's chosen 7, 30 or 90 days after everything
+  using it finished (never, if they turn this off), and an unused upload is swept sooner.
 - The Django admin is never published. Reach it over an SSH tunnel.
 
 ---
