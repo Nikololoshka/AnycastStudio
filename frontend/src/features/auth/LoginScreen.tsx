@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button, Card, Input, Label, TextField } from '@heroui/react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useLoginMutation } from '../../api';
 import { messageOf, statusOf } from '../../api/errors';
 import { AppMark } from '../../components/AppShell';
@@ -46,7 +46,6 @@ export function LoginScreen() {
           <Card.Title className="font-display text-xl font-semibold tracking-tight">
             {t('title')}
           </Card.Title>
-          <Card.Description className="text-center">{t('subtitle')}</Card.Description>
         </Card.Header>
 
         <Card.Content>
@@ -89,8 +88,13 @@ export function LoginScreen() {
           </form>
         </Card.Content>
 
-        <Card.Footer className="justify-center">
-          <p className="text-center text-xs text-muted">{t('noSignUp')}</p>
+        <Card.Footer className="justify-center gap-4 text-xs text-muted">
+          <Link to="/privacy" className="hover:text-foreground hover:underline">
+            {t('privacy')}
+          </Link>
+          <Link to="/terms" className="hover:text-foreground hover:underline">
+            {t('terms')}
+          </Link>
         </Card.Footer>
       </Card>
     </main>

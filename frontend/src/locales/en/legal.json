@@ -1,0 +1,111 @@
+{
+  "back": "Back to sign in",
+  "updated": "Last updated: October 19, 2026",
+  "contact": "Contact: <mail/>",
+  "privacy": {
+    "title": "Privacy Policy",
+    "intro": "This policy explains what data AnycastStudio collects, why, and how long it is kept.",
+    "sections": [
+      {
+        "title": "1. What we collect",
+        "text": [],
+        "items": [
+          "Account: email address and a password hash.",
+          "Connected platforms: account ID, display name, avatar and the access tokens YouTube, TikTok, Instagram or X issue when you connect them. Tokens are stored encrypted.",
+          "Content: videos, covers, titles, descriptions and publishing settings you add.",
+          "Technical data: IP address and browser details in server logs."
+        ]
+      },
+      {
+        "title": "2. Why",
+        "text": [],
+        "items": [
+          "To sign you in and keep the session.",
+          "To publish your content to the platforms you connected, on your command.",
+          "To keep the service secure: limit sign-in attempts and investigate failures."
+        ]
+      },
+      {
+        "title": "3. Cookies and browser storage",
+        "text": [],
+        "items": [
+          "sessionid: keeps you signed in, up to 14 days.",
+          "csrftoken: protects forms from forged requests.",
+          "Local storage keeps the theme, language, time zone and an unfinished upload. It stays in your browser.",
+          "No analytics or advertising cookies."
+        ]
+      },
+      {
+        "title": "4. Who receives data",
+        "text": [],
+        "items": [
+          "Only the platforms you connected and only what you publish to them: Google (YouTube), TikTok, Meta (Instagram), X.",
+          "We do not sell data or share it for advertising."
+        ]
+      },
+      {
+        "title": "5. How long we keep it",
+        "text": [],
+        "items": [
+          "Account and connected platforms: until you delete them.",
+          "Unfinished uploads: up to 6 hours. Media that no draft or publication uses is deleted automatically.",
+          "Server logs: up to 30 days."
+        ]
+      },
+      {
+        "title": "6. Your rights",
+        "text": [],
+        "items": [
+          "You can request a copy, correction or deletion of your data: write to <mail/>.",
+          "You can disconnect a platform at any time; its tokens are deleted. You can also revoke access in the platform's own settings."
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms of Use",
+    "intro": "AnycastStudio is a service for publishing your videos to several platforms at once. By using it, you agree to these terms.",
+    "sections": [
+      {
+        "title": "1. General terms",
+        "text": [
+          "1.1. You create the content you publish and are fully responsible for it, including following the rules of each platform.",
+          "1.2. Keep your password secret: actions under your account are considered yours.",
+          "1.3. We do not review content in advance, but may delete it and restrict access to an account that breaks these terms, without notice."
+        ],
+        "items": []
+      },
+      {
+        "title": "2. Prohibited content and actions",
+        "text": ["You may not publish or distribute through the service:"],
+        "items": [
+          "illegal content of any kind;",
+          "sexual content and any 18+ content;",
+          "insults, threats, harassment, discrimination and hate speech;",
+          "content that breaks the rules of YouTube, TikTok, Instagram or X;",
+          "content that infringes copyright or related rights;",
+          "personal data of third parties without their consent;",
+          "malware, malicious links and exploits;",
+          "spam, artificial boosting of views, likes or comments, bots;",
+          "attempts to bypass, test or break the protection of the service or platforms, or to access other people's accounts."
+        ]
+      },
+      {
+        "title": "3. Service",
+        "text": [
+          "3.1. The service is provided as is. Platforms may reject or remove a publication by their own rules.",
+          "3.2. We may change these terms; the date above shows the current version."
+        ],
+        "items": []
+      },
+      {
+        "title": "4. Privacy",
+        "text": [
+          "What we collect and why is described in the <privacy>Privacy Policy</privacy>.",
+          "You can request deletion of your data by writing to <mail/>."
+        ],
+        "items": []
+      }
+    ]
+  }
+}

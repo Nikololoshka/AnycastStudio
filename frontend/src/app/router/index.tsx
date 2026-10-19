@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate, redirect, type LoaderFunctionArgs } from 'react-router';
 import { AppShell } from '../../components/AppShell';
 import { AccountScreen } from '../../features/account';
-import { LoginScreen, ProtectedRoute } from '../../features/auth';
+import { LegalScreen, LoginScreen, ProtectedRoute } from '../../features/auth';
 import { ComposerScreen } from '../../features/composer';
 import { PlatformsScreen } from '../../features/accounts';
 import { LibraryScreen } from '../../features/media';
@@ -14,6 +14,8 @@ function redirectWithQuery(to: string) {
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginScreen /> },
+  { path: '/privacy', element: <LegalScreen document="privacy" /> },
+  { path: '/terms', element: <LegalScreen document="terms" /> },
   {
     path: '/',
     element: (
