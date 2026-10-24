@@ -66,6 +66,7 @@ export function LegalScreen({ document }: { document: LegalDocument }) {
               )}
             </section>
           ))}
+          <p className="text-xs text-muted">{texts.metaNote}</p>
         </Card.Content>
 
         <Card.Footer>
